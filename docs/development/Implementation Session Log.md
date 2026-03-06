@@ -278,26 +278,109 @@ Files: 12 new, 3 modified
 
 ---
 
+## 2026-03-06 - Phase 3: Full-Page View + Calendar
+
+**Focus:** Full-page view with tab router and month calendar. Calendar shows day grid color-coded by selected frontmatter metric.
+
+### Completed:
+
+#### View & Components
+- ✅ Created `src/views/HindsightMainView.tsx` — ItemView + React root (same pattern as sidebar)
+- ✅ Created `src/components/MainApp.tsx` — Tab router: Calendar, Timeline (stub), Index (stub) with entry count in labels
+- ✅ Created `src/components/calendar/CalendarGrid.tsx` — 7-column month grid, day-of-week headers, memoized entry mapping
+- ✅ Created `src/components/calendar/CalendarCell.tsx` — Metric color-coding (HSL gradient), context menu (Obsidian Menu class), mobile tap Notice, hover tooltips
+- ✅ Created `src/components/calendar/CalendarNav.tsx` — Month prev/next, arrow key navigation, "Today" button
+- ✅ Created `src/components/shared/MetricSelector.tsx` — Dropdown filtering to numeric/boolean fields only
+
+#### Utilities & Store
+- ✅ Created `src/utils/statsUtils.ts` — `mapValueToColor()` (HSL red→yellow→green), `mapBooleanToColor()`
+- ✅ Updated `src/store/uiStore.ts` — `activeMainTab`, `calendarMonth`, `calendarYear`, `selectedMetric` + setters
+
+#### Styles
+- ✅ Created `src/styles/calendar.css` — Grid layout, cell styling, nav bar, hover effects, today ring, metric indicator dot, 44px touch targets
+- ✅ Updated `src/styles/variables.css` — Added `.hindsight-main-container` to CSS variable scope
+- ✅ Updated `src/styles/index.css` — Added calendar.css import
+
+#### Integration
+- ✅ Updated `main.ts` — View registration, `open-main` command, `book-open` ribbon icon, `activateMainView()` helper
+
+#### Bug Fix
+- ✅ Added `tabIndex={0}` to calendar container div — without this, arrow key navigation didn't work because divs aren't focusable by default
+
+### Files Changed:
+
+**New Files (10):**
+- `src/views/HindsightMainView.tsx`
+- `src/components/MainApp.tsx`
+- `src/components/calendar/CalendarGrid.tsx`
+- `src/components/calendar/CalendarCell.tsx`
+- `src/components/calendar/CalendarNav.tsx`
+- `src/components/shared/MetricSelector.tsx`
+- `src/utils/statsUtils.ts`
+- `src/styles/calendar.css`
+- `test/utils/statsUtils.test.ts`
+- `test/utils/calendarUtils.test.ts`
+
+**Modified Files (4):**
+- `main.ts` — View registration, command, ribbon icon, activateMainView()
+- `src/store/uiStore.ts` — Calendar state fields (activeMainTab, calendarMonth, calendarYear, selectedMetric)
+- `src/styles/variables.css` — Added .hindsight-main-container to CSS scope
+- `src/styles/index.css` — Calendar CSS import
+
+### Testing Notes:
+- ✅ `npm run build` passes
+- ✅ `npm run deploy:test` deploys to test vault
+- ✅ All 13 Phase 3 verification items confirmed by Brad
+- ✅ Arrow key navigation fix verified by Brad
+
+### Blockers/Issues:
+- None
+
+### Design Notes:
+- **Calendar container focusability:** Standard `<div>` elements don't receive keyboard events. Added `tabIndex={0}` with `outline: none` CSS to make the calendar container focusable for arrow key month navigation without a visible focus ring.
+- **Context menu "View in timeline":** Added per plan — switches to Timeline tab which currently shows "Coming soon" stub. Will become functional in Phase 4.
+
+---
+
+## 2026-03-06 - Phase 3.5: Calendar Utility Tests
+
+**Focus:** Unit tests for statsUtils color-mapping functions and calendar date math.
+
+### Completed:
+
+#### Phase 3.5: Calendar Utility Tests (27 new tests, 152 total passing)
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `test/utils/statsUtils.test.ts` | 13 | mapValueToColor (min/max/mid/null/clamp-below/clamp-above/min=max/negative-range/large-range/25%), mapBooleanToColor (true/false/null) |
+| `test/utils/calendarUtils.test.ts` | 14 | Days per month (Jan/Feb/Apr/Dec, leap years 2024/2000/1900), first-day-of-week alignment (4 months), month nav boundary crossing (Dec→Jan, Jan→Dec, mid-year) |
+
+### Testing Notes:
+- ✅ All 152 unit tests passing (9 test files)
+- ✅ No regressions from Phase 1/1.5/2.5 tests
+
+### Blockers/Issues:
+- None
+
+---
+
 ## Next Session Prompt
 
 ```
-Phase 2.5 is complete. Echoes and Pulse services are fully tested (125 total tests passing).
+Phase 3 + 3.5 complete. Full-page view with calendar is deployed and tested.
+152 total tests passing across 9 test files.
 
-Bug fix applied: getThisWeekLastYear now uses local-time getWeekOfYear() for
-week number comparison instead of isSameWeek() which was too strict (checked
-ISO week year in addition to week number, breaking all mid-year lookups).
-
-Continue with Phase 3: Full-Page View + Calendar
-- HindsightMainView (ItemView shell)
-- MainApp tab router (Calendar, Timeline stub, Index stub)
-- CalendarGrid, CalendarCell, CalendarNav components
-- MetricSelector dropdown
-- statsUtils (mapValueToColor, mapBooleanToColor)
-- calendar.css styles
+Continue with Phase 4: Timeline + Journal Index
+- TimelineList (paginated entry card feed)
+- VirtualList (lightweight virtual scroll)
+- EntryCard (date, badges, excerpt, tags)
+- JournalIndex (sortable data table)
+- IndexFilters (search, date range, field filters)
+- uiStore updates (indexSort, indexFilters)
+- timeline.css + shared table styles
 
 Key files to reference:
-- docs/development/Implementation Plan.md — Phase 3 details (line 1430)
-- src/views/HindsightSidebarView.tsx — Reference pattern for ItemView + React
-- src/store/uiStore.ts — Needs new calendar state fields
+- docs/development/Implementation Plan.md — Phase 4 details (line 1665)
+- src/components/MainApp.tsx — Replace Timeline/Index stubs with real components
+- src/store/uiStore.ts — Needs indexSort and indexFilters state
 ```
-

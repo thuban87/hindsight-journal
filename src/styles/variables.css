@@ -1,7 +1,8 @@
 /* Hindsight Journal CSS custom properties
    Uses Obsidian's CSS variables for theme compatibility */
 .hindsight-container,
-.hindsight-sidebar-container {
+.hindsight-sidebar-container,
+.hindsight-main-container {
     --hindsight-spacing-xs: 4px;
     --hindsight-spacing-sm: 8px;
     --hindsight-spacing-md: 16px;
