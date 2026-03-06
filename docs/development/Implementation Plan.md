@@ -606,7 +606,7 @@ export const HINDSIGHT_SIDEBAR_VIEW_TYPE = 'hindsight-sidebar-view';
 
 ---
 
-## Phase 1: Journal Index Service + Store (~1-2 sessions)
+## Phase 1: Journal Index Service + Store (~1-2 sessions) ✅ COMPLETE
 
 **Goal:** Recursively scan the journal folder, parse every daily note (filename → date, frontmatter, sections, images, word count), store them in a Zustand store, and keep the index alive with file event watching. This is the data backbone everything else depends on.
 
@@ -1028,7 +1028,7 @@ this.journalIndex?.destroy();
 
 ---
 
-## Phase 1.5: Index & Parsing Tests
+## Phase 1.5: Index & Parsing Tests ✅ COMPLETE
 
 **PREREQUISITE:** Brad confirms Phase 1 works correctly in Obsidian before starting this phase.
 
@@ -1118,7 +1118,7 @@ All tests pass. Test count should be approximately 40-50 tests across the 4 test
 
 ---
 
-## Phase 2: Sidebar View — Today + Echoes (~1-2 sessions)
+## Phase 2: Sidebar View — Today + Echoes ✅ COMPLETE
 
 **Goal:** Ship the first visible UI. A sidebar view showing today's entry status and "on this day" echoes from past years. Uses the React-in-ItemView pattern from Quest Board.
 
@@ -1390,9 +1390,11 @@ async activateSidebarView(): Promise<void> {
 
 ---
 
-## Phase 2.5: Echoes & Pulse Service Tests
+## Phase 2.5: Echoes & Pulse Service Tests ✅
 
-**PREREQUISITE:** Brad confirms Phase 2 works correctly in Obsidian.
+**PREREQUISITE:** Brad confirms Phase 2 works correctly in Obsidian. ✅
+
+**STATUS:** Complete — 16 new tests (125 total), all passing. Bug fixed: `getThisWeekLastYear` now uses local-time `getWeekOfYear()` instead of `isSameWeek()` for cross-year week matching.
 
 ### Files to Create
 

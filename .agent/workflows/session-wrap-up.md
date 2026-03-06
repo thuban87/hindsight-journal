@@ -15,9 +15,9 @@ git status
 git diff --stat
 ```
 
-2. **Update session documentation.** Update whatever session log or development docs Brad indicates. Follow the existing entry format in the file. Include: date, what was done, files changed, test results, and any issues discovered.
+2. **Update session documentation.** Update session log at "docs\development\Implementation Session Log.md". Follow the existing entry format in the file. Include: date, what was done, files changed, test results, and any issues discovered.
 
-3. **Update the roadmap/priority docs.** If applicable, update roadmap or priority tracking documents to reflect completed work, status changes, or any new items discovered during the session.
+3. **Update the roadmap/priority docs.** Update implementation plan document (docs\development\Implementation Plan.md) to reflect completed work, status changes, or any new items discovered during the session.
 
 4. **Provide a git commit message.** Generate a clear, descriptive commit message summarizing all work done this session. **Do not use quotation marks anywhere in the message.** Format:
 

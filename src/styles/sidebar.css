@@ -1,0 +1,168 @@
+/* Hindsight Journal — sidebar styles */
+
+.hindsight-sidebar-container {
+    padding: var(--hindsight-spacing-md);
+    max-width: 400px;
+}
+
+.hindsight-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--hindsight-spacing-md);
+}
+
+.hindsight-sidebar-content {
+    flex: 1;
+}
+
+/* Tab bar */
+.hindsight-tab-bar {
+    display: flex;
+    gap: var(--hindsight-spacing-xs);
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: var(--hindsight-spacing-xs);
+}
+
+.hindsight-tab {
+    flex: 1;
+    min-height: 44px;
+    padding: var(--hindsight-spacing-sm) var(--hindsight-spacing-md);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.hindsight-tab:hover {
+    color: var(--text-normal);
+}
+
+.hindsight-tab-active {
+    color: var(--text-normal);
+    border-bottom-color: var(--interactive-accent);
+}
+
+/* Today status */
+.hindsight-today-status {
+    display: flex;
+    flex-direction: column;
+    gap: var(--hindsight-spacing-sm);
+    padding: var(--hindsight-spacing-md);
+    background: var(--background-secondary);
+    border-radius: var(--hindsight-radius-md);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.hindsight-today-header {
+    display: flex;
+    align-items: center;
+    gap: var(--hindsight-spacing-sm);
+    font-weight: 600;
+    font-size: 1em;
+}
+
+.hindsight-today-indicator {
+    font-size: 1.2em;
+}
+
+.hindsight-today-indicator-exists {
+    color: var(--text-success);
+}
+
+.hindsight-today-indicator-missing {
+    color: var(--text-muted);
+}
+
+.hindsight-today-stats {
+    display: flex;
+    flex-direction: column;
+    gap: var(--hindsight-spacing-xs);
+}
+
+.hindsight-today-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--hindsight-spacing-xs) 0;
+}
+
+.hindsight-today-stat-label {
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+
+.hindsight-today-stat-value {
+    font-weight: 600;
+    font-size: 0.9em;
+    color: var(--text-normal);
+}
+
+.hindsight-streak-badge {
+    display: inline-block;
+    padding: 2px var(--hindsight-spacing-sm);
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-radius: var(--hindsight-radius-sm);
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.hindsight-today-nudge {
+    color: var(--text-muted);
+    font-size: 0.85em;
+    margin: 0;
+}
+
+.hindsight-today-open-btn {
+    min-height: 44px;
+    padding: var(--hindsight-spacing-sm) var(--hindsight-spacing-md);
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: var(--hindsight-radius-sm);
+    cursor: pointer;
+    font-weight: 500;
+    transition: opacity 0.15s ease;
+}
+
+.hindsight-today-open-btn:hover {
+    opacity: 0.9;
+}
+
+/* Error boundary */
+.hindsight-error-boundary {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--hindsight-spacing-xl);
+    color: var(--text-error);
+    text-align: center;
+    gap: var(--hindsight-spacing-sm);
+}
+
+.hindsight-error-boundary-detail {
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+
+.hindsight-error-boundary-btn {
+    min-height: 44px;
+    padding: var(--hindsight-spacing-sm) var(--hindsight-spacing-md);
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: var(--hindsight-radius-sm);
+    cursor: pointer;
+    font-weight: 500;
+}
+
+/* Empty state icon */
+.hindsight-empty-state-icon {
+    font-size: 2em;
+    margin-bottom: var(--hindsight-spacing-sm);
+}

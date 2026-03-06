@@ -1,5 +1,6 @@
 import { PluginSettingTab, App, Setting } from 'obsidian';
 import type HindsightPlugin from '../main';
+import { FolderSuggest } from './ui/FolderSuggest';
 
 export class HindsightSettingTab extends PluginSettingTab {
     plugin: HindsightPlugin;
@@ -26,13 +27,15 @@ export class HindsightSettingTab extends PluginSettingTab {
             .addText(text => {
                 text.setPlaceholder('e.g., Journal')
                     .setValue(this.plugin.settings.journalFolder);
+                // Attach folder autocomplete
+                new FolderSuggest(this.app, text.inputEl);
                 text.inputEl.addEventListener('blur', async () => {
                     const newFolder = text.inputEl.value.trim();
                     if (newFolder !== this.plugin.settings.journalFolder) {
                         this.plugin.settings.journalFolder = newFolder;
                         await this.plugin.saveSettings();
-                        // Trigger re-index with the new folder (Phase 1)
-                        // this.plugin.journalIndex?.reconfigure(newFolder);
+                        // Trigger re-index with the new folder
+                        this.plugin.journalIndex?.reconfigure(newFolder);
                     }
                 });
             });
@@ -43,6 +46,8 @@ export class HindsightSettingTab extends PluginSettingTab {
             .addText(text => {
                 text.setPlaceholder('e.g., Weekly Reviews')
                     .setValue(this.plugin.settings.weeklyReviewFolder);
+                // Attach folder autocomplete
+                new FolderSuggest(this.app, text.inputEl);
                 text.inputEl.addEventListener('blur', async () => {
                     const value = text.inputEl.value.trim();
                     if (value !== this.plugin.settings.weeklyReviewFolder) {
@@ -67,3 +72,4 @@ export class HindsightSettingTab extends PluginSettingTab {
                 }));
     }
 }
+
