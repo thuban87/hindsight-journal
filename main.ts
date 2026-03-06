@@ -1,8 +1,9 @@
 import { Plugin } from 'obsidian';
 import { HindsightSettingTab } from './src/settings';
 import { DEFAULT_SETTINGS, HindsightSettings } from './src/types';
-import { HINDSIGHT_UPLOT_EVAL_VIEW_TYPE } from './src/constants';
+import { HINDSIGHT_UPLOT_EVAL_VIEW_TYPE, CHARTJS_EVAL_VIEW_TYPE } from './src/constants';
 import { UPlotEvalView } from './src/views/UPlotEvalView';
+import { ChartJsEvalView } from './src/views/ChartJsEvalView';
 
 export default class HindsightPlugin extends Plugin {
     settings: HindsightSettings = DEFAULT_SETTINGS;
@@ -29,6 +30,29 @@ export default class HindsightPlugin extends Plugin {
                 const leaf = this.app.workspace.getLeaf('tab');
                 await leaf.setViewState({
                     type: HINDSIGHT_UPLOT_EVAL_VIEW_TYPE,
+                    active: true,
+                });
+            },
+        });
+
+        // === Temporary: Chart.js evaluation view ===
+        this.registerView(
+            CHARTJS_EVAL_VIEW_TYPE,
+            (leaf) => new ChartJsEvalView(leaf, this)
+        );
+
+        this.addCommand({
+            id: 'open-chartjs-eval',
+            name: 'Open Chart.js evaluation charts',
+            callback: async () => {
+                const existing = this.app.workspace.getLeavesOfType(CHARTJS_EVAL_VIEW_TYPE);
+                if (existing.length > 0) {
+                    this.app.workspace.revealLeaf(existing[0]);
+                    return;
+                }
+                const leaf = this.app.workspace.getLeaf('tab');
+                await leaf.setViewState({
+                    type: CHARTJS_EVAL_VIEW_TYPE,
                     active: true,
                 });
             },

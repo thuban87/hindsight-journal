@@ -14,7 +14,7 @@ This is a personal-use project built at a relaxed pace. No MVP rush — features
 |----------|--------|
 | Plugin ID | `hindsight-journal` |
 | State management | Zustand |
-| Charting | React SVG for heatmaps/grids/sparklines; uPlot (~35KB) only for time-series line charts. Evaluate during Phase 5. |
+| Charting | Chart.js (~200KB) for time-series line charts, bar charts, scatter plots; React SVG for heatmaps/grids/sparklines. |
 | Thumbnails | IndexedDB cache with LRU eviction |
 | Folder scanning | Recursive (mixed folder structures) |
 | Frontmatter fields | Dynamically detected, not hardcoded |
@@ -82,7 +82,7 @@ hindsight/
 │   │   ├── MetricsEngine.ts        # Aggregation, rolling averages, correlations (Phase 5+)
 │   │   ├── EchoesService.ts        # On this day, this week last year, metric matching
 │   │   ├── PulseService.ts         # Streaks, heatmap data, consistency scores
-│   │   ├── ChartDataService.ts     # Transform metrics into uPlot-ready datasets (Phase 5+)
+│   │   ├── ChartDataService.ts     # Transform metrics into Chart.js-ready datasets (Phase 5+)
 │   │   ├── ThumbnailService.ts     # WebP generation, IndexedDB cache (Phase 9+)
 │   │   ├── ReportService.ts        # Auto-generated weekly/monthly reports (Phase 10+)
 │   │   └── NoteCreationService.ts  # Create daily notes from template (Phase 10+)
@@ -257,15 +257,15 @@ async onClose(): Promise<void> {
     }
 }
 ```
-Note: uPlot is NOT added yet — it arrives in Phase 5. Keep deps minimal until needed.
+Note: Chart.js is NOT added yet — it arrives in Phase 5. Keep deps minimal until needed.
 
 **`manifest.json`**
 ```json
 {
     "id": "hindsight-journal",
-    "name": "Hindsight",
+    "name": "Hindsight Journal",
     "version": "0.1.0",
-    "minAppVersion": "1.6.0",
+    "minAppVersion": "1.6.5",
     "description": "Visualize and reflect on your journal entries with calendars, charts, and retrospective insights.",
     "author": "Brad Wales",
     "authorUrl": "https://github.com/thuban87",
@@ -275,10 +275,10 @@ Note: uPlot is NOT added yet — it arrives in Phase 5. Keep deps minimal until 
 
 **`versions.json`**
 ```json
-{ "0.1.0": "1.6.0" }
+{ "0.1.0": "1.6.5" }
 ```
 
-> **Note:** `minAppVersion` set to `1.6.0` because `getFolderByPath()`, `getFileByPath()`, and `vault.process()` were introduced around this version. Verify against the actual Obsidian changelog if targeting older installs.
+> **Note:** `minAppVersion` set to `1.6.5` because `getFolderByPath()` was introduced in Obsidian 1.6.5. Using a lower version would cause runtime errors for users on 1.6.0–1.6.4.
 
 **`esbuild.config.mjs`** — Copy verbatim from Quest Board (same externals, same banner, same CJS format).
 
@@ -360,7 +360,7 @@ export default class HindsightPlugin extends Plugin {
         this.addSettingTab(new HindsightSettingTab(this.app, this));
 
         // Services and views will be registered here in later phases
-        console.debug('Hindsight loaded');
+        console.debug('Hindsight Journal loaded');
     }
 
     onunload(): void {
@@ -502,27 +502,40 @@ export class HindsightSettingTab extends PluginSettingTab {
             .setHeading()
             .setName('Journal');
 
+        // IMPORTANT: Text inputs use onBlur (not onChange) to avoid
+        // hammering saveSettings() on every keystroke.
+        // onChange would trigger disk I/O per character typed.
         new Setting(containerEl)
             .setName('Journal folder')
             .setDesc('Folder containing your daily notes (scanned recursively).')
-            .addText(text => text
-                .setPlaceholder('e.g., Journal')
-                .setValue(this.plugin.settings.journalFolder)
-                .onChange(async (value) => {
-                    this.plugin.settings.journalFolder = value.trim();
-                    await this.plugin.saveSettings();
-                }));
+            .addText(text => {
+                text.setPlaceholder('e.g., Journal')
+                    .setValue(this.plugin.settings.journalFolder);
+                text.inputEl.addEventListener('blur', async () => {
+                    const newFolder = text.inputEl.value.trim();
+                    if (newFolder !== this.plugin.settings.journalFolder) {
+                        this.plugin.settings.journalFolder = newFolder;
+                        await this.plugin.saveSettings();
+                        // Trigger re-index with the new folder
+                        this.plugin.journalIndex?.reconfigure(newFolder);
+                    }
+                });
+            });
 
         new Setting(containerEl)
             .setName('Weekly review folder')
             .setDesc('Folder containing weekly review notes (optional).')
-            .addText(text => text
-                .setPlaceholder('e.g., Weekly Reviews')
-                .setValue(this.plugin.settings.weeklyReviewFolder)
-                .onChange(async (value) => {
-                    this.plugin.settings.weeklyReviewFolder = value.trim();
-                    await this.plugin.saveSettings();
-                }));
+            .addText(text => {
+                text.setPlaceholder('e.g., Weekly Reviews')
+                    .setValue(this.plugin.settings.weeklyReviewFolder);
+                text.inputEl.addEventListener('blur', async () => {
+                    const value = text.inputEl.value.trim();
+                    if (value !== this.plugin.settings.weeklyReviewFolder) {
+                        this.plugin.settings.weeklyReviewFolder = value;
+                        await this.plugin.saveSettings();
+                    }
+                });
+            });
 
         new Setting(containerEl)
             .setHeading()
@@ -589,7 +602,7 @@ export const HINDSIGHT_SIDEBAR_VIEW_TYPE = 'hindsight-sidebar-view';
 5. Plugin appears in Obsidian settings with the Journal and Appearance sections
 6. Changing settings persists across plugin reload
 7. `npx vitest run` executes with 0 tests, 0 failures
-8. Console shows "Hindsight loaded" on plugin enable
+8. Console shows "Hindsight Journal loaded" on plugin enable
 
 ---
 
@@ -691,11 +704,13 @@ export function extractImagePaths(content: string): string[]
 export function countWords(text: string): number
 
 /**
- * Strip markdown syntax to produce clean plain text.
+ * Strip markdown syntax AND HTML tags to produce clean plain text.
  * Removes: [[links]], [text](urls), **bold**, *italic*, # headings,
- * - [ ] checkboxes, > blockquotes, ``` code blocks ```.
- * Used for generating safe excerpts in timeline cards (avoids
- * broken syntax from truncation and keeps display clean).
+ * - [ ] checkboxes, > blockquotes, ``` code blocks ```,
+ * and all HTML tags (<script>, <img>, <div>, etc.).
+ * HTML stripping is defense-in-depth — Obsidian notes can contain raw HTML,
+ * and while React JSX escapes by default, stripping here ensures
+ * excerpts are always safe plain text regardless of rendering context.
  */
 export function stripMarkdown(text: string): string
 ```
@@ -731,11 +746,11 @@ export function getFieldTimeSeries(
 ): MetricDataPoint[]
 ```
 
-**`src/services/JournalIndexService.ts`** (~250 lines)
+**`src/services/JournalIndexService.ts`** (~300 lines)
 
 The core indexing engine. This service has an Obsidian API dependency (Vault, MetadataCache, TFile, TFolder):
 ```typescript
-import { App, TFile, TFolder, normalizePath } from 'obsidian';
+import { App, TFile, TFolder, normalizePath, Notice } from 'obsidian';
 import type HindsightPlugin from '../../main';
 
 // Debounce delay for file change events (ms)
@@ -750,31 +765,48 @@ export class JournalIndexService {
     private debounceTimers: Map<string, ReturnType<typeof setTimeout>>;
 
     constructor(app: App, plugin: HindsightPlugin) {
-        // IMPORTANT: normalizePath on the user-provided folder path
         this.journalFolder = normalizePath(plugin.settings.journalFolder);
         ...
     }
 
     /**
-     * Two-pass initialization.
+     * Two-pass initialization. Delegates to runPass1() and runPass2().
      * Called once on plugin load via workspace.onLayoutReady().
-     *
+     */
+    async initialize(): Promise<void> {
+        await this.runPass1();
+        await this.runPass2();
+    }
+
+    /**
      * PASS 1 (instant, no file I/O):
-     *   - Recursively scan the journal folder for .md files matching filename pattern
-     *   - For each candidate file, use metadataCache.getFileCache(file) for frontmatter
+     *   - Validates journalFolder by calling getFolderByPath().
+     *     If the folder doesn't exist, shows a Notice and returns early.
+     *     This implicitly blocks path traversal (../../ won't resolve).
+     *   - Recursively scan for .md files matching filename pattern
+     *   - For each candidate: metadataCache.getFileCache(file) for frontmatter
      *   - Extract date from frontmatter `date` field (authoritative), fall back to filename
      *   - Create JournalEntry with frontmatter populated, sections/wordCount/imagePaths empty
      *   - Set fullyIndexed = false
-     *   - Update journalStore with all entries and detected fields
-     *
+     *   - Uses store.setEntries() (bulk) — sorts sortedDates once
+     *   - Calls detectFields() ONCE after all entries are populated
+     *   - Updates store.indexingProgress to { phase: 1, processed: N, total: N }
+     */
+    private async runPass1(): Promise<void>
+
+    /**
      * PASS 2 (background, batched):
      *   - Process files in chunks of PARSE_BATCH_SIZE
      *   - For each file: vault.cachedRead() → parse sections, word count, image paths
-     *   - Yield to main thread between batches via setTimeout(0) or requestIdleCallback
-     *   - Update entries in store as each batch completes (set fullyIndexed = true)
+     *   - Yield to main thread between batches via setTimeout(0)
+     *   - Uses store.upsertEntries() (bulk) per batch — one sort per batch, not per entry
+     *   - Set fullyIndexed = true per entry
      *   - Compute qualityScore per entry based on detected fields vs filled fields
+     *   - Updates store.indexingProgress as batches complete
+     *   - Calls detectFields() ONE MORE TIME after all batches finish
+     *     (for accurate coverage/ranges with full data)
      */
-    async initialize(): Promise<void>
+    private async runPass2(): Promise<void>
 
     /**
      * Recursively scan a folder for .md files matching the journal filename pattern.
@@ -796,6 +828,17 @@ export class JournalIndexService {
      * Updates the existing entry in place.
      */
     async parseEntryContent(file: TFile, entry: JournalEntry): Promise<void>
+
+    /**
+     * Re-index with a new journal folder.
+     * Called when the user changes the folder in settings (via onBlur).
+     * Clears the store, updates this.journalFolder, and re-runs both passes.
+     */
+    async reconfigure(newFolder: string): Promise<void> {
+        this.journalFolder = normalizePath(newFolder);
+        useJournalStore.getState().clear();
+        await this.initialize();
+    }
 
     /**
      * Register file watchers for create/delete/rename events AND metadata changes.
@@ -824,7 +867,7 @@ export class JournalIndexService {
 ```
 
 **Key Obsidian API usage:**
-- `app.vault.getFolderByPath(normalizePath(folderPath))` to get the root folder
+- `app.vault.getFolderByPath(normalizePath(folderPath))` to get the root folder — returns null if folder doesn't exist (implicit path traversal guard)
 - `normalizePath()` on the journal folder setting in the constructor
 - Iterate `folder.children`, recurse into `TFolder` instances, collect `TFile` instances
 - `app.metadataCache.getFileCache(file)?.frontmatter` for frontmatter (fast, cached)
@@ -837,44 +880,86 @@ export class JournalIndexService {
 - `normalizePath()` on all constructed paths
 - Debounce modify handlers with `setTimeout` (clear previous timer per file path)
 
-**`src/store/journalStore.ts`** (~80 lines)
+**`src/store/journalStore.ts`** (~120 lines)
 ```typescript
 import { create } from 'zustand';
 import type { JournalEntry, FrontmatterField, DateRange } from '../types';
+import { formatDateISO } from '../utils/dateUtils';
+
+interface IndexingProgress {
+    /** Current indexing phase (1 = frontmatter only, 2 = full content) */
+    phase: 1 | 2;
+    /** Number of files processed in current phase */
+    processed: number;
+    /** Total files to process in current phase */
+    total: number;
+}
 
 interface JournalState {
     /** All indexed entries, keyed by vault-relative file path */
     entries: Map<string, JournalEntry>;
+    /** Date-keyed index for O(1) echo lookups. Key: "MM-DD", Value: entries for that day across all years */
+    dateIndex: Map<string, JournalEntry[]>;
     /** Dates with entries, sorted ascending (for quick range lookups) */
     sortedDates: Date[];
+    /** Cached sorted entries array (newest first). Invalidated on entry changes. */
+    cachedSortedEntries: JournalEntry[] | null;
     /** Detected frontmatter fields across all entries */
     detectedFields: FrontmatterField[];
     /** Whether the initial scan is in progress */
     loading: boolean;
     /** Error message if scan failed */
     error: string | null;
+    /** Indexing progress for pass 1/2 — used for progress bar UI */
+    indexingProgress: IndexingProgress | null;
 }
 
 interface JournalActions {
+    /** Bulk set all entries (pass 1). Builds dateIndex and sortedDates in one pass. */
     setEntries(entries: JournalEntry[]): void;
+    /** Update a single entry. Uses binary insertion for sortedDates. Invalidates cache. */
     upsertEntry(entry: JournalEntry): void;
+    /** Bulk update multiple entries (pass 2 batches). Sorts once at end. Invalidates cache. */
+    upsertEntries(entries: JournalEntry[]): void;
+    /** Remove an entry by file path. Invalidates cache. */
     removeEntry(filePath: string): void;
+    /** Clear all entries and indexes (used by reconfigure). */
+    clear(): void;
     setDetectedFields(fields: FrontmatterField[]): void;
     setLoading(loading: boolean): void;
     setError(error: string | null): void;
+    setIndexingProgress(progress: IndexingProgress | null): void;
 
     /** Get entries within a date range (inclusive) */
     getEntriesInRange(range: DateRange): JournalEntry[];
     /** Get entry for a specific date (first match) */
     getEntryByDate(date: Date): JournalEntry | undefined;
-    /** Get all entries as a sorted array (newest first) */
+    /**
+     * Get all entries as a sorted array (newest first).
+     * Returns a cached array — only rebuilds when entries actually change.
+     * Components should use this instead of spreading entries.values().
+     */
     getAllEntriesSorted(): JournalEntry[];
+    /**
+     * Get entries for a specific month-day across all years (for echoes).
+     * O(1) lookup via dateIndex. Key format: "MM-DD".
+     */
+    getEntriesByMonthDay(monthDay: string): JournalEntry[];
 }
 
 export const useJournalStore = create<JournalState & JournalActions>((set, get) => ({
     // ... implementation
+    // Note: upsertEntry uses binary insertion into sortedDates
+    // to avoid O(n log n) full re-sort on every entry update.
+    // upsertEntries batches multiple updates and sorts once.
 }));
 ```
+
+> **Performance notes:**
+> - `cachedSortedEntries` is a stable array reference. It's only set to `null` (invalidated) when entries change. `getAllEntriesSorted()` rebuilds it lazily on next call. This means hooks like `useEchoes` don't rebuild arrays on every unrelated store change.
+> - `dateIndex` maps `"MM-DD"` strings to entry arrays, enabling O(1) echo lookups instead of O(n) scans.
+> - `upsertEntries()` is used by pass 2 batches to avoid 50 individual sorts per batch.
+> - `uiStore` remains a single store for now (sidebar tabs, main tabs, calendar state, sort/filter). If re-render issues emerge, consider splitting into `calendarStore` and `indexStore`.
 
 **`src/store/settingsStore.ts`** (~30 lines)
 
@@ -1041,18 +1126,19 @@ All tests pass. Test count should be approximately 40-50 tests across the 4 test
 
 **`src/services/EchoesService.ts`** (~60 lines)
 
-Pure functions — takes entries array, returns filtered results:
+Pure functions — takes entries array or dateIndex, returns filtered results:
 ```typescript
 import type { JournalEntry } from '../types';
-import { isSameDay, isSameWeek } from '../utils/dateUtils';
+import { isSameDay, isSameWeek, formatDateISO } from '../utils/dateUtils';
 
 /**
  * Find entries from the same date in previous years.
- * E.g., for March 5 2026, returns entries from March 5 2025, March 5 2024, etc.
+ * Uses the store's dateIndex for O(1) lookup by "MM-DD" key.
+ * Filters out entries from the current year.
  */
 export function getOnThisDay(
     targetDate: Date,
-    entries: JournalEntry[]
+    dateIndex: Map<string, JournalEntry[]>
 ): JournalEntry[]
 
 /**
@@ -1104,29 +1190,46 @@ export function useTodayEntry() {
 }
 ```
 
-**`src/hooks/useEchoes.ts`** (~25 lines)
+**`src/hooks/useEchoes.ts`** (~30 lines)
 ```typescript
-export function useEchoes(targetDate: Date) {
-    // Use a stable reference to the entries Map, not a spread copy
-    const entries = useJournalStore(state => state.entries);
-    // Convert targetDate to a string key so useMemo doesn't re-run
-    // when a new Date object is created with the same day
-    const dateKey = formatDateISO(targetDate);
-    const entriesArray = useMemo(() => [...entries.values()], [entries]);
+export function useEchoes() {
+    // Use the dateIndex for O(1) echo lookups
+    const dateIndex = useJournalStore(state => state.dateIndex);
+    const entries = useJournalStore(state => state.getAllEntriesSorted());
+    const today = useToday(); // custom hook — see below
+
+    const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     return useMemo(() => ({
-        onThisDay: getOnThisDay(targetDate, entriesArray),
-        thisWeekLastYear: getThisWeekLastYear(targetDate, entriesArray),
-    }), [dateKey, entriesArray]);
+        onThisDay: getOnThisDay(today, dateIndex),
+        thisWeekLastYear: getThisWeekLastYear(today, entries),
+    }), [monthDay, dateIndex, entries]);
 }
 ```
 
-> **Performance note:** The calling component (`EchoesPanel`) should memoize the target date:
-> ```typescript
-> const today = useMemo(() => new Date(), []);
-> const echoes = useEchoes(today);
-> ```
-> This prevents a new `Date()` reference on every render from defeating memoization.
+**`src/hooks/useToday.ts`** (~20 lines)
+```typescript
+/**
+ * Returns today's date as a stable reference.
+ * Automatically refreshes at midnight so the sidebar never shows stale data
+ * if left open overnight.
+ */
+export function useToday(): Date {
+    const [today, setToday] = useState(() => startOfDay(new Date()));
+
+    useEffect(() => {
+        const check = setInterval(() => {
+            const now = startOfDay(new Date());
+            if (formatDateISO(now) !== formatDateISO(today)) {
+                setToday(now);
+            }
+        }, 60_000); // check every 60 seconds
+        return () => clearInterval(check);
+    }, [today]);
+
+    return today;
+}
+```
 
 **`src/hooks/useSettings.ts`** (~10 lines)
 ```typescript
@@ -1198,22 +1301,23 @@ Reusable tab bar:
 - Renders a row of buttons with `hindsight-tab` and `hindsight-tab-active` classes
 - 44px minimum touch targets for mobile
 
-**`src/components/sidebar/TodayStatus.tsx`** (~60 lines)
+**`src/components/sidebar/TodayStatus.tsx`** (~70 lines)
 - Shows whether today's entry exists (green check or gray indicator)
 - If it exists: shows filled fields count / total detected fields, word count
 - Shows current writing streak from `PulseService.getCurrentStreak()`
+- **Relative time indicator:** "Last entry: 2 hours ago" or "Last entry: yesterday" — updates every 60 seconds via the `useToday()` hook's interval
 - "Open today's note" button — uses `app.workspace.openLinkText(filePath, '')` to navigate
 - If no entry: shows "No entry yet today" with friendly empty state
 
 **`src/components/echoes/EchoesPanel.tsx`** (~50 lines)
-- Uses `useEchoes(new Date())` hook
+- Uses `useEchoes()` hook (no args — internally uses `useToday()` for midnight-safe date)
 - Shows "On this day" section with list of `EchoCard` components
 - Shows "This week last year" section
 - If no echoes: shows "No past entries for this date yet. Keep journaling!"
 
 **`src/components/echoes/EchoCard.tsx`** (~40 lines)
 - Props: `entry: JournalEntry`
-- Shows: date formatted nicely, mood value if available (badge), first ~100 chars of "What Actually Happened" section (or first non-empty section), word count
+- Shows: date formatted nicely, mood value if available (badge), first ~100 chars of "What Actually Happened" section (via `stripMarkdown()` then truncate), word count
 - Click handler: `app.workspace.openLinkText(entry.filePath, '')` to open the note
 - CSS class: `hindsight-echo-card`
 
@@ -1377,6 +1481,7 @@ export class HindsightMainView extends ItemView {
 
 Tab router for the full-page view:
 - Tabs: Calendar, Timeline (stub), Index (stub)
+- **Entry count in tab labels**: e.g., "Timeline (347)" instead of plain "Timeline". Count sourced from `useJournalStore(state => state.entries.size)`.
 - Stores active tab in `uiStore.activeMainTab`
 - Header bar with tab switcher + controls
 - Renders the active tab's component
@@ -1411,6 +1516,7 @@ Individual day cell:
 - If no entry: plain cell, dimmed
 - Shows day number
 - Hover: shows tooltip with date + metric value (CSS `:hover` pseudo-element, plus tap handler for mobile that shows a brief Notice)
+- **Right-click context menu** via Obsidian's `Menu` class (guidelines-compliant): "Open note", "View in timeline"
 - Image thumbnail placeholder (empty div with class, populated in Phase 9)
 - CSS class: `hindsight-calendar-cell`, modifier classes for `has-entry`, `is-today`
 
@@ -1418,6 +1524,7 @@ Individual day cell:
 
 Month navigation + metric selector:
 - Left/right arrows for prev/next month
+- **Arrow key navigation:** ←/→ mapped to prev/next month when calendar tab is focused. Uses a `useEffect` keydown listener scoped to the calendar container (not global).
 - Month/year display (clickable to jump to today)
 - `MetricSelector` dropdown for choosing which field colors the cells
 - "Today" button to jump to current month
@@ -1563,11 +1670,22 @@ All tests pass. Approximately 15-20 new tests.
 
 Paginated entry card list:
 - Props: `app: App` (for opening notes on click)
-- Reads from `useJournalStore` → `getAllEntriesSorted()`
+- Reads from `useJournalStore` → `getAllEntriesSorted()` (stable cached reference)
 - Shows `ENTRIES_PER_PAGE = 50` entries per page with "Load more" button
 - Sort toggle: newest first (default) or oldest first
 - Each entry rendered as `EntryCard`
-- Includes a simple **virtual scroll wrapper** that only renders visible rows + 10-row buffer above/below the viewport. This prevents DOM explosion with 700+ entries.
+- Uses `VirtualList` from `shared/` for scroll performance (see below)
+
+**`src/components/shared/VirtualList.tsx`** (~80 lines)
+
+Lightweight virtual scroll component (no external dependency):
+- Props: `items: T[]`, `renderItem: (item: T, index: number) => ReactNode`, `estimatedItemHeight: number`, `overscan?: number` (default 10)
+- Measures the scroll container height and current scroll position
+- Computes the visible window: `startIndex = Math.floor(scrollTop / estimatedItemHeight) - overscan`, `endIndex = startIndex + visibleCount + 2 * overscan`
+- Renders a spacer div above (height = startIndex * estimatedItemHeight) and below for the remaining items
+- Only renders items within the visible window + buffer
+- Uses `useRef` for the scroll container and `useEffect` with a scroll event listener
+- CSS class: `hindsight-virtual-list` (overflow-y: auto, flex: 1)
 
 **`src/components/timeline/EntryCard.tsx`** (~60 lines)
 
@@ -1603,7 +1721,7 @@ Sortable data table:
 **`src/components/index-table/IndexFilters.tsx`** (~70 lines)
 
 Search and filter bar above the table:
-- **Text search input** — filters entries by searching `entry.sections` values (case insensitive). For full-text search across all content, lazy-loads via `vault.cachedRead()` on demand (since `rawContent` is not stored in the entry).
+- **Text search input** — filters entries by searching `entry.sections` values (case insensitive). For full-text search across all content, lazy-loads via `vault.cachedRead()` on demand (since `rawContent` is not stored in the entry). **Debounced at 250ms** to avoid filtering on every keystroke with 700+ entries.
 - **Date range filter** — two date inputs (from/to), filters entries within range
 - **Field filters** — for each numeric detected field, optional min/max inputs. E.g., "Mood ≥ 7"
 - **Clear all button** — resets all filters
@@ -1733,7 +1851,7 @@ All tests pass. Approximately 20-25 new tests.
 
 ---
 
-# OUTLINE PHASES (5-10)
+# OUTLINE PHASES (5-11)
 
 These phases will be detailed when they're next up, after the preceding phases are built and we've established patterns.
 
@@ -1741,46 +1859,61 @@ These phases will be detailed when they're next up, after the preceding phases a
 
 ## Phase 5: Chart Engine + Correlation Discovery (~2-3 sessions)
 
-**Summary:** Dual charting strategy — React SVG for heatmaps/grids/sparklines, uPlot for time-series line charts. Build `ChartDataService` and `MetricsEngine`. Create `MetricChart` (uPlot wrapper), `Sparkline` (React SVG), and introduce the Correlation Discovery dashboard.
+**Summary:** Dual charting strategy — React SVG for heatmaps/grids/sparklines, Chart.js for time-series line charts and scatter plots. Build `ChartDataService` and `MetricsEngine`. Create `MetricChart` (Chart.js wrapper), `Sparkline` (React SVG), and introduce the Correlation Discovery dashboard.
 
 **Key features:**
-- uPlot wrapper component for time-series line charts (mood over time, sleep duration, etc.)
+- Chart.js wrapper component for time-series line charts (mood over time, sleep duration, etc.)
 - React SVG `Sparkline` component for inline mini-charts (sidebar, index table columns)
 - `MetricsEngine` that computes rolling averages, trend lines, and **Pearson correlation** across all numeric field pairs
 - **Correlation Discovery cards** — auto-detected insights like "Your mood correlates with sleep_duration (r = 0.65)" and "Days with workouts have 1.2 higher average mood"
 - **Interactive scatter plot** — pick any two numeric fields (X/Y axes), optionally overlay a boolean field as color (e.g., dots colored by `morning_meds_taken`)
 - Click any data point on a chart to see that day's excerpt in a popover (annotation pattern)
-- **Time Machine date slider** — `<input type="range">` with min/max as first/last entry dates. Debounced (update on release, not drag). Updates `uiStore.selectedDate` which all date-aware components read.
+- **Time Machine date slider** — `<input type="range">` with min/max as first/last entry dates. Debounced (update on `onMouseUp`/`onTouchEnd`, not drag). Updates `uiStore.selectedDate` which all date-aware components read.
+- **Trend Alerts** (heuristic, no AI) — proactive insight cards generated from the `MetricsEngine`:
+  - "Your mood has dropped 3 days in a row — last time this happened was Feb 12. That time, a workout broke the streak."
+  - "You haven't done light therapy in 5 days. Your average mood on light therapy days is 7.2 vs 5.8 without."
+  - "Your Crohn's flare-ups correlate with low sleep (r=0.72). You slept 4 hours last night."
+  - Implementation: pure functions in `MetricsEngine` that detect consecutive-decrease patterns, conditional averages (Ā when boolean X is true vs false), and cross-reference with recent data. No LLM, no network — all local statistics.
 - Add sparklines to sidebar Pulse tab
 
-**Key files:** `ChartDataService.ts`, `MetricsEngine.ts`, `charts/MetricChart.tsx`, `charts/Sparkline.tsx`, `charts/ScatterPlot.tsx`, `charts/CorrelationCards.tsx`, `sidebar/SparklineRow.tsx`, `shared/TimeMachineSlider.tsx`, `styles/charts.css`
+**Key files:** `ChartDataService.ts`, `MetricsEngine.ts`, `insights/TrendAlertEngine.ts`, `charts/MetricChart.tsx`, `charts/Sparkline.tsx`, `charts/ScatterPlot.tsx`, `charts/CorrelationCards.tsx`, `insights/TrendAlertCard.tsx`, `sidebar/SparklineRow.tsx`, `shared/TimeMachineSlider.tsx`, `styles/charts.css`
 
-**Phase 5.5:** Tests for ChartDataService (time series extraction, rolling averages, trend lines), MetricsEngine (Pearson correlation, completion rate, weekly comparison), and scatter plot data preparation.
+**Phase 5.5:** Tests for ChartDataService (time series extraction, rolling averages, trend lines), MetricsEngine (Pearson correlation, completion rate, weekly comparison), scatter plot data preparation, TrendAlertEngine (consecutive decrease detection, conditional averages, pattern matching).
 
 ---
 
-## Phase 6: Pulse + Habits + Quality Dashboard (~2-3 sessions)
+## Phase 6: Pulse + Habits + Quality Dashboard (~3 sessions)
 
-**Summary:** The main analytics dashboard. GitHub-style heatmaps, habit streaks, entry quality scoring, morning briefing, gap alerts, and task volatility tracking.
+**Summary:** The main analytics dashboard. Heatmaps, habit tracking, entry quality, morning briefing, gap alerts, task volatility, goal tracking, personal bests, custom widgets, and color-blind accessibility.
 
 **Key features:**
 - **GitHub-style mood heatmap** (React SVG, not external library) — hover shows tooltip with mood/energy/anxiety/tags for that day. Click to open entry. Click-and-drag to filter Timeline to that date range.
-- **Habit Streaks Grid** — one row per boolean field (morning_meds_taken, workout, light_therapy, evening_meds_taken). Each row shows last 90 days as colored squares + current streak count. Most motivating visualization for habit tracking.
+- **Habit Streaks Grid** — one row per boolean field (morning_meds_taken, workout, light_therapy, evening_meds_taken). Each row shows last 90 days as colored squares + current streak count. De-emphasized in UI — shown in Pulse panel but not prominently featured.
+- **Personal Bests & Consistency Score** (replaces streak gamification):
+  - "Highest mood week: March 3–9, 2025 (avg 8.1)"
+  - "Most consistent month: January 2026 (30/31 days journaled)"
+  - "Best anxiety trend: 8 → 3 over October 2025"
+  - Weekly consistency score: entries per 7 days as a percentage (e.g., "This week: 5/7 — 71%")
 - **Entry Quality Score dashboard** — quality score (already computed on `JournalEntry.qualityScore`) shown as a large average score, plus a distribution chart and "worst gaps" (days with lowest quality)
+- **Goal Tracking with Progress Rings** (React SVG):
+  - Settings: `goalTargets: Record<string, { period: 'weekly' | 'monthly'; target: number }>`
+  - Sidebar progress rings: "Study: 3/7 hours this week" (43% ring), "Workouts: 4/5 this week" (80% ring), "Meds adherence: 12/14 doses" (86% ring)
+  - Rings use `--interactive-accent` for fill, `--background-modifier-border` for track
 - **Morning Briefing Panel** (sidebar, opt-in via `morningBriefingEnabled` setting):
   - "Yesterday: Mood 7, slept 6.5h, completed 4/6 meds"
   - "1 year ago: [excerpt from that day's entry]"
   - "Your 3 priorities from yesterday's 'Tomorrow's Top 3'"
-  - "Current writing streak: 14 days 🔥"
+  - "Current writing streak: 14 days" (simple count, no gamification)
   - "Meds adherence this week: 85%"
 - **Smart Reminders / Gap Alerts** — gentle sidebar nudges: "You haven't logged in 3 days", "Mood data has gaps — 4 of last 7 days missing", "Evening meds not tracked in 5 days"
-- **Task & Habit Volatility Tracking** — parse `- [ ]` vs `- [x]` checkboxes in configured sections. "Productivity Score" (% completed) graphed alongside energy. Uses `productivitySections` whitelist and `excludedSections` blacklist from settings to control which sections count (e.g., include "The Must Dos" and "High Priority Tasks", exclude "Meds").
+- **Task & Habit Volatility Tracking** — parse `- [ ]` vs `- [x]` checkboxes in configured sections. "Productivity Score" (% completed) graphed alongside energy. Uses `productivitySections` whitelist and `excludedSections` blacklist from settings to control which sections count.
+- **Custom Dashboard Widgets** — settings UI where users pick which stat cards/sparklines appear on their sidebar "Today" tab. Dropdown to toggle visibility for each widget, then drag-to-reorder. Settings stores `widgetOrder: string[]` (array of widget IDs). React renders widgets by mapping the array.
+- **Calendar color palette themes** — settings UI to choose from: Default (red→green), Monochrome (gray→navy), Warm (peach→orange), Cool (cyan→purple), **Color-blind (blue→orange, viridis-inspired)** — accessible to the ~8% of males with red-green color deficiency.
 - Frontmatter field completion heatmap, meds adherence tracker
-- **Calendar color palette themes** — settings UI to choose from: Default (red→green), Monochrome (gray→navy), Warm (peach→orange), Cool (cyan→purple)
 
-**Key files:** `pulse/PulsePanel.tsx`, `charts/Heatmap.tsx`, `charts/HabitStreaksGrid.tsx`, `pulse/StreakDisplay.tsx`, `pulse/StatsCards.tsx`, `pulse/QualityDashboard.tsx`, `sidebar/MorningBriefing.tsx`, `sidebar/GapAlerts.tsx`, `dashboard/FrontmatterDash.tsx`, `dashboard/FieldCompletionMap.tsx`, `dashboard/TaskVolatility.tsx`, `PulseService.ts` expansion
+**Key files:** `pulse/PulsePanel.tsx`, `charts/Heatmap.tsx`, `charts/HabitStreaksGrid.tsx`, `charts/ProgressRing.tsx`, `pulse/PersonalBests.tsx`, `pulse/ConsistencyScore.tsx`, `pulse/StatsCards.tsx`, `pulse/QualityDashboard.tsx`, `pulse/GoalTracker.tsx`, `sidebar/MorningBriefing.tsx`, `sidebar/GapAlerts.tsx`, `sidebar/WidgetContainer.tsx`, `dashboard/FrontmatterDash.tsx`, `dashboard/FieldCompletionMap.tsx`, `dashboard/TaskVolatility.tsx`, `PulseService.ts` expansion
 
-**Phase 6.5:** Tests for PulseService (heatmap data, consistency, drought alerts, meds adherence), habit streak calculation, quality score aggregation, task checkbox parsing, whitelist/blacklist filtering, stats card calculations.
+**Phase 6.5:** Tests for PulseService (heatmap data, consistency, drought alerts, meds adherence), habit streak calculation, quality score aggregation, task checkbox parsing, whitelist/blacklist filtering, progress ring math, personal bests computation, widget ordering persistence.
 
 ---
 
@@ -1802,9 +1935,9 @@ These phases will be detailed when they're next up, after the preceding phases a
 
 ---
 
-## Phase 8: Threads + Section Reader (~2 sessions)
+## Phase 8: Threads + Section Reader + Section Trends (~2-3 sessions)
 
-**Summary:** Tag analytics and the "Reader/Continuous Feed" view for consuming specific sections across entries.
+**Summary:** Tag analytics, the "Reader/Continuous Feed" view, and section-level word count trends.
 
 **Key features:**
 - Tag frequency charts, co-occurrence matrix, metric averages per tag
@@ -1813,11 +1946,16 @@ These phases will be detailed when they're next up, after the preceding phases a
   - Date range control (last 30 days, last 90 days, all time)
   - Search within the selected section
   - Clickable date headers that open the full note
+- **Section Word Count Trends** (template-agnostic):
+  - Track word count per detected section heading over time
+  - Chart word counts per section as stacked area or individual sparklines
+  - Insight cards: "You've been writing more in Dreams lately (avg 45 words/day up from 12)" or "Your Scratchpad hasn't been used in 3 weeks"
+  - Works with any section headings — uses `detectedSections` from the store (populated by SectionParserService across all entries)
 - Section timeline to view specific headings across all entries chronologically
 
-**Key files:** `threads/ThreadsPanel.tsx`, `threads/TagTimeline.tsx`, `threads/TagCoOccurrence.tsx`, `sections/SectionReader.tsx`, `sections/SectionSelector.tsx`, `sections/SectionTimeline.tsx`
+**Key files:** `threads/ThreadsPanel.tsx`, `threads/TagTimeline.tsx`, `threads/TagCoOccurrence.tsx`, `sections/SectionReader.tsx`, `sections/SectionSelector.tsx`, `sections/SectionTimeline.tsx`, `sections/SectionTrends.tsx`
 
-**Phase 8.5:** Tests for tag extraction, frequency counting, co-occurrence, section isolation, reader feed assembly.
+**Phase 8.5:** Tests for tag extraction, frequency counting, co-occurrence, section isolation, reader feed assembly, section word count aggregation.
 
 ---
 
@@ -1825,15 +1963,17 @@ These phases will be detailed when they're next up, after the preceding phases a
 
 **Summary:** WebP thumbnail generation via OffscreenCanvas/canvas, IndexedDB cache with LRU eviction, calendar cell thumbnails, entry card thumbnails, gallery view.
 
+> **IndexedDB quota handling:** Browsers enforce per-origin storage limits (typically 50-100MB). All IndexedDB writes must be wrapped in try/catch. On quota exceeded: log a warning, disable further caching, and show a Notice suggesting the user lower the max thumbnail count in settings. Provide a "Clear thumbnail cache" button in settings. Graceful degradation: if IndexedDB is unavailable, skip thumbnails entirely (show placeholder icons).
+
 **Key files:** `ThumbnailService.ts`, `gallery/GalleryView.tsx`, CalendarCell and EntryCard updates
 
-**Phase 9.5:** Tests for cache key generation, LRU eviction logic, mtime-based regeneration.
+**Phase 9.5:** Tests for cache key generation, LRU eviction logic, mtime-based regeneration, quota exceeded handling.
 
 ---
 
-## Phase 10: Digest View + Reports + Waypoints (~2-3 sessions)
+## Phase 10: Digest View + Reports + Annotations + Export (~3 sessions)
 
-**Summary:** The "Digest" — a live, reactive dashboard summarizing a week or month. Replaces the original static report concept with a beautiful, interactive full-page view that also supports "Export to Markdown."
+**Summary:** The "Digest" reactive dashboard, CSV/JSON export, annotation system for marking life events on charts, and waypoint prompts.
 
 **Key features:**
 - **Digest View** (full-page reactive component):
@@ -1846,13 +1986,64 @@ These phases will be detailed when they're next up, after the preceding phases a
   - Writing volume trend (word count sparkline)
   - Productivity score trend for the period
   - **"Export to Markdown" button** — generates a formatted markdown report and creates it in the vault (weekly review folder if configured)
-- Pinned entries (frontmatter flag `pinned: true`), entry linking
+- **CSV/JSON Export** — one-button export of all frontmatter data from the Digest page. Options: CSV or JSON format. Includes date, all numeric/boolean/string fields, word count, quality score. Useful for sharing with therapists, running analysis in Excel/Sheets, or backing up structured data.
+- **Annotation/Bookmark System** — beyond `pinned: true`, users can tag entries with context markers: "breakthrough therapy session," "Crohn's flare started," "started new med." Stored as a frontmatter field `annotations: string[]`. Annotations appear as vertical line markers on charts and labeled dots on timelines. Extremely useful for correlating life events with metric changes.
 - Periodic check-in prompts (waypoints), anniversary nudges
 - Note creation from templates
 
-**Key files:** `digest/DigestView.tsx`, `digest/DigestPanel.tsx`, `digest/PeriodSelector.tsx`, `ReportService.ts`, `NoteCreationService.ts`, waypoint prompt system
+**Key files:** `digest/DigestView.tsx`, `digest/DigestPanel.tsx`, `digest/PeriodSelector.tsx`, `digest/ExportButton.tsx`, `annotations/AnnotationMarker.tsx`, `annotations/AnnotationInput.tsx`, `ReportService.ts`, `ExportService.ts`, `NoteCreationService.ts`, waypoint prompt system
 
-**Phase 10.5:** Tests for report generation, digest aggregation, template variable substitution, waypoint timing.
+**Phase 10.5:** Tests for report generation, digest aggregation, CSV/JSON export formatting, annotation rendering, template variable substitution, waypoint timing.
+
+---
+
+## Phase 11: Frontmatter Quick-Edit + Guided Entry Wizard (~3 sessions)
+
+**Summary:** The biggest quality-of-life feature. A sidebar panel for instant frontmatter editing (no note opening required) and a multi-page guided entry wizard for both daily notes and weekly reviews.
+
+**Key features:**
+
+### Frontmatter Quick-Edit Panel
+- New sidebar tab: "Quick Edit" (or integrated into the "Today" tab as an expandable section)
+- **Dynamically discovers frontmatter fields** from `detectedFields` — works with any template, not hardcoded
+- Renders appropriate input per field type (from `inferFieldType()`):
+  - `number` → slider (with min/max from `FrontmatterField.range`) + numeric input
+  - `boolean` → toggle switch
+  - `string` → text input
+  - `string[]` → tag input (comma-separated, show as pills)
+  - `date` → date picker
+- Saves via `app.fileManager.processFrontMatter()` (atomic, race-safe)
+- Debounced save (300ms) for sliders to avoid I/O on every drag tick
+- Shows a "Saved ✓" indicator that fades after 1 second
+- Works for today's note by default, with a date picker to select other entries
+- If no entry exists for the selected date, shows "No entry yet" with option to create one
+
+### Daily Entry Wizard (Prompt Machine)
+- Triggered via command: `Hindsight: Open guided entry`
+- Uses Obsidian's `Modal` class with a React root inside (same pattern as views)
+- **Template-agnostic** — discovers fields and sections from the current note's structure + `detectedFields` + detected section headings
+- **Page 1 — Frontmatter:** Same dynamic inputs as Quick-Edit panel (sliders, toggles, text inputs). Shows all detected fields with current values pre-filled. User fills in what they want, skips the rest.
+- **Page 2 — Body Sections:** Lists each detected `##` heading as a labeled text area. Pre-fills existing content if note already has it. For new entries, shows empty text areas under each heading. Saving writes content per section using `vault.process()`.
+- Navigation: "Back" / "Next" / "Save & Close" buttons
+- Creates the daily note if it doesn't exist (using the user's daily notes template if configured, or a sensible default)
+- Opens the note after saving (standard Obsidian way, same as clicking "Open today's daily note" in the ribbon)
+
+### Weekly Review Wizard
+- Triggered via command: `Hindsight: Open weekly review`
+- Same modal + React pattern as Daily Entry Wizard
+- **Pre-populated with aggregated data from the week:**
+  - Average mood, energy, sleep, anxiety
+  - Meds/workout completion rates
+  - "Best day" and "worst day" excerpts
+  - "Tomorrow's Top 3" entries from each day (did you follow through?)
+  - Writing volume, entry count, consistency score
+- User reviews the summary, adds reflections in text areas
+- "Generate & Save" creates a weekly review note in the configured `weeklyReviewFolder`
+- Replaces the manual dataviewjs chart workflow — all native in the plugin
+
+**Key files:** `quickedit/QuickEditPanel.tsx`, `quickedit/FieldInput.tsx`, `quickedit/SliderInput.tsx`, `quickedit/TagInput.tsx`, `wizard/EntryWizardModal.ts`, `wizard/WizardApp.tsx`, `wizard/FrontmatterPage.tsx`, `wizard/SectionsPage.tsx`, `wizard/WeeklyReviewWizard.ts`, `wizard/WeeklyReviewApp.tsx`, `wizard/WeeklySummaryCards.tsx`, `styles/wizard.css`
+
+**Phase 11.5:** Tests for Quick-Edit field type rendering, processFrontMatter save/load roundtrip, wizard page navigation, weekly summary aggregation, note creation logic.
 
 ---
 
@@ -1861,16 +2052,19 @@ These phases will be detailed when they're next up, after the preceding phases a
 ```
 Phase 0 (Scaffold)
   └── Phase 1 → 1.5 (Index Service + Store → Tests)
-      ├── Phase 2 → 2.5 (Sidebar: Today + Echoes + Morning Briefing → Tests)
-      ├── Phase 3 → 3.5 (Full-Page: Calendar + Time Machine → Tests)
-      │   └── Phase 4 → 4.5 (Timeline + Index Table + Virtual Scroll → Tests)
-      ├── Phase 5 → 5.5 (Charts: uPlot + React SVG + Correlation + Scatter → Tests)
-      │   └── Phase 6 → 6.5 (Pulse + Habits + Quality + Task Volatility → Tests)
-      │       └── Phase 8 → 8.5 (Threads + Section Reader → Tests)
+      ├── Phase 2 → 2.5 (Sidebar: Today + Echoes + Relative Time → Tests)
+      ├── Phase 3 → 3.5 (Full-Page: Calendar + Context Menu + Arrow Keys → Tests)
+      │   └── Phase 4 → 4.5 (Timeline + Index + VirtualList → Tests)
+      ├── Phase 5 → 5.5 (Charts + Correlation + Trend Alerts → Tests)
+      │   └── Phase 6 → 6.5 (Pulse + Goals + Widgets + Personal Bests → Tests)
+      │       └── Phase 8 → 8.5 (Threads + Section Reader + Section Trends → Tests)
       ├── Phase 7 → 7.5 (Actionable Echoes + Lens → Tests)
-      ├── Phase 9 → 9.5 (Images + Thumbnails → Tests)
-      └── Phase 10 → 10.5 (Digest View + Reports + Waypoints → Tests)
+      ├── Phase 9 → 9.5 (Images + Thumbnails + IndexedDB Safety → Tests)
+      ├── Phase 10 → 10.5 (Digest + Export + Annotations → Tests)
+      └── Phase 11 → 11.5 (Quick-Edit + Guided Entry Wizard → Tests)
 ```
+
+> **Note:** Phase 11 depends on Phase 1 (for `detectedFields` and `processFrontMatter`) but is otherwise independent. It can be started any time after Phase 1 if it becomes a priority, but the full experience benefits from Phase 6 data (goal targets, consistency scores) being available in the wizard.
 
 ---
 
@@ -1880,10 +2074,11 @@ Lower-priority features that can be added after the core phases. Not phased — 
 
 | Feature | Effort | Notes |
 |---------|--------|-------|
+| **Comparison Mode (Split View)** | Medium | Side-by-side period comparison: "This week vs last week," "This month vs same month last year." Reuses stat cards with different data sources. |
 | Word cloud from entry content or specific sections | Medium | React SVG, filterable by date range |
 | Export to PDF (formatted month of entries) | Medium | Useful for therapy sessions |
 | Mini sparklines in index table columns (mood, energy) | Medium | React SVG inline, makes the table feel alive |
-| Progress toward goals (e.g., weekly `studying_hours_done` vs target) | Medium | Settings for target values per field |
+| Progress toward goals (e.g., weekly `studying_hours_done` vs target) | Low | Built into Phase 6 Goal Tracking |
 | Pinned entries shown prominently in sidebar/calendar | Low | Frontmatter flag `pinned: true` |
 | Random entry button | Very low | Already in Phase 7 Lens outline |
 

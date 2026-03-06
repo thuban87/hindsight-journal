@@ -22,39 +22,48 @@
     text-align: center;
 }
 
-/* uPlot evaluation styles */
-.hindsight-uplot-eval {
+/* Chart evaluation styles */
+.hindsight-uplot-eval,
+.hindsight-chartjs-eval {
     padding: var(--hindsight-spacing-md);
+    display: block;
 }
 
-.hindsight-uplot-eval h2 {
+.hindsight-chartjs-wrapper {
+    background: var(--background-secondary);
+    border-radius: var(--hindsight-radius-md);
+    padding: var(--hindsight-spacing-md);
+    border: 1px solid var(--background-modifier-border);
+    margin-bottom: var(--hindsight-spacing-lg);
+}
+
+
+.hindsight-chart-heading {
     color: var(--text-normal);
-    margin-top: var(--hindsight-spacing-lg);
-    margin-bottom: var(--hindsight-spacing-sm);
     font-size: 1.1em;
+    margin-top: var(--hindsight-spacing-xl) !important;
+    margin-bottom: var(--hindsight-spacing-xs) !important;
     border-bottom: 1px solid var(--background-modifier-border);
     padding-bottom: var(--hindsight-spacing-xs);
 }
 
-.hindsight-uplot-eval h2:first-child {
-    margin-top: 0;
+.hindsight-chart-heading:first-of-type {
+    margin-top: 0 !important;
 }
 
-.hindsight-uplot-section {
-    margin-bottom: var(--hindsight-spacing-lg);
-}
-
-.hindsight-uplot-section p {
+.hindsight-chart-desc {
     color: var(--text-muted);
     font-size: 0.85em;
-    margin-bottom: var(--hindsight-spacing-sm);
+    margin-bottom: var(--hindsight-spacing-md);
 }
 
-.hindsight-chart-wrapper {
+/* Style uPlot charts directly — no wrapper div needed */
+.hindsight-uplot-eval .uplot {
     background: var(--background-secondary);
     border-radius: var(--hindsight-radius-md);
     padding: var(--hindsight-spacing-sm);
     border: 1px solid var(--background-modifier-border);
+    margin-bottom: var(--hindsight-spacing-lg);
 }
 
 .hindsight-sparkline-row {

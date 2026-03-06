@@ -17,27 +17,40 @@ export class HindsightSettingTab extends PluginSettingTab {
             .setHeading()
             .setName('Journal');
 
+        // IMPORTANT: Text inputs use onBlur (not onChange) to avoid
+        // hammering saveSettings() on every keystroke.
+        // onChange would trigger disk I/O per character typed.
         new Setting(containerEl)
             .setName('Journal folder')
             .setDesc('Folder containing your daily notes (scanned recursively).')
-            .addText(text => text
-                .setPlaceholder('e.g., Journal')
-                .setValue(this.plugin.settings.journalFolder)
-                .onChange(async (value) => {
-                    this.plugin.settings.journalFolder = value.trim();
-                    await this.plugin.saveSettings();
-                }));
+            .addText(text => {
+                text.setPlaceholder('e.g., Journal')
+                    .setValue(this.plugin.settings.journalFolder);
+                text.inputEl.addEventListener('blur', async () => {
+                    const newFolder = text.inputEl.value.trim();
+                    if (newFolder !== this.plugin.settings.journalFolder) {
+                        this.plugin.settings.journalFolder = newFolder;
+                        await this.plugin.saveSettings();
+                        // Trigger re-index with the new folder (Phase 1)
+                        // this.plugin.journalIndex?.reconfigure(newFolder);
+                    }
+                });
+            });
 
         new Setting(containerEl)
             .setName('Weekly review folder')
             .setDesc('Folder containing weekly review notes (optional).')
-            .addText(text => text
-                .setPlaceholder('e.g., Weekly Reviews')
-                .setValue(this.plugin.settings.weeklyReviewFolder)
-                .onChange(async (value) => {
-                    this.plugin.settings.weeklyReviewFolder = value.trim();
-                    await this.plugin.saveSettings();
-                }));
+            .addText(text => {
+                text.setPlaceholder('e.g., Weekly Reviews')
+                    .setValue(this.plugin.settings.weeklyReviewFolder);
+                text.inputEl.addEventListener('blur', async () => {
+                    const value = text.inputEl.value.trim();
+                    if (value !== this.plugin.settings.weeklyReviewFolder) {
+                        this.plugin.settings.weeklyReviewFolder = value;
+                        await this.plugin.saveSettings();
+                    }
+                });
+            });
 
         new Setting(containerEl)
             .setHeading()

@@ -2,14 +2,7 @@
  * uPlot Evaluation View
  * 
  * Temporary ItemView for evaluating uPlot inside Obsidian.
- * Renders 5 chart types matching Brad's journal frontmatter fields:
- * 1. Mood over time (line chart with points)
- * 2. Sleep duration (area/fill chart)
- * 3. Boolean habits — meds taken, workout (dot chart)
- * 4. Multi-metric overlay — mood + energy
- * 5. Sparklines — tiny inline charts for sidebar
- * 
- * Uses fake data matching the Implementation Plan frontmatter fields.
+ * Renders 5 chart types matching Brad's journal frontmatter fields.
  * This entire file will be removed after the charting library decision.
  */
 
@@ -31,15 +24,16 @@ function generateDates(count: number): number[] {
     return dates;
 }
 
-/** Generate fake mood data (1-10 scale, with some nulls for missing days) */
+/** Generate fake mood data (1-10 scale, realistic variation) */
 function generateMoodData(count: number): (number | null)[] {
     const data: (number | null)[] = [];
-    let base = 6;
+    let base = 5;
     for (let i = 0; i < count; i++) {
         if (Math.random() < 0.08) {
-            data.push(null); // ~8% missing days
+            data.push(null);
         } else {
-            base += (Math.random() - 0.48) * 1.5;
+            // Wider swing so data fills the chart vertically
+            base += (Math.random() - 0.5) * 3;
             base = Math.max(1, Math.min(10, base));
             data.push(Math.round(base * 10) / 10);
         }
@@ -55,8 +49,8 @@ function generateSleepData(count: number): (number | null)[] {
         if (Math.random() < 0.05) {
             data.push(null);
         } else {
-            base += (Math.random() - 0.5) * 1.2;
-            base = Math.max(4, Math.min(10, base));
+            base += (Math.random() - 0.5) * 2;
+            base = Math.max(3, Math.min(10, base));
             data.push(Math.round(base * 10) / 10);
         }
     }
@@ -79,9 +73,8 @@ function generateBooleanData(count: number, probability: number): (number | null
 /** Generate fake energy data (1-10, correlated with mood) */
 function generateEnergyData(moodData: (number | null)[]): (number | null)[] {
     return moodData.map(mood => {
-        if (mood === null) return Math.random() < 0.5 ? null : Math.round((Math.random() * 4 + 4) * 10) / 10;
-        // Correlated with mood but with some noise
-        const energy = mood + (Math.random() - 0.5) * 3;
+        if (mood === null) return Math.random() < 0.5 ? null : Math.round((Math.random() * 6 + 2) * 10) / 10;
+        const energy = mood + (Math.random() - 0.5) * 4;
         return Math.round(Math.max(1, Math.min(10, energy)) * 10) / 10;
     });
 }
@@ -104,6 +97,98 @@ function getThemeColors() {
         warning: getCssVar('--text-warning') || '#e5c07b',
         error: getCssVar('--text-error') || '#e06c75',
     };
+}
+
+/** Format a unix timestamp (seconds) into a readable date string */
+function formatDate(ts: number): string {
+    const d = new Date(ts * 1000);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+}
+
+/**
+ * Custom tooltip plugin for uPlot.
+ * Shows a floating tooltip with date + series values on hover.
+ */
+function tooltipPlugin(colors: ReturnType<typeof getThemeColors>) {
+    let tooltipEl: HTMLDivElement | null = null;
+
+    function init(u: uPlot) {
+        tooltipEl = document.createElement('div');
+        tooltipEl.className = 'hindsight-uplot-tooltip';
+        tooltipEl.style.display = 'none';
+        u.over.appendChild(tooltipEl);
+    }
+
+    function setCursor(u: uPlot) {
+        if (!tooltipEl) return;
+        const idx = u.cursor.idx;
+        if (idx == null || idx < 0) {
+            tooltipEl.style.display = 'none';
+            return;
+        }
+
+        const xVal = u.data[0][idx];
+        let html = `<div class="hindsight-tooltip-date">${formatDate(xVal)}</div>`;
+
+        let hasValue = false;
+        for (let i = 1; i < u.series.length; i++) {
+            const s = u.series[i];
+            if (!s.show) continue;
+            const val = u.data[i][idx];
+            if (val == null) continue;
+            hasValue = true;
+            const color = typeof s.stroke === 'function' ? colors.accent : (s.stroke as string);
+            html += `<div class="hindsight-tooltip-row">
+                <span class="hindsight-tooltip-dot" style="background:${color}"></span>
+                <span class="hindsight-tooltip-label">${s.label ?? ''}</span>
+                <span class="hindsight-tooltip-value">${val}</span>
+            </div>`;
+        }
+
+        if (!hasValue) {
+            tooltipEl.style.display = 'none';
+            return;
+        }
+
+        tooltipEl.innerHTML = html;
+        tooltipEl.style.display = 'block';
+
+        const { left, top } = u.cursor;
+        if (left == null || top == null) return;
+
+        const tooltipWidth = tooltipEl.offsetWidth;
+        const plotWidth = u.over.clientWidth;
+
+        let xPos = left + 12;
+        if (xPos + tooltipWidth > plotWidth - 10) {
+            xPos = left - tooltipWidth - 12;
+        }
+
+        tooltipEl.style.left = `${Math.max(0, xPos)}px`;
+        tooltipEl.style.top = `${Math.max(0, top - 10)}px`;
+    }
+
+    return {
+        hooks: {
+            init,
+            setCursor,
+        },
+    };
+}
+
+/**
+ * Auto-range with a small amount of padding above and below the data.
+ * uPlot calls this to determine the y-axis bounds.
+ */
+function paddedRange(_u: uPlot, dataMin: number, dataMax: number): [number, number] {
+    const span = dataMax - dataMin || 1;
+    const pad = span * 0.1;
+    return [
+        Math.floor((dataMin - pad) * 10) / 10,
+        Math.ceil((dataMax + pad) * 10) / 10,
+    ];
 }
 
 export class UPlotEvalView extends ItemView {
@@ -150,60 +235,50 @@ export class UPlotEvalView extends ItemView {
         const chartWidth = container.clientWidth - 32;
 
         // ===== 1. Mood Line Chart =====
-        this.createSection(container, 'Mood over time (line chart)', 'Primary use case — numeric 1-10 scale with gaps for missing days. Tests line rendering, null handling, and tooltips.');
-        const moodEl = this.createChartWrapper(container);
-        this.charts.push(this.createLineChart(moodEl, dates, moodData, {
+        this.addHeading(container, 'Mood over time (line chart)', 'Primary use case — numeric 1-10 scale with gaps for missing days. Hover over points to see values.');
+        this.charts.push(this.createLineChart(container, dates, moodData, {
             label: 'Mood',
             color: colors.accent,
             width: chartWidth,
-            height: 220,
-            yMin: 1,
-            yMax: 10,
+            height: 280,
             colors,
         }));
 
         // ===== 2. Sleep Duration Area Chart =====
-        this.createSection(container, 'Sleep duration (area chart)', 'Filled area chart — shows how uPlot handles fill/stroke and null gaps.');
-        const sleepEl = this.createChartWrapper(container);
-        this.charts.push(this.createAreaChart(sleepEl, dates, sleepData, {
+        this.addHeading(container, 'Sleep duration (area chart)', 'Filled area chart — hover to see hours. Shows how uPlot handles fill/stroke and null gaps.');
+        this.charts.push(this.createAreaChart(container, dates, sleepData, {
             label: 'Sleep (hrs)',
             color: colors.success,
             width: chartWidth,
-            height: 200,
-            yMin: 0,
-            yMax: 12,
+            height: 250,
             colors,
         }));
 
         // ===== 3. Boolean Habits Dot Chart =====
-        this.createSection(container, 'Boolean habits (dot chart)', 'Morning meds, evening meds, workout — shown as colored dots. Tests points-only rendering.');
-        const boolEl = this.createChartWrapper(container);
-        this.charts.push(this.createBooleanChart(boolEl, dates, [
+        this.addHeading(container, 'Boolean habits (dot chart)', 'Morning meds, evening meds, workout — shown as colored dots. Tests points-only rendering.');
+        this.charts.push(this.createBooleanChart(container, dates, [
             { data: morningMeds, label: 'Morning meds', color: colors.success },
             { data: eveningMeds, label: 'Evening meds', color: colors.warning },
             { data: workout, label: 'Workout', color: colors.accent },
         ], {
             width: chartWidth,
-            height: 160,
+            height: 180,
             colors,
         }));
 
         // ===== 4. Multi-Metric Overlay =====
-        this.createSection(container, 'Multi-metric overlay (mood + energy)', 'Two series on the same axes — tests multi-series rendering and legend.');
-        const multiEl = this.createChartWrapper(container);
-        this.charts.push(this.createMultiLineChart(multiEl, dates, [
+        this.addHeading(container, 'Multi-metric overlay (mood + energy)', 'Two series on the same axes — hover to compare values side by side.');
+        this.charts.push(this.createMultiLineChart(container, dates, [
             { data: moodData, label: 'Mood', color: colors.accent },
             { data: energyData, label: 'Energy', color: colors.warning },
         ], {
             width: chartWidth,
-            height: 220,
-            yMin: 1,
-            yMax: 10,
+            height: 280,
             colors,
         }));
 
         // ===== 5. Sparklines =====
-        this.createSection(container, 'Sparklines (sidebar preview)', 'Tiny inline charts for the sidebar widget — tests minimal rendering.');
+        this.addHeading(container, 'Sparklines (sidebar preview)', 'Tiny inline charts for the sidebar widget — tests minimal rendering.');
         const sparkContainer = container.createDiv('hindsight-sparkline-container');
         this.createSparklineRow(sparkContainer, dates, moodData, 'Mood', moodData.filter(v => v !== null).pop()?.toString() ?? '—', colors.accent, colors);
         this.createSparklineRow(sparkContainer, dates, sleepData, 'Sleep', (sleepData.filter(v => v !== null).pop()?.toFixed(1) ?? '—') + 'h', colors.success, colors);
@@ -217,14 +292,10 @@ export class UPlotEvalView extends ItemView {
         this.charts = [];
     }
 
-    private createSection(container: HTMLElement, title: string, description: string): void {
-        const section = container.createDiv('hindsight-uplot-section');
-        section.createEl('h2', { text: title });
-        section.createEl('p', { text: description });
-    }
-
-    private createChartWrapper(container: HTMLElement): HTMLElement {
-        return container.createDiv('hindsight-chart-wrapper');
+    /** Add a heading + description directly to the container (no wrapper div) */
+    private addHeading(container: HTMLElement, title: string, description: string): void {
+        container.createEl('h2', { text: title, cls: 'hindsight-chart-heading' });
+        container.createEl('p', { text: description, cls: 'hindsight-chart-desc' });
     }
 
     private getCommonAxes(colors: ReturnType<typeof getThemeColors>): uPlot.Axis[] {
@@ -234,13 +305,15 @@ export class UPlotEvalView extends ItemView {
                 grid: { stroke: colors.border, width: 1 },
                 ticks: { stroke: colors.border, width: 1 },
                 font: '11px -apple-system, BlinkMacSystemFont, sans-serif',
+                gap: 5,
             },
             {
                 stroke: colors.textMuted,
                 grid: { stroke: colors.border, width: 1 },
                 ticks: { stroke: colors.border, width: 1 },
                 font: '11px -apple-system, BlinkMacSystemFont, sans-serif',
-                size: 50,
+                size: 45,
+                gap: 5,
             },
         ];
     }
@@ -249,14 +322,20 @@ export class UPlotEvalView extends ItemView {
         el: HTMLElement,
         dates: number[],
         values: (number | null)[],
-        opts: { label: string; color: string; width: number; height: number; yMin: number; yMax: number; colors: ReturnType<typeof getThemeColors> },
+        opts: { label: string; color: string; width: number; height: number; colors: ReturnType<typeof getThemeColors> },
     ): uPlot {
         const uplotOpts: uPlot.Options = {
             width: opts.width,
             height: opts.height,
-            cursor: { show: true, drag: { x: true, y: false } },
+            cursor: {
+                show: true,
+                drag: { x: true, y: false },
+                points: { size: 8, fill: opts.color, stroke: opts.colors.bg, width: 2 },
+            },
+            legend: { show: false },
+            plugins: [tooltipPlugin(opts.colors)],
             scales: {
-                y: { range: [opts.yMin, opts.yMax] },
+                y: { range: paddedRange },
             },
             axes: this.getCommonAxes(opts.colors),
             series: [
@@ -278,14 +357,20 @@ export class UPlotEvalView extends ItemView {
         el: HTMLElement,
         dates: number[],
         values: (number | null)[],
-        opts: { label: string; color: string; width: number; height: number; yMin: number; yMax: number; colors: ReturnType<typeof getThemeColors> },
+        opts: { label: string; color: string; width: number; height: number; colors: ReturnType<typeof getThemeColors> },
     ): uPlot {
         const uplotOpts: uPlot.Options = {
             width: opts.width,
             height: opts.height,
-            cursor: { show: true, drag: { x: true, y: false } },
+            cursor: {
+                show: true,
+                drag: { x: true, y: false },
+                points: { size: 8, fill: opts.color, stroke: opts.colors.bg, width: 2 },
+            },
+            legend: { show: false },
+            plugins: [tooltipPlugin(opts.colors)],
             scales: {
-                y: { range: [opts.yMin, opts.yMax] },
+                y: { range: paddedRange },
             },
             axes: this.getCommonAxes(opts.colors),
             series: [
@@ -294,7 +379,7 @@ export class UPlotEvalView extends ItemView {
                     label: opts.label,
                     stroke: opts.color,
                     width: 2,
-                    fill: opts.color + '30', // 30 = ~19% opacity hex
+                    fill: opts.color + '30',
                     points: { size: 3, fill: opts.color },
                     spanGaps: false,
                 },
@@ -310,11 +395,10 @@ export class UPlotEvalView extends ItemView {
         series: { data: (number | null)[]; label: string; color: string }[],
         opts: { width: number; height: number; colors: ReturnType<typeof getThemeColors> },
     ): uPlot {
-        // Spread boolean series vertically: series 0 at y=3, series 1 at y=2, series 2 at y=1
         const spreadData = series.map((s, idx) =>
             s.data.map(v => {
                 if (v === null) return null;
-                return v === 1 ? (series.length - idx) : null; // Only show dots for "true"
+                return v === 1 ? (series.length - idx) : null;
             })
         );
 
@@ -322,6 +406,8 @@ export class UPlotEvalView extends ItemView {
             width: opts.width,
             height: opts.height,
             cursor: { show: true },
+            legend: { show: false },
+            plugins: [tooltipPlugin(opts.colors)],
             scales: {
                 y: { range: [0, series.length + 1] },
             },
@@ -331,13 +417,15 @@ export class UPlotEvalView extends ItemView {
                     grid: { stroke: opts.colors.border, width: 1 },
                     ticks: { stroke: opts.colors.border, width: 1 },
                     font: '11px -apple-system, BlinkMacSystemFont, sans-serif',
+                    gap: 5,
                 },
                 {
                     stroke: opts.colors.textMuted,
                     grid: { show: false },
                     ticks: { show: false },
                     font: '11px -apple-system, BlinkMacSystemFont, sans-serif',
-                    size: 50,
+                    size: 110,
+                    gap: 5,
                     values: (_u: uPlot, vals: number[]) =>
                         vals.map(v => {
                             const idx = series.length - v;
@@ -352,7 +440,7 @@ export class UPlotEvalView extends ItemView {
                     stroke: s.color,
                     width: 0,
                     points: { size: 8, fill: s.color, space: 0 },
-                    paths: () => null, // No lines, just points
+                    paths: () => null,
                 })),
             ],
         };
@@ -364,14 +452,20 @@ export class UPlotEvalView extends ItemView {
         el: HTMLElement,
         dates: number[],
         series: { data: (number | null)[]; label: string; color: string }[],
-        opts: { width: number; height: number; yMin: number; yMax: number; colors: ReturnType<typeof getThemeColors> },
+        opts: { width: number; height: number; colors: ReturnType<typeof getThemeColors> },
     ): uPlot {
         const uplotOpts: uPlot.Options = {
             width: opts.width,
             height: opts.height,
-            cursor: { show: true, drag: { x: true, y: false } },
+            cursor: {
+                show: true,
+                drag: { x: true, y: false },
+                points: { size: 8, stroke: opts.colors.bg, width: 2 },
+            },
+            legend: { show: false },
+            plugins: [tooltipPlugin(opts.colors)],
             scales: {
-                y: { range: [opts.yMin, opts.yMax] },
+                y: { range: paddedRange },
             },
             axes: this.getCommonAxes(opts.colors),
             series: [
@@ -398,7 +492,6 @@ export class UPlotEvalView extends ItemView {
         color: string,
         colors: ReturnType<typeof getThemeColors>,
     ): void {
-        // Only use last 30 days for sparklines
         const last30Dates = dates.slice(-30);
         const last30Values = values.slice(-30);
 
@@ -418,6 +511,7 @@ export class UPlotEvalView extends ItemView {
             ],
             scales: {
                 x: { time: false },
+                y: { range: paddedRange },
             },
             series: [
                 {},
@@ -436,26 +530,56 @@ export class UPlotEvalView extends ItemView {
         row.createDiv({ cls: 'hindsight-sparkline-value', text: currentValue });
     }
 
-    /** Minimal uPlot CSS — uses Obsidian variables for theme compatibility */
+    /** Minimal uPlot CSS — themed to Obsidian */
     private getUPlotCSS(): string {
         return `
             .uplot {
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             }
             .u-legend {
-                font-size: 12px;
-                padding: 4px 8px;
-            }
-            .u-legend .u-series {
-                padding: 2px 8px;
-            }
-            .u-legend .u-marker {
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
+                display: none !important;
             }
             .u-cursor-pt {
                 border-radius: 50%;
+            }
+            .hindsight-uplot-tooltip {
+                position: absolute;
+                z-index: 100;
+                background: var(--background-primary, #1e1e1e);
+                border: 1px solid var(--background-modifier-border, #363636);
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 12px;
+                pointer-events: none;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                min-width: 120px;
+            }
+            .hindsight-tooltip-date {
+                color: var(--text-muted, #999);
+                font-size: 11px;
+                margin-bottom: 4px;
+                font-weight: 500;
+            }
+            .hindsight-tooltip-row {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 2px 0;
+            }
+            .hindsight-tooltip-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                flex-shrink: 0;
+            }
+            .hindsight-tooltip-label {
+                color: var(--text-muted, #999);
+                flex: 1;
+            }
+            .hindsight-tooltip-value {
+                color: var(--text-normal, #dcddde);
+                font-weight: 600;
+                font-variant-numeric: tabular-nums;
             }
         `;
     }
