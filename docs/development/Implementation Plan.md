@@ -606,7 +606,7 @@ export const HINDSIGHT_SIDEBAR_VIEW_TYPE = 'hindsight-sidebar-view';
 
 ---
 
-## Phase 1: Journal Index Service + Store (~1-2 sessions)
+## Phase 1: Journal Index Service + Store (~1-2 sessions) ✅ COMPLETE
 
 **Goal:** Recursively scan the journal folder, parse every daily note (filename → date, frontmatter, sections, images, word count), store them in a Zustand store, and keep the index alive with file event watching. This is the data backbone everything else depends on.
 
@@ -1028,7 +1028,7 @@ this.journalIndex?.destroy();
 
 ---
 
-## Phase 1.5: Index & Parsing Tests
+## Phase 1.5: Index & Parsing Tests ✅ COMPLETE
 
 **PREREQUISITE:** Brad confirms Phase 1 works correctly in Obsidian before starting this phase.
 

@@ -121,6 +121,14 @@ export class Vault {
         return { id: 'mock-event' };
     }
 
+    getRoot(): TFolder {
+        const root = new TFolder();
+        root.path = '';
+        root.name = '';
+        root.children = [];
+        return root;
+    }
+
     adapter = {
         exists: async (_path: string): Promise<boolean> => true,
         read: async (_path: string): Promise<string> => '',
@@ -254,4 +262,21 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
 
 export function normalizePath(path: string): string {
     return path.replace(/\\/g, '/');
+}
+
+// ============== Input Suggest ==============
+
+export class AbstractInputSuggest<T> {
+    app: App;
+    protected inputEl: HTMLInputElement;
+
+    constructor(app: App, inputEl: HTMLInputElement) {
+        this.app = app;
+        this.inputEl = inputEl;
+    }
+
+    getSuggestions(_query: string): T[] { return []; }
+    renderSuggestion(_item: T, _el: HTMLElement): void { }
+    selectSuggestion(_item: T): void { }
+    close(): void { }
 }
