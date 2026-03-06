@@ -1,10 +1,11 @@
 import { Plugin } from 'obsidian';
 import { HindsightSettingTab } from './src/settings';
 import { DEFAULT_SETTINGS, HindsightSettings } from './src/types';
-import { HINDSIGHT_UPLOT_EVAL_VIEW_TYPE, CHARTJS_EVAL_VIEW_TYPE, HINDSIGHT_SIDEBAR_VIEW_TYPE } from './src/constants';
+import { HINDSIGHT_UPLOT_EVAL_VIEW_TYPE, CHARTJS_EVAL_VIEW_TYPE, HINDSIGHT_SIDEBAR_VIEW_TYPE, HINDSIGHT_MAIN_VIEW_TYPE } from './src/constants';
 import { UPlotEvalView } from './src/views/UPlotEvalView';
 import { ChartJsEvalView } from './src/views/ChartJsEvalView';
 import { HindsightSidebarView } from './src/views/HindsightSidebarView';
+import { HindsightMainView } from './src/views/HindsightMainView';
 import { JournalIndexService } from './src/services/JournalIndexService';
 import { useSettingsStore } from './src/store/settingsStore';
 import { useJournalStore } from './src/store/journalStore';
@@ -62,6 +63,25 @@ export default class HindsightPlugin extends Plugin {
                 void this.activateSidebarView();
             });
         }
+
+        // === Main Full-Page View ===
+        this.registerView(
+            HINDSIGHT_MAIN_VIEW_TYPE,
+            (leaf) => new HindsightMainView(leaf, this)
+        );
+
+        this.addCommand({
+            id: 'open-main',
+            name: 'Open journal view',
+            callback: () => {
+                void this.activateMainView();
+            },
+        });
+
+        // Ribbon icon for quick access
+        this.addRibbonIcon('book-open', 'Open Hindsight', () => {
+            void this.activateMainView();
+        });
 
         // === Temporary: uPlot evaluation view ===
         this.registerView(
@@ -150,6 +170,22 @@ export default class HindsightPlugin extends Plugin {
         if (leaf) {
             await leaf.setViewState({ type: HINDSIGHT_SIDEBAR_VIEW_TYPE });
             this.app.workspace.revealLeaf(leaf);
+        }
+    }
+
+    /**
+     * Activate the main full-page view.
+     * If already open, reveal it. Otherwise create a new tab.
+     */
+    async activateMainView(): Promise<void> {
+        const leaves = this.app.workspace.getLeavesOfType(HINDSIGHT_MAIN_VIEW_TYPE);
+        if (leaves.length === 0) {
+            const leaf = this.app.workspace.getLeaf('tab');
+            if (leaf) {
+                await leaf.setViewState({ type: HINDSIGHT_MAIN_VIEW_TYPE });
+            }
+        } else {
+            this.app.workspace.revealLeaf(leaves[0]);
         }
     }
 }

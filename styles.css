@@ -1,7 +1,8 @@
 /* Hindsight Journal CSS custom properties
    Uses Obsidian's CSS variables for theme compatibility */
 .hindsight-container,
-.hindsight-sidebar-container {
+.hindsight-sidebar-container,
+.hindsight-main-container {
     --hindsight-spacing-xs: 4px;
     --hindsight-spacing-sm: 8px;
     --hindsight-spacing-md: 16px;
@@ -354,4 +355,173 @@
 .hindsight-echo-word-count {
     color: var(--text-muted);
     font-size: 0.75em;
+}
+/* Hindsight Journal — Calendar styles */
+/* Calendar container */
+.hindsight-calendar-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--hindsight-spacing-md);
+    padding: var(--hindsight-spacing-md);
+    max-width: 700px;
+    margin: 0 auto;
+    outline: none;
+}
+/* Navigation bar */
+.hindsight-calendar-nav {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--hindsight-spacing-md);
+    flex-wrap: wrap;
+}
+.hindsight-calendar-nav-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--hindsight-spacing-sm);
+}
+.hindsight-calendar-nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: var(--hindsight-radius-sm);
+    background: transparent;
+    color: var(--text-normal);
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.hindsight-calendar-nav-btn:hover {
+    background: var(--background-modifier-hover);
+}
+.hindsight-calendar-nav-title {
+    border: none;
+    background: transparent;
+    color: var(--text-normal);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: var(--hindsight-spacing-xs) var(--hindsight-spacing-sm);
+    border-radius: var(--hindsight-radius-sm);
+    transition: background 0.15s ease;
+}
+.hindsight-calendar-nav-title:hover {
+    background: var(--background-modifier-hover);
+}
+.hindsight-calendar-nav-today {
+    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: var(--hindsight-spacing-xs) var(--hindsight-spacing-sm);
+    border-radius: var(--hindsight-radius-sm);
+    cursor: pointer;
+    min-height: 44px;
+    min-width: 44px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.hindsight-calendar-nav-today:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+.hindsight-calendar-nav-metric {
+    display: flex;
+    align-items: center;
+}
+.hindsight-metric-selector {
+    min-height: 44px;
+    padding: var(--hindsight-spacing-xs) var(--hindsight-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--hindsight-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 13px;
+    cursor: pointer;
+}
+/* Calendar grid */
+.hindsight-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+/* Day-of-week headers */
+.hindsight-calendar-header {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: var(--hindsight-spacing-xs) 0;
+    user-select: none;
+}
+/* Individual day cell */
+.hindsight-calendar-cell {
+    position: relative;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: var(--hindsight-spacing-xs);
+    border-radius: var(--hindsight-radius-sm);
+    cursor: default;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    min-height: 44px;
+    min-width: 44px;
+}
+.hindsight-calendar-cell.has-entry {
+    cursor: pointer;
+    box-shadow: 0 0 0 1px var(--background-modifier-border);
+}
+.hindsight-calendar-cell.has-entry:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+/* Today highlight — accent border ring */
+.hindsight-calendar-cell.is-today {
+    box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+.hindsight-calendar-cell.is-today.has-entry:hover {
+    box-shadow: 0 0 0 2px var(--interactive-accent), 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+/* Empty/dimmed cells */
+.hindsight-calendar-cell-empty {
+    opacity: 0;
+    pointer-events: none;
+}
+.hindsight-calendar-cell-no-entry {
+    opacity: 0.4;
+}
+/* Day number */
+.hindsight-calendar-day-number {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-normal);
+    line-height: 1;
+}
+/* Entry indicator dot (shown when no metric is selected but entry exists) */
+.hindsight-calendar-indicator {
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--interactive-accent);
+    margin-top: var(--hindsight-spacing-xs);
+}
+/* Placeholder for Phase 9 image thumbnails */
+.hindsight-calendar-thumbnail {
+    /* Empty for now — populated in Phase 9 */
+}
+/* Main view layout */
+.hindsight-main {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.hindsight-main-content {
+    flex: 1;
+    overflow-y: auto;
 }
