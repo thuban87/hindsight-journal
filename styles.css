@@ -1,0 +1,81 @@
+/* Hindsight Journal CSS custom properties
+   Uses Obsidian's CSS variables for theme compatibility */
+.hindsight-container {
+    --hindsight-spacing-xs: 4px;
+    --hindsight-spacing-sm: 8px;
+    --hindsight-spacing-md: 16px;
+    --hindsight-spacing-lg: 24px;
+    --hindsight-spacing-xl: 32px;
+    --hindsight-radius-sm: 4px;
+    --hindsight-radius-md: 8px;
+    --hindsight-radius-lg: 12px;
+}
+/* Hindsight Journal — base container and layout styles */
+.hindsight-container {
+    padding: var(--hindsight-spacing-md);
+    color: var(--text-normal);
+}
+.hindsight-container h1,
+.hindsight-container h2,
+.hindsight-container h3 {
+    color: var(--text-normal);
+    margin-top: var(--hindsight-spacing-lg);
+    margin-bottom: var(--hindsight-spacing-sm);
+}
+.hindsight-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--hindsight-spacing-xl);
+    color: var(--text-muted);
+    text-align: center;
+}
+/* uPlot evaluation styles */
+.hindsight-uplot-eval {
+    padding: var(--hindsight-spacing-md);
+}
+.hindsight-uplot-eval h2 {
+    color: var(--text-normal);
+    margin-top: var(--hindsight-spacing-lg);
+    margin-bottom: var(--hindsight-spacing-sm);
+    font-size: 1.1em;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: var(--hindsight-spacing-xs);
+}
+.hindsight-uplot-eval h2:first-child {
+    margin-top: 0;
+}
+.hindsight-uplot-section {
+    margin-bottom: var(--hindsight-spacing-lg);
+}
+.hindsight-uplot-section p {
+    color: var(--text-muted);
+    font-size: 0.85em;
+    margin-bottom: var(--hindsight-spacing-sm);
+}
+.hindsight-chart-wrapper {
+    background: var(--background-secondary);
+    border-radius: var(--hindsight-radius-md);
+    padding: var(--hindsight-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+}
+.hindsight-sparkline-row {
+    display: flex;
+    align-items: center;
+    gap: var(--hindsight-spacing-md);
+    padding: var(--hindsight-spacing-sm) 0;
+}
+.hindsight-sparkline-label {
+    min-width: 140px;
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+.hindsight-sparkline-value {
+    min-width: 40px;
+    text-align: right;
+    font-weight: 600;
+    font-size: 0.9em;
+    color: var(--text-normal);
+}
+/* Hindsight Journal — shared component styles */

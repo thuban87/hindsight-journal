@@ -1,0 +1,12 @@
+/* Hindsight Journal CSS custom properties
+   Uses Obsidian's CSS variables for theme compatibility */
+.hindsight-container {
+    --hindsight-spacing-xs: 4px;
+    --hindsight-spacing-sm: 8px;
+    --hindsight-spacing-md: 16px;
+    --hindsight-spacing-lg: 24px;
+    --hindsight-spacing-xl: 32px;
+    --hindsight-radius-sm: 4px;
+    --hindsight-radius-md: 8px;
+    --hindsight-radius-lg: 12px;
+}

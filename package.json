@@ -1,0 +1,38 @@
+{
+    "name": "hindsight-journal",
+    "version": "0.1.0",
+    "description": "Visualize and reflect on your journal entries.",
+    "main": "main.js",
+    "scripts": {
+        "css:build": "postcss src/styles/index.css -o styles.css",
+        "css:watch": "postcss src/styles/index.css -o styles.css --watch",
+        "dev": "node esbuild.config.mjs",
+        "build": "npm run css:build && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+        "deploy:test": "npm run build && node deploy.mjs test",
+        "deploy:staging": "npm run build && node deploy.mjs staging",
+        "deploy:production": "npm run build && node deploy.mjs production",
+        "test": "vitest",
+        "test:run": "vitest run"
+    },
+    "dependencies": {
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "uplot": "^1.6.31",
+        "zustand": "^4.4.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.10.0",
+        "@types/react": "^18.2.0",
+        "@types/react-dom": "^18.2.0",
+        "builtin-modules": "^3.3.0",
+        "esbuild": "^0.19.0",
+        "jsdom": "^28.1.0",
+        "obsidian": "latest",
+        "postcss": "^8.5.6",
+        "postcss-cli": "^11.0.1",
+        "postcss-import": "^16.1.1",
+        "tslib": "^2.6.0",
+        "typescript": "^5.3.0",
+        "vitest": "^4.0.18"
+    }
+}
