@@ -1662,7 +1662,7 @@ All tests pass. Approximately 15-20 new tests.
 
 ---
 
-## Phase 4: Timeline + Journal Index (~1-2 sessions)
+## Phase 4: Timeline + Journal Index (~1-2 sessions) ✅ COMPLETE
 
 **Goal:** Complete the three core navigation modes. Timeline is a scrollable card feed. Index is a sortable/filterable data table. Both read from the same journal store.
 
@@ -1809,7 +1809,7 @@ case 'index':
 
 ---
 
-## Phase 4.5: Filter & Sort Tests
+## Phase 4.5: Filter & Sort Tests ✅ COMPLETE
 
 **PREREQUISITE:** Brad confirms Phase 4 works correctly in Obsidian.
 

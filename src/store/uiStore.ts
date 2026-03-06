@@ -6,6 +6,14 @@
  */
 
 import { create } from 'zustand';
+import type { DateRange } from '../types';
+
+/** A single field filter for the index table */
+interface FieldFilter {
+    field: string;
+    operator: '>=' | '<=' | '=';
+    value: number;
+}
 
 interface UIState {
     /** Active tab in the sidebar view */
@@ -24,6 +32,15 @@ interface UIState {
     /** Selected frontmatter field key for calendar color-coding (null = none) */
     selectedMetric: string | null;
 
+    /** Index table sort state */
+    indexSort: { field: string; direction: 'asc' | 'desc' };
+    /** Index table filter state */
+    indexFilters: {
+        search: string;
+        dateRange: DateRange | null;
+        fieldFilters: FieldFilter[];
+    };
+
     /** Set the active sidebar tab */
     setActiveSidebarTab(tab: 'today' | 'echoes'): void;
     /** Set the section key for echo card excerpts */
@@ -36,11 +53,23 @@ interface UIState {
     setCalendarMonth(month: number, year: number): void;
     /** Set the selected metric for calendar color-coding */
     setSelectedMetric(metric: string | null): void;
+    /** Toggle sort direction if same field, set asc if new field */
+    setIndexSort(field: string): void;
+    /** Set the text search filter */
+    setSearchFilter(search: string): void;
+    /** Set the date range filter (null clears) */
+    setDateRangeFilter(range: DateRange | null): void;
+    /** Add a numeric field filter */
+    addFieldFilter(field: string, operator: '>=' | '<=' | '=', value: number): void;
+    /** Remove a field filter by index */
+    removeFieldFilter(index: number): void;
+    /** Reset all filters to defaults */
+    clearAllFilters(): void;
 }
 
 const now = new Date();
 
-export const useUIStore = create<UIState>((set) => ({
+export const useUIStore = create<UIState>((set, get) => ({
     activeSidebarTab: 'today',
     echoSectionKey: null,
     echoMetricKey: 'mood',
@@ -48,6 +77,12 @@ export const useUIStore = create<UIState>((set) => ({
     calendarMonth: now.getMonth(),
     calendarYear: now.getFullYear(),
     selectedMetric: null,
+    indexSort: { field: 'date', direction: 'desc' },
+    indexFilters: {
+        search: '',
+        dateRange: null,
+        fieldFilters: [],
+    },
 
     setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
     setEchoSectionKey: (key) => set({ echoSectionKey: key }),
@@ -55,4 +90,43 @@ export const useUIStore = create<UIState>((set) => ({
     setActiveMainTab: (tab) => set({ activeMainTab: tab }),
     setCalendarMonth: (month, year) => set({ calendarMonth: month, calendarYear: year }),
     setSelectedMetric: (metric) => set({ selectedMetric: metric }),
+
+    setIndexSort: (field) => {
+        const current = get().indexSort;
+        if (current.field === field) {
+            set({ indexSort: { field, direction: current.direction === 'asc' ? 'desc' : 'asc' } });
+        } else {
+            set({ indexSort: { field, direction: 'asc' } });
+        }
+    },
+
+    setSearchFilter: (search) => set((state) => ({
+        indexFilters: { ...state.indexFilters, search },
+    })),
+
+    setDateRangeFilter: (range) => set((state) => ({
+        indexFilters: { ...state.indexFilters, dateRange: range },
+    })),
+
+    addFieldFilter: (field, operator, value) => set((state) => ({
+        indexFilters: {
+            ...state.indexFilters,
+            fieldFilters: [...state.indexFilters.fieldFilters, { field, operator, value }],
+        },
+    })),
+
+    removeFieldFilter: (index) => set((state) => ({
+        indexFilters: {
+            ...state.indexFilters,
+            fieldFilters: state.indexFilters.fieldFilters.filter((_, i) => i !== index),
+        },
+    })),
+
+    clearAllFilters: () => set({
+        indexFilters: {
+            search: '',
+            dateRange: null,
+            fieldFilters: [],
+        },
+    }),
 }));
