@@ -6,7 +6,7 @@
  */
 
 import type { JournalEntry } from '../types';
-import { isSameWeek } from '../utils/dateUtils';
+import { getWeekOfYear } from '../utils/dateUtils';
 
 /**
  * Find entries from the same date in previous years.
@@ -31,19 +31,22 @@ export function getOnThisDay(
 }
 
 /**
- * Find entries from the same ISO week in previous years.
- * Returns entries sorted by year (most recent first).
+ * Find entries from the same week number in previous years.
+ * Compares local-time week numbers only (not ISO week year),
+ * so "week 10 of 2025" matches "week 10 of 2026".
+ * Returns entries sorted by date (most recent first).
  */
 export function getThisWeekLastYear(
     targetDate: Date,
     entries: JournalEntry[]
 ): JournalEntry[] {
     const currentYear = targetDate.getFullYear();
+    const targetWeek = getWeekOfYear(targetDate);
 
     return entries
         .filter(entry =>
             entry.date.getFullYear() !== currentYear &&
-            isSameWeek(entry.date, targetDate)
+            getWeekOfYear(entry.date) === targetWeek
         )
         .sort((a, b) => b.date.getTime() - a.date.getTime());
 }

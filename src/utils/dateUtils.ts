@@ -33,6 +33,20 @@ export function getISOWeek(date: Date): number {
 }
 
 /**
+ * Get the week number of the year (1-53) using local time.
+ * Weeks start on Monday. Week 1 contains the year's first Thursday.
+ * Unlike isSameWeek, this returns just the week number without
+ * coupling it to the year — suitable for cross-year comparisons.
+ */
+export function getWeekOfYear(date: Date): number {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const dayNum = d.getDay() || 7; // Make Sunday = 7
+    d.setDate(d.getDate() + 4 - dayNum); // Set to nearest Thursday
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
+/**
  * Get the ISO week-numbering year for a date.
  * This may differ from the calendar year around Jan 1.
  */

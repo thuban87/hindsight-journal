@@ -241,25 +241,63 @@ Files: 12 new, 3 modified
 
 ---
 
+## 2026-03-06 - Phase 2.5: Echoes & Pulse Service Tests
+
+**Focus:** Unit tests for EchoesService and PulseService, plus a bug fix in `getThisWeekLastYear`.
+
+### Completed:
+
+#### Phase 2.5: Echoes & Pulse Service Tests (16 new tests, 125 total passing)
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `test/services/EchoesService.test.ts` | 7 | getOnThisDay (date matching, empty results, leap year, sorting), getThisWeekLastYear (week matching, year boundary, empty results) |
+| `test/services/PulseService.test.ts` | 9 | getCurrentStreak (5-day, broken, no today, single), getLongestStreak (longest run, equal runs, single, empty), unsorted input handling |
+
+#### Bug Fix: getThisWeekLastYear mid-year lookups
+- **Problem:** `getThisWeekLastYear` used `isSameWeek()` which checks both week number AND ISO week year. For mid-year dates, ISO week year equals calendar year, so entries from different calendar years always had different ISO week years — making all mid-year lookups return empty.
+- **Fix:** Added `getWeekOfYear()` to `dateUtils.ts` (local-time, week-number-only). Updated `EchoesService.ts` to compare week numbers directly instead of using `isSameWeek()`.
+
+### Files Changed:
+
+**New Files (2):**
+- `test/services/EchoesService.test.ts`
+- `test/services/PulseService.test.ts`
+
+**Modified Files (2):**
+- `src/utils/dateUtils.ts` — Added `getWeekOfYear()` function (local-time week number)
+- `src/services/EchoesService.ts` — Replaced `isSameWeek` with `getWeekOfYear` comparison
+
+### Testing Notes:
+- ✅ All 125 unit tests passing (1.04s)
+- ✅ No regressions from Phase 1 or 1.5 tests
+- ✅ Bug fix verified: mid-year week matching now works correctly
+
+### Blockers/Issues:
+- None
+
+---
+
 ## Next Session Prompt
 
 ```
-Phase 2 is complete. Hindsight now has a working sidebar view:
-- Right-panel sidebar with Today + Echoes tabs
-- Today tab: entry status, filled fields count, writing streak
-- Echoes tab: On this day and This week last year entries
-- Section and metric dropdowns on echo cards for at-a-glance customization
-- 109 unit tests still passing, no regressions
+Phase 2.5 is complete. Echoes and Pulse services are fully tested (125 total tests passing).
 
-Continue with Phase 2.5: Tests — Sidebar & Services
-- EchoesService tests (getOnThisDay, getThisWeekLastYear)
-- PulseService tests (getCurrentStreak, getLongestStreak)
-- UI store tests (tab state, echo preferences)
+Bug fix applied: getThisWeekLastYear now uses local-time getWeekOfYear() for
+week number comparison instead of isSameWeek() which was too strict (checked
+ISO week year in addition to week number, breaking all mid-year lookups).
+
+Continue with Phase 3: Full-Page View + Calendar
+- HindsightMainView (ItemView shell)
+- MainApp tab router (Calendar, Timeline stub, Index stub)
+- CalendarGrid, CalendarCell, CalendarNav components
+- MetricSelector dropdown
+- statsUtils (mapValueToColor, mapBooleanToColor)
+- calendar.css styles
 
 Key files to reference:
-- docs/development/Implementation Plan.md — Phase 2.5 details
-- src/services/EchoesService.ts — Echo lookup functions
-- src/services/PulseService.ts — Streak calculation functions
-- src/store/uiStore.ts — UI state store
+- docs/development/Implementation Plan.md — Phase 3 details (line 1430)
+- src/views/HindsightSidebarView.tsx — Reference pattern for ItemView + React
+- src/store/uiStore.ts — Needs new calendar state fields
 ```
 

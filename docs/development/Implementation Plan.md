@@ -1390,9 +1390,11 @@ async activateSidebarView(): Promise<void> {
 
 ---
 
-## Phase 2.5: Echoes & Pulse Service Tests
+## Phase 2.5: Echoes & Pulse Service Tests ✅
 
-**PREREQUISITE:** Brad confirms Phase 2 works correctly in Obsidian.
+**PREREQUISITE:** Brad confirms Phase 2 works correctly in Obsidian. ✅
+
+**STATUS:** Complete — 16 new tests (125 total), all passing. Bug fixed: `getThisWeekLastYear` now uses local-time `getWeekOfYear()` instead of `isSameWeek()` for cross-year week matching.
 
 ### Files to Create
 
