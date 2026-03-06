@@ -101,22 +101,23 @@ Each session entry should include:
 ## Next Session Prompt
 
 ```
-Phase 1 and 1.5 are complete. Hindsight has a working data backbone:
-- Journal index scans folders recursively, parses notes (frontmatter + content)
-- Zustand store with O(1) echo lookups, sorted dates, batch operations
-- File watchers keep index alive on create/modify/delete/rename
-- 109 unit tests covering all utilities, services, and store
+Phase 2 is complete. Hindsight now has a working sidebar view:
+- Right-panel sidebar with Today + Echoes tabs
+- Today tab: entry status, filled fields count, writing streak
+- Echoes tab: "On this day" and "This week last year" entries
+- Section and metric dropdowns on echo cards for at-a-glance customization
+- 109 unit tests still passing, no regressions
 
-Continue with Phase 2: Sidebar View — Today + Echoes
-- EchoesService (pure functions for "on this day" lookups)
-- PulseService (writing streak calculation)
-- React sidebar view with today's entry status + echoes
-- HindsightSidebarView using React-in-ItemView pattern
+Continue with Phase 2.5: Tests — Sidebar & Services
+- EchoesService tests (getOnThisDay, getThisWeekLastYear)
+- PulseService tests (getCurrentStreak, getLongestStreak)
+- UI store tests (tab state, echo preferences)
 
 Key files to reference:
-- docs/development/Implementation Plan.md — Phase 2 starts at line 1121
-- src/store/journalStore.ts — dateIndex for O(1) echo lookups
-- src/services/JournalIndexService.ts — Core indexing engine
+- docs/development/Implementation Plan.md — Phase 2.5 details
+- src/services/EchoesService.ts — Echo lookup functions
+- src/services/PulseService.ts — Streak calculation functions
+- src/store/uiStore.ts — UI state store
 ```
 
 ---
@@ -153,3 +154,112 @@ Tests (109 passing):
 
 Files: 12 new, 3 modified
 ```
+
+---
+
+## 2026-03-06 - Phase 2: Sidebar View — Today + Echoes
+
+**Focus:** Ship the first visible UI — a right-panel sidebar view with Today status and Echoes from past years, plus section/metric dropdowns for at-a-glance customization.
+
+### Completed:
+
+#### Services & Store
+- ✅ Created `src/services/EchoesService.ts` — `getOnThisDay()` (O(1) via dateIndex), `getThisWeekLastYear()` (ISO week matching)
+- ✅ Created `src/services/PulseService.ts` — `getCurrentStreak()`, `getLongestStreak()` (consecutive day calculations)
+- ✅ Created `src/store/uiStore.ts` — `activeSidebarTab`, `echoSectionKey`, `echoMetricKey` states
+
+#### Hooks
+- ✅ Created `src/hooks/useJournalEntries.ts` — Thin selector hooks for journal data slices
+- ✅ Created `src/hooks/useEchoes.ts` — Echo data hook (memoized on month-day string)
+- ✅ Created `src/hooks/useToday.ts` — Midnight-safe date hook with auto-refresh
+- ✅ Created `src/hooks/useSettings.ts` — Settings selector hook
+
+#### View & Components
+- ✅ Created `src/views/HindsightSidebarView.tsx` — React-in-ItemView pattern, root mounted in onOpen, unmounted in onClose
+- ✅ Created `src/components/SidebarApp.tsx` — Root sidebar component with tab switching
+- ✅ Created `src/components/shared/ErrorBoundary.tsx` — React error boundary with reload
+- ✅ Created `src/components/shared/TabSwitcher.tsx` — Reusable tab bar (ARIA roles, 44px touch targets)
+- ✅ Created `src/components/shared/EmptyState.tsx` — Reusable empty state with icon
+- ✅ Created `src/components/sidebar/TodayStatus.tsx` — Entry status, fields count, streak, relative time
+- ✅ Created `src/components/echoes/EchoesPanel.tsx` — Echo list with section and metric dropdowns
+- ✅ Created `src/components/echoes/EchoCard.tsx` — Clickable card with date, metric badge, excerpt, word count
+
+#### Styles
+- ✅ Created `src/styles/sidebar.css` — Tab bar, today status, error boundary, empty state styles
+- ✅ Created `src/styles/echoes.css` — Echo cards, dropdown controls, metric badges (light blue)
+- ✅ Updated `src/styles/index.css` — Added sidebar and echoes imports
+- ✅ Updated `src/styles/variables.css` — Scoped CSS vars to `.hindsight-sidebar-container`
+
+#### Integration
+- ✅ Updated `main.ts` — Sidebar view registration, open-sidebar command, auto-open when enabled, right-panel placement with wrong-side detection
+
+### Files Changed:
+
+**New Files (18):**
+- `src/services/EchoesService.ts`
+- `src/services/PulseService.ts`
+- `src/store/uiStore.ts`
+- `src/hooks/useJournalEntries.ts`
+- `src/hooks/useEchoes.ts`
+- `src/hooks/useToday.ts`
+- `src/hooks/useSettings.ts`
+- `src/views/HindsightSidebarView.tsx`
+- `src/components/SidebarApp.tsx`
+- `src/components/shared/ErrorBoundary.tsx`
+- `src/components/shared/TabSwitcher.tsx`
+- `src/components/shared/EmptyState.tsx`
+- `src/components/sidebar/TodayStatus.tsx`
+- `src/components/echoes/EchoesPanel.tsx`
+- `src/components/echoes/EchoCard.tsx`
+- `src/styles/sidebar.css`
+- `src/styles/echoes.css`
+
+**Modified Files (4):**
+- `main.ts` — Sidebar view registration, command, auto-open, activateSidebarView()
+- `src/styles/index.css` — Added sidebar + echoes CSS imports
+- `src/styles/variables.css` — Added .hindsight-sidebar-container to CSS variable scope
+- `styles.css` — Compiled output with all new styles
+
+### Testing Notes:
+- ✅ `npm run build` passes (TypeScript + PostCSS + esbuild)
+- ✅ `npm run deploy:test` deploys to test vault
+- ✅ All 109 existing unit tests pass (no regressions)
+- ✅ Manual verification: sidebar opens in right panel, Today tab shows fields/streak, Echoes tab shows past entries
+- ✅ Section dropdown changes excerpt on all echo cards
+- ✅ Metric dropdown changes badge field on all echo cards
+- ✅ Clicking echo cards opens the corresponding note
+- ✅ CSS variables properly inherited in sidebar context
+
+### Blockers/Issues:
+- **Word count removed from Today card** — Template text (instructions, prefilled info under section headers) inflates word count. No clean way to distinguish user-written text from template content without template awareness. Decided to remove the field rather than show misleading data.
+- **Sidebar position caching** — Obsidian caches leaf positions across reloads. Fixed by detecting if the sidebar is on the wrong side and detaching/recreating on the right.
+
+### Design Notes:
+- **CSS variable scoping bug:** Variables were defined on `.hindsight-container` only. Sidebar uses `.hindsight-sidebar-container`, so all `var()` references resolved to empty. Fixed by adding the sidebar class to the variable definition selector.
+- **Metric badge coloring:** Initially implemented a red→orange→green gradient based on value, but Brad correctly noted this doesnt work universally (some metrics have inverted scales, string values, etc.). Switched to consistent light blue for all metric badges.
+- **Section/metric dropdowns:** Deviation from the plan (which hardcoded mood + first section), but a significant UX improvement allowing at-a-glance customization of what each echo card shows.
+
+---
+
+## Next Session Prompt
+
+```
+Phase 2 is complete. Hindsight now has a working sidebar view:
+- Right-panel sidebar with Today + Echoes tabs
+- Today tab: entry status, filled fields count, writing streak
+- Echoes tab: On this day and This week last year entries
+- Section and metric dropdowns on echo cards for at-a-glance customization
+- 109 unit tests still passing, no regressions
+
+Continue with Phase 2.5: Tests — Sidebar & Services
+- EchoesService tests (getOnThisDay, getThisWeekLastYear)
+- PulseService tests (getCurrentStreak, getLongestStreak)
+- UI store tests (tab state, echo preferences)
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 2.5 details
+- src/services/EchoesService.ts — Echo lookup functions
+- src/services/PulseService.ts — Streak calculation functions
+- src/store/uiStore.ts — UI state store
+```
+

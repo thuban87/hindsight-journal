@@ -1118,7 +1118,7 @@ All tests pass. Test count should be approximately 40-50 tests across the 4 test
 
 ---
 
-## Phase 2: Sidebar View — Today + Echoes (~1-2 sessions)
+## Phase 2: Sidebar View — Today + Echoes ✅ COMPLETE
 
 **Goal:** Ship the first visible UI. A sidebar view showing today's entry status and "on this day" echoes from past years. Uses the React-in-ItemView pattern from Quest Board.
 
