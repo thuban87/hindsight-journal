@@ -364,23 +364,104 @@ Files: 12 new, 3 modified
 
 ---
 
+## 2026-03-06 - Phase 4: Timeline + Journal Index & Phase 4.5: Filter & Sort Tests
+
+**Focus:** Complete the three core navigation modes — Timeline (scrollable card feed) and Index (sortable/filterable data table). Both read from the journal store. Also: extract filter/sort logic and write comprehensive unit and integration tests.
+
+### Completed:
+
+#### Phase 4: Timeline + Journal Index
+
+**Shared Components:**
+- ✅ Created `src/components/shared/VirtualList.tsx` — Lightweight virtual scroll (ResizeObserver + scroll events, spacer divs, overscan buffer)
+
+**Timeline Components:**
+- ✅ Created `src/components/timeline/EntryCard.tsx` — Entry card with date, dynamic badges (all numeric/boolean detected fields), quality score, word count, image count, tags, and clean-text excerpt
+- ✅ Created `src/components/timeline/TimelineList.tsx` — Paginated card feed (50 per page), newest/oldest sort toggle, VirtualList integration
+
+**Index Table Components:**
+- ✅ Created `src/components/index-table/IndexFilters.tsx` — Text search (250ms debounce), date range (blur-apply), numeric field filters with add/remove, clear all
+- ✅ Created `src/components/index-table/JournalIndex.tsx` — Sortable data table with dynamic columns from detected fields, filter application, click-to-sort headers
+
+**Store & Styles:**
+- ✅ Updated `src/store/uiStore.ts` — Added indexSort (field + direction toggle) and indexFilters (search, dateRange, fieldFilters) with all setters
+- ✅ Created `src/styles/timeline.css` — Cards, badges, excerpts, tags, sort toggle, load more button
+- ✅ Updated `src/styles/shared.css` — Index table styles, sortable headers with direction indicators, filter bar, filter pills
+- ✅ Updated `src/styles/index.css` — Added timeline.css import
+
+**Integration:**
+- ✅ Updated `src/components/MainApp.tsx` — Replaced Timeline/Index stubs with real components
+
+**Post-review fixes:**
+- ✅ Made EntryCard badges dynamic (all detected numeric/boolean fields, not hardcoded mood/energy)
+- ✅ Fixed date range filter UX — changed from onChange to onBlur to prevent table updates on every date picker arrow click
+
+#### Phase 4.5: Filter & Sort Tests (23 new tests, 175 total passing)
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `test/store/uiStore.test.ts` | 11 | setIndexSort toggle (asc/desc/new field), setSearchFilter, setDateRangeFilter (set/clear), addFieldFilter, removeFieldFilter (shift), clearAllFilters, tab persistence |
+| `test/integration/filter-integration.test.ts` | 12 | Text search (case insensitive, partial match, no match), date range (inclusive boundaries), field filters (>= with null exclusion), combined filters, sort (asc date, desc mood, null-at-end) |
+
+**Refactoring:**
+- ✅ Created `src/utils/filterUtils.ts` — Extracted `applyFilters()` and `applySorting()` from JournalIndex into pure testable functions
+- ✅ Refactored `JournalIndex.tsx` to use extracted utils (no behavior change)
+
+### Files Changed:
+
+**New Files (10):**
+- `src/components/shared/VirtualList.tsx`
+- `src/components/timeline/EntryCard.tsx`
+- `src/components/timeline/TimelineList.tsx`
+- `src/components/index-table/IndexFilters.tsx`
+- `src/components/index-table/JournalIndex.tsx`
+- `src/styles/timeline.css`
+- `src/utils/filterUtils.ts`
+- `test/store/uiStore.test.ts`
+- `test/integration/filter-integration.test.ts`
+
+**Modified Files (5):**
+- `src/store/uiStore.ts` — indexSort + indexFilters state, 6 new action methods
+- `src/styles/shared.css` — Index table + filter styles (~160 lines)
+- `src/styles/index.css` — timeline.css import
+- `src/components/MainApp.tsx` — Wired real Timeline/Index components, removed stubs
+- `styles.css` — Compiled output with all new styles
+
+### Testing Notes:
+- ✅ `npm run build` passes (TypeScript + PostCSS + esbuild)
+- ✅ `npm run deploy:test` deploys to test vault
+- ✅ All 175 unit tests passing across 11 test files (1.95s)
+- ✅ All 15 Phase 4 manual verification items confirmed by Brad
+- ✅ No regressions from Phase 1-3.5 tests
+
+### Blockers/Issues:
+- **Mobile table width (noted, not blocking):** Index table requires horizontal scrolling on mobile due to dynamic column count. Future consideration: responsive column hiding for small screens.
+
+### Design Notes:
+- **Dynamic badges over hardcoded fields:** Plan originally specified mood/energy badges. Brad requested (and approved deviation) to make badges pull from all detected numeric/boolean fields dynamically, making the component user-agnostic.
+- **Date filter blur pattern:** Native `<input type="date">` fires onChange on every arrow click inside the date picker (month/year navigation). Switched to onBlur + defaultValue to only apply the filter when the user finishes selecting a date.
+- **Filter logic extraction:** Plan suggested extracting filtering into a util if not already done. Created `filterUtils.ts` with `applyFilters()` and `applySorting()` as pure functions, keeping JournalIndex lean and tests clean.
+
+---
+
 ## Next Session Prompt
 
 ```
-Phase 3 + 3.5 complete. Full-page view with calendar is deployed and tested.
-152 total tests passing across 9 test files.
+Phase 4 + 4.5 complete. Timeline feed and sortable index table are deployed and tested.
+175 total tests passing across 11 test files.
 
-Continue with Phase 4: Timeline + Journal Index
-- TimelineList (paginated entry card feed)
-- VirtualList (lightweight virtual scroll)
-- EntryCard (date, badges, excerpt, tags)
-- JournalIndex (sortable data table)
-- IndexFilters (search, date range, field filters)
-- uiStore updates (indexSort, indexFilters)
-- timeline.css + shared table styles
+Continue with Phase 5: Chart Engine + Correlation Discovery
+- Chart.js wrapper component for time-series line charts
+- React SVG Sparkline for inline mini-charts
+- MetricsEngine for rolling averages, trends, Pearson correlation
+- Correlation Discovery cards
+- Interactive scatter plot
+- Time Machine date slider
+- Trend Alerts (heuristic, no AI)
 
 Key files to reference:
-- docs/development/Implementation Plan.md — Phase 4 details (line 1665)
-- src/components/MainApp.tsx — Replace Timeline/Index stubs with real components
-- src/store/uiStore.ts — Needs indexSort and indexFilters state
+- docs/development/Implementation Plan.md — Phase 5 details (line 1862)
+- src/utils/filterUtils.ts — Pattern for pure testable utility extraction
+- src/store/uiStore.ts — May need new state for chart selections
 ```
+

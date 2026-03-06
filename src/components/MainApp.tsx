@@ -2,7 +2,7 @@
  * Main App
  *
  * Root component for the full-page view.
- * Tab router with Calendar, Timeline (stub), and Index (stub).
+ * Tab router with Calendar, Timeline, and Index.
  * Entry count shown in tab labels per plan.
  */
 
@@ -15,6 +15,8 @@ import { TabSwitcher } from './shared/TabSwitcher';
 import { EmptyState } from './shared/EmptyState';
 import { CalendarNav } from './calendar/CalendarNav';
 import { CalendarGrid } from './calendar/CalendarGrid';
+import { TimelineList } from './timeline/TimelineList';
+import { JournalIndex } from './index-table/JournalIndex';
 
 interface MainAppProps {
     plugin: HindsightPlugin;
@@ -71,9 +73,9 @@ export function MainApp({ plugin, app }: MainAppProps): React.ReactElement {
                     </div>
                 );
             case 'timeline':
-                return <EmptyState message="Timeline — coming soon" icon="📜" />;
+                return <TimelineList app={app} />;
             case 'index':
-                return <EmptyState message="Index — coming soon" icon="📋" />;
+                return <JournalIndex app={app} />;
             default:
                 return <EmptyState message="Unknown tab" />;
         }
@@ -92,3 +94,4 @@ export function MainApp({ plugin, app }: MainAppProps): React.ReactElement {
         </div>
     );
 }
+

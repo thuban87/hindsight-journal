@@ -1,1 +1,160 @@
 /* Hindsight Journal — shared component styles */
+
+/* ============ Index Table ============ */
+
+.hindsight-index-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.hindsight-index-table-container {
+    overflow: auto;
+    flex: 1;
+}
+
+.hindsight-index-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.hindsight-index-table th {
+    cursor: pointer;
+    user-select: none;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 0.85em;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 2px solid var(--background-modifier-border);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.hindsight-index-table th:hover {
+    background: var(--background-secondary-alt, var(--background-secondary));
+}
+
+.hindsight-index-table th.sorted-asc::after {
+    content: ' ▲';
+    font-size: 0.7em;
+}
+
+.hindsight-index-table th.sorted-desc::after {
+    content: ' ▼';
+    font-size: 0.7em;
+}
+
+.hindsight-index-table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    font-size: 0.88em;
+    color: var(--text-normal);
+}
+
+.hindsight-index-row {
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+
+.hindsight-index-row:hover {
+    background: var(--background-secondary-alt, var(--background-secondary));
+}
+
+.hindsight-index-no-results {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 32px 16px;
+    font-size: 0.9em;
+}
+
+/* ============ Index Filters ============ */
+
+.hindsight-index-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.hindsight-filter-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.hindsight-filter-input {
+    padding: 4px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.88em;
+}
+
+.hindsight-filter-input:focus {
+    border-color: var(--interactive-accent);
+    outline: none;
+}
+
+.hindsight-filter-date {
+    max-width: 140px;
+}
+
+.hindsight-filter-number {
+    max-width: 80px;
+}
+
+.hindsight-filter-clear-btn,
+.hindsight-filter-add-btn {
+    padding: 4px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 0.85em;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+}
+
+.hindsight-filter-clear-btn:hover,
+.hindsight-filter-add-btn:hover {
+    background: var(--background-secondary-alt, var(--background-secondary));
+}
+
+.hindsight-filter-active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.hindsight-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.hindsight-filter-pill-remove {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 1.1em;
+    line-height: 1;
+    padding: 0 2px;
+    opacity: 0.7;
+}
+
+.hindsight-filter-pill-remove:hover {
+    opacity: 1;
+}
