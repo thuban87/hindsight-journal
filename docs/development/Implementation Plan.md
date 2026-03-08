@@ -1917,7 +1917,7 @@ These rules apply to ALL phases below. They were established during the Phase 5-
 - **CSV injection mitigation — canonical rule for `sanitizeCsvCell()`:** The following steps are executed in this exact order:
   1. **Coerce to string:** Numbers → `.toString()`, booleans → `.toString()`, `null`/`undefined` → `""`. **Arrays:** sanitize each element individually via recursive `sanitizeCsvCell()` call *before* joining with `"; "`. **Objects:** `JSON.stringify()`. This ensures individual dangerous elements within arrays (e.g., `["=CMD()", "-3.5"]`) are sanitized element-by-element rather than relying on the joined result.
   2. **Numeric bypass check:** If the coerced string is a valid number (`!isNaN(Number(str))` AND `str.trim() !== ""`), **skip sanitization entirely** — numbers cannot be formulas. This covers standalone negative numbers like `"-3.5"`.
-  3. **Dangerous character sanitization:** If the first non-whitespace character is `=`, `+`, `-`, `@`, `|`, `\t`, `\r`, or `\n`, prefix with a single quote (`'`).
+  3. **Dangerous character sanitization:** If the first non-whitespace character is `=`, `+`, `-`, `@`, `|`, `\t`, `\r`, or `\n`, prefix with a single quote (`'`). **Additionally** (A2): check for tab (`\t`), carriage return (`\r`), and line feed (`\n`) as leading characters — these can cause column/row injection in CSV parsers.
  **Mid-cell sanitization (amendment):** After the dangerous-prefix check (step 3), add step 3.5: replace ``\t`` with spaces and ``\r`` with empty string in ALL cell values (not just when they are the first character). Tab characters mid-cell can cause column shifting in TSV-expecting parsers; carriage returns can cause row splitting. This defense-in-depth measure eliminates the attack surface completely without losing meaningful data (journal frontmatter values should not contain tabs).
   4. **Quote-escape:** Escape internal `"` with `""` and wrap the entire value in double quotes.
 
@@ -2294,7 +2294,11 @@ These rules apply to ALL phases below. They were established during the Phase 5-
           while (i < items.length && performance.now() - startTime < budgetMs) {
               try {
                   if (sync) {
-                      processor(items[i]);
+                      const result = processor(items[i]);
+                      // A4: Runtime guard — detect sync:true with async processor
+                      if (result && typeof (result as any).then === 'function') {
+                          debugLog('processWithYielding: sync=true but processor returned a Promise. Use sync=false or fix the processor.');
+                      }
                   } else {
                       await processor(items[i]);
                   }
@@ -2319,8 +2323,17 @@ These rules apply to ALL phases below. They were established during the Phase 5-
 - **Tab-visibility awareness:** Long-running computations (full-text search in Lens) should check `document.hidden` (Page Visibility API) and pause while the tab is backgrounded, resuming on `visibilitychange`. This prevents wasting CPU when the user has switched to another app or tab. Implemented by pausing the yielding loop when `document.hidden` is `true` and listening for `visibilitychange` to resume. **Note:** Do NOT implement visibility pausing for correlation computation — with the 20-field cap, correlations complete in <50ms. Visibility pausing is only worthwhile for multi-second operations like full-text search across cold entries.
 - **Background tab budget reduction:** When `document.hidden === true`, reduce the yielding budget to 8ms and increase the batch delay to 50ms (`setTimeout(resolve, 50)` instead of `setTimeout(resolve, 0)`). This lets foreground work in other apps proceed without competition. When the document becomes visible again, restore normal budget immediately. Document this contract in the `processWithYielding` JSDoc.
 - **Resume-staleness check:** When a paused computation resumes after `visibilitychange`, it must check `metricsCacheStore.stale` before continuing. If `stale` is `true` (entries changed while paused), abort the current computation and restart with fresh data. This prevents computing results from a stale snapshot.
-- Apply to: `JournalIndexService.runPass2()`, `MetricsEngine.findCorrelations()` (with `sync: true`), `LensPanel` full-content search (with `signal`), `AnnotationService.migrateStorage()` (with `signal` + `onError` + `onProgress`).
-- **When to apply yielding (performance-driven, not ceremony-driven):** Any computation that exceeds ~50ms on the target dataset (benchmark with 1000+ entries) must use `processWithYielding()`. Simple O(n) aggregations like `getConsistencyScores()` that complete in <5ms do NOT need yielding — adding it would be overhead for no benefit. Cancellation tokens (`signal`) are required for user-interruptible operations (search, migration, correlation). Stale-checks on resume are required for operations that pause via `visibilitychange`. When in doubt, profile first — don't add yielding speculatively.
+- Apply to: `JournalIndexService.runPass2()`, `LensPanel` full-content search (with `signal`), `AnnotationService.migrateStorage()` (with `signal` + `onError` + `onProgress`).
+- **Priority of rules:** When a phase-specific instruction conflicts with a plan-wide rule, **the phase-specific instruction takes precedence**. For example, Plan-Wide Rules list `MetricsEngine.findCorrelations()` as a yielding candidate, but Phase 5c explicitly says to use a plain `for` loop with signal check (correct — capped at 20 fields, completes in <50ms). The phase override is canonical.
+- **When to apply yielding (performance-driven, not ceremony-driven):** Any computation that exceeds ~50ms on the target dataset (benchmark with 1000+ entries) must use `processWithYielding()`. Simple O(n) aggregations that complete in <5ms do NOT need yielding — adding it would be overhead for no benefit. The following operations explicitly do NOT need yielding:
+  - `getConsistencyScores()` — O(n), <5ms
+  - `getHabitStreaks()` — O(n × fields), <10ms for 20 fields × 700 entries
+  - `getWeekBounds()` / `getMonthBounds()` — O(1)
+  - `findCorrelations()` — plain `for` loop with signal check (Phase 5c override — capped at 20 fields)
+  - `getGoalProgress()` — O(n) per field, <5ms
+  - `getAdherenceRate()` — O(n), <5ms
+  - `getTagFrequency()` — O(n), <10ms
+  Operations that MAY need yielding (benchmark first): `getPersonalBests()`, `generateAlerts()`. Cancellation tokens (`signal`) are required for user-interruptible operations (search, migration). Stale-checks on resume are required for operations that pause via `visibilitychange`. When in doubt, profile first — don't add yielding speculatively.
 
 ### Image Security
 - **Whitelist local vault files only in thumbnail generation.** `extractImagePaths()` captures both local vault images (`![[image.png]]`) and external URLs (`![alt](https://example.com/img.png)`). `ThumbnailService.generateThumbnail()` must resolve every image path via `app.metadataCache.getFirstLinkpathDest(imagePath, sourceFilePath)`. If `getFirstLinkpathDest()` returns `null`, skip the image entirely. This is the real security gate — if it doesn't resolve to a `TFile` in the vault, it's not processable. This covers `http://`, `https://`, `data:`, `javascript:`, `blob:`, and any other non-vault URI scheme without maintaining a blacklist. Undisclosed network requests are an automatic plugin rejection.
@@ -2329,8 +2342,8 @@ These rules apply to ALL phases below. They were established during the Phase 5-
 - All color theme definitions in `colorThemes.ts` must use CSS variables for theme-adaptive colors (e.g., `emptyColor`). Since `colorThemes.ts` is a pure utility with no DOM access, resolve CSS variables at render time in the component via `getComputedStyle(document.body).getPropertyValue('--background-modifier-border').trim()` and pass the resolved value to the theme's `mapValue()` function. Do NOT hardcode hex colors for `emptyColor` — they won't adapt to light/dark theme changes.
 
 ### Inline Style Policy
-- **No `style={{}}` JSX attributes.** All dynamic styling must use the CSS custom property assignment pattern: `element.style.setProperty('--hindsight-cell-bg', color)` paired with `.hindsight-calendar-cell { background-color: var(--hindsight-cell-bg); }`. This satisfies the Obsidian plugin guideline "no inline styles" while supporting dynamic values (heatmap cell colors, chart accent colors, lightbox sizing).
-- **Verification grep:** `grep -rn 'style={{' src/` must return zero results. Existing violations (e.g., `CalendarCell.tsx:136`) must be migrated to the CSS variable pattern during Phase 5a cleanup.
+- **No `style={{}}` JSX attributes — no exceptions.** The Obsidian review bot does not distinguish between CSS custom property assignment (`style={{ '--hindsight-cell-bg': color }}`) and regular inline styles (`style={{ color: 'red' }}`). Both are flagged. All dynamic styling must use **imperative ref-based assignment**: `ref.current.style.setProperty('--hindsight-cell-bg', color)` paired with `.hindsight-calendar-cell { background-color: var(--hindsight-cell-bg); }`. The only acceptable uses of `element.style.*` are: (1) CSS custom property assignment via `style.setProperty('--hindsight-*', value)`, (2) VirtualList spacer `style.height` (documented exception — spacer divs require dynamic pixel height).
+- **Verification grep:** `grep -rn 'style={{' src/` must return zero results. Existing violations (e.g., `CalendarCell.tsx:136`) must be migrated to the ref-based CSS variable pattern during Phase 5a cleanup.
 
 ### ESLint Integration
 - ESLint must run alongside every build. Add a `lint` script to `package.json` (`"lint": "eslint src/ --ext .ts,.tsx"`) and update the `build` script to run lint first: `"build": "npm run lint && node esbuild.config.mjs production"`. Every phase verification checklist must include `npm run lint` passing as a prerequisite to `npm run build`.
@@ -2376,14 +2389,15 @@ These rules apply to ALL phases below. They were established during the Phase 5-
    9. Annotation text, alert text, and user-authored content rendered via React JSX auto-escaping only
   10. All React roots wrapped in `<ErrorBoundary>`, all roots unmounted in `onClose()`
   11. All cleanup functions: store subscriptions in `storeSubscriptions[]`, other cleanup in `cleanupRegistry[]`
-  12. Settings UI labels use sentence case ("Field configuration", not "Field Configuration")
-  13. All Chart.js tooltips use React-rendered `<div>` tooltips with the default tooltip plugin disabled (`plugins: { tooltip: { enabled: false } }`) — see Security / Guidelines
-   14. `grep -rn "!important" src/styles/` returns zero results (or only justified, documented exceptions)
-   15. No fixed `px` font sizes in `src/styles/` (use `em`, `rem`, or CSS variables)
-   16. No selectors targeting Obsidian internal classes (`.workspace-*`, `.mod-*`, etc.) in `src/styles/`
-   17. `grep -rn "className=" src/ | grep -v "hindsight-"` returns only Obsidian base classes (e.g., `modal`, `setting-item`)
-   18. `grep -rn "style={{" src/` returns zero results (no inline JSX styles — use CSS variable assignment pattern)
-   19. Every new `.css` file in `src/styles/` has a corresponding `@import` in `src/styles/index.css` (PostCSS does not auto-discover CSS files)
+   12. Settings UI labels use sentence case ("Field configuration", not "Field Configuration")
+   13. All Chart.js tooltips use React-rendered `<div>` tooltips with the default tooltip plugin disabled (`plugins: { tooltip: { enabled: false } }`) — see Security / Guidelines. The Chart.js Tooltip plugin must NOT be registered in `chartSetup.ts`.
+    14. `grep -rn "!important" src/styles/` returns zero results (or only justified, documented exceptions)
+    15. No fixed `px` font sizes in `src/styles/` (use `em`, `rem`, or CSS variables)
+    16. No selectors targeting Obsidian internal classes (`.workspace-*`, `.mod-*`, etc.) in `src/styles/`
+    17. `grep -rn "className=" src/ | grep -v "hindsight-"` returns only Obsidian base classes (e.g., `modal`, `setting-item`)
+    18. `grep -rn "style={{" src/` returns zero results (no inline JSX styles — use ref-based `style.setProperty()` pattern; see Inline Style Policy)
+    19. All UI text uses **sentence case** ("Create new daily note", not "Create New Daily Note"). Only capitalize the first word and proper nouns. This applies to: command names, setting labels, button text, section headers, modal titles, notices, and empty state messages.
+   20. Every new `.css` file in `src/styles/` has a corresponding `@import` in `src/styles/index.css` (PostCSS does not auto-discover CSS files)
 
 ### Multiple React Root Render Timing
 - Multiple React roots (Main View, Sidebar, QuickEditModal, etc.) subscribe to the same Zustand stores independently. Zustand updates are synchronous to each subscriber, but renders across separate React roots are not synchronized — a brief (<1 frame) visual inconsistency between the sidebar and main view is possible but imperceptible. No code mitigation is needed.
@@ -2413,18 +2427,19 @@ These rules apply to ALL phases below. They were established during the Phase 5-
   ```typescript
   // src/utils/workCoordinator.ts
   const lanes = new Map<string, { signal: { cancelled: boolean } }>();
-  export function startWork(lane: string): { signal: { cancelled: boolean } } {
+  export function startWork(lane: string): { signal: { cancelled: boolean }; done: () => void } {
       const existing = lanes.get(lane);
       if (existing) existing.signal.cancelled = true; // cancel previous
       const signal = { cancelled: false };
       lanes.set(lane, { signal });
-      return { signal };
+      return { signal, done: () => lanes.delete(lane) };
   }
   export function cancelWork(lane: string): void {
       const existing = lanes.get(lane);
       if (existing) existing.signal.cancelled = true;
   }
   ```
+  **Lane cleanup (A21):** `startWork()` returns a `done()` function that removes the lane entry from the Map. Callers must call `done()` in a `finally` block after the job completes. This prevents unbounded Map growth over long sessions.
   Named lanes: `insights` (correlations/trends), `search` (Lens full-text), `migration` (annotations). When a new job starts in a lane, it cancels the previous job's signal. This prevents aggregate CPU pressure spikes when users switch tabs quickly. **Thumbnail jobs must never use WorkCoordinator** — `ThumbnailService` has its own concurrency-limited generation queue with signal-based cancellation. WorkCoordinator lanes are for operations where "newest supersedes oldest" semantics apply; thumbnail generation is demand-driven (per visible item), not supersede-driven.
 
 ### Pre-Release Checklist
@@ -2454,6 +2469,22 @@ These rules apply to ALL phases below. They were established during the Phase 5-
   6. Reset all stores (appStore.reset() LAST — setting app/plugin to null)
   ```
 - **Why order matters:** Zustand stores are module-level singletons — they persist across plugin disable/enable cycles within the same Obsidian session. If `appStore.reset()` runs before React roots unmount, components will read `null` from `appStore` and crash. If services are destroyed before subscriptions are unsubscribed, the subscription callbacks fire on stale service references.
+- **Re-enable safety (A17):** When the plugin is re-enabled, `onload()` must call `appStore.reset()` and `appStore.setApp(this.app, this)` back-to-back, with no awaits between them. This eliminates the window where `app` is `null` while React cleanup effects from the previous enable cycle may still be running:
+  ```typescript
+  // In onload():
+  const appState = useAppStore.getState();
+  appState.reset();  // sets isUnloading=true, clears refs
+  appState.setApp(this.app, this); // immediately sets new values + isUnloading=false
+  ```
+- **Named cleanup phases (A25):** Consider using named cleanup phase objects instead of flat arrays to make the ordering intent explicit in the type system:
+  ```typescript
+  interface CleanupPhases {
+      storeSubscriptions: (() => void)[];
+      serviceCleanup: (() => void)[];
+      storeResets: (() => void)[];
+  }
+  ```
+  Then `onunload()` iterates them in defined order. This is optional but recommended for maintainability.
 
 ### Canonical Modal Pattern
 - All Obsidian Modals that mount React roots must follow this exact pattern:
@@ -2538,6 +2569,7 @@ These cleanup tasks must be done first so that the ESLint gate (item 4) and the 
 grep -rn "innerHTML\|outerHTML\|insertAdjacentHTML\|UPlotEvalView\|ChartJsEvalView\|HINDSIGHT_UPLOT\|CHARTJS_EVAL" src/ main.ts
 ```
 Expected: zero results. Only then proceed to item 4+.
+ **Fail-fast (A24):** If any eval artifact (`UPlotEvalView`, `ChartJsEvalView`, `innerHTML`) exists after items 0-3, Phase 5b+ work is NOT allowed to start. Eval view deletion must be the absolute first action in Phase 5a — these are dead code deletions, not code fixes, so there is no reason to defer them.
 
 ### Pre-Phase Cleanup (MUST complete before any new code)
 
@@ -2561,7 +2593,7 @@ Expected: zero results. Only then proceed to item 4+.
  **Strict verification (amendment):** The zero-result grep outputs for eval/debug artifact removal must be a mandatory artifact before Phase 5a continues past items 0-3. All eval commands, debug commands, console.debug calls, and innerHTML usage must produce zero grep results before proceeding.
 4. **Extract commands to `src/commands.ts`:** Move all `addCommand()` calls from `main.ts` into a `registerCommands(plugin: HindsightPlugin)` function. `main.ts` calls `registerCommands(this)` in `onload()`. This keeps main.ts under ~100 lines.
 5. **Create `src/utils/yieldUtils.ts` (FOUNDATION UTILITY — do this before items 6-18):** Shared `processWithYielding()` utility for time-based main-thread yielding with `sync` and `signal` options (see Plan-Wide Rules "Time-Based Yielding" and "Cancellation Support"). Refactor `JournalIndexService.runPass2()` to use it instead of the current fixed 50-file batching. This is the most performance-critical change in the entire plan — it directly affects mobile users where fixed batch sizes cause dropped frames. Every subsequent phase that adds background processing (correlation computation, full-text search, annotation migration, thumbnail generation) depends on this utility.
-6. **Add `debugMode` setting:** Add `debugMode: boolean` (default `false`) to `HindsightSettings` and `DEFAULT_SETTINGS`. Add it to the settings tab under a new "Advanced" collapsed section. Create `src/utils/debugLog.ts` with the shared `debugLog()` helper. Replace `console.debug('Hindsight Journal loaded')` in `main.ts` with a `debugLog()` call.
+6. **Add `debugMode` setting:** Add `debugMode: boolean` (default `false`) to `HindsightSettings` and `DEFAULT_SETTINGS`. Add it to the settings tab under a new "Advanced" collapsed section. Create `src/utils/debugLog.ts` with the shared `debugLog()` helper. Replace ALL `console.debug` calls across the ENTIRE codebase (not just `main.ts`) with `debugLog()` calls. Run `grep -rn 'console.debug' src/ main.ts` to find all instances — `JournalIndexService.ts` also has debug statements from Phase 1 that need conversion.
 7. **Create `src/store/appStore.ts`:** Zustand store for `App` and `HindsightPluginInterface` singletons (see Plan-Wide Rules "App/Plugin Access"). Define `HindsightPluginInterface` in `src/types/plugin.ts` to avoid circular imports with `main.ts`. Add `isUnloading: boolean` flag (default `false`). Initialize in `main.ts onload()` with `useAppStore.getState().setApp(this.app, this)`. Refactor existing components (`EchoCard`, `CalendarCell`, `TimelineList`, `JournalIndex`, etc.) to use `const app = useAppStore(s => s.app); if (!app) return null;` — **never use `!` non-null assertion on `app` or `plugin`** (see Plan-Wide Rules "App/Plugin Access"). No context providers or view shell changes needed.
 8. **Add store reset actions:** Add `reset()` actions to `journalStore`, `uiStore`, `settingsStore`, and `appStore`. Update `onunload()` in `main.ts` to call all store resets. See Plan-Wide Rules "Store Lifecycle" section.
 9. **Debounce `detectFields()`:** In `JournalIndexService`, replace the per-event `detectFields()` calls in all file watcher handlers with a single debounced function (5-second delay). Direct `detectFields()` calls remain only in `runPass1()`, `runPass2()`, and `reconfigure()`. When a file watcher event fires, compare the changed entry's frontmatter keys against `detectedFields` keys — only set `journalStore.schemaDirty = true` if keys were added or removed (see Plan-Wide Rules "Field Detection Performance" — schema-dirty flag). After the debounced `detectFields()` completes, set `schemaDirty = false`. Add `schemaDirty: boolean` (default `false`) and `setSchemaDirty(dirty: boolean)` to `journalStore`.
@@ -2613,26 +2645,49 @@ Expected: zero results. Only then proceed to item 4+.
     **Data flow:** `invalidateCache([])` (empty array) clears all cached data (used on bulk changes like `reconfigure()`). `invalidateCache(['mood', 'sleep'])` clears only the cache entries for those field keys, leaving other fields' caches intact.
 
     **`pendingChangedFieldKeys` in `journalStore` (replaces `lastChangedEntry`):** Add `pendingChangedFieldKeys: Set<string>` and `fullInvalidation: boolean` to `journalStore` state. `upsertEntry()` adds the upserted entry's frontmatter keys to `pendingChangedFieldKeys`. `upsertEntries()` and `clear()` set `fullInvalidation = true` (batch changes trigger full invalidation). Add `clearPendingChanges()` action that resets `pendingChangedFieldKeys` to empty and `fullInvalidation` to `false`. **Why not `lastChangedEntry`?** With rapid sequential `upsertEntry()` calls, Zustand subscriptions fire asynchronously — only the last entry's keys would be seen. The accumulated `Set<string>` approach ensures no keys are lost between rapid updates.
-14. **Implement tiered section storage:** Add `sectionHeadings?: string[]`, `firstSectionExcerpt?: string`, and `sectionWordCounts?: Record<string, number>` to `JournalEntry` type. Update `JournalIndexService.runPass2()` to check entry age: entries older than `HOT_TIER_DAYS` store only `sectionHeadings`, `firstSectionExcerpt`, and `sectionWordCounts` instead of full `sections`. **`HOT_TIER_DAYS` is a setting from the start** — add `hotTierDays: number` (default `90`) to `HindsightSettings` under Advanced settings. This is a simple number input with a note: "Entries older than this many days store only headings and excerpts instead of full section content. Lower values reduce memory usage. Minimum: 7." Validated in settings tab to be >= 7. **Always populate `firstSectionExcerpt` for ALL entries (hot and cold).** This is ~200 chars × entries — negligible memory (~140KB for 700 entries). Echo cards and timeline cards use `firstSectionExcerpt` directly, eliminating lazy-load I/O for the single most common UI path. Only `SectionReader`, `Lens`, and `Digest` need `ensureSectionsLoaded()` for full section content. Add `ensureSectionsLoaded(filePath): Promise<JournalEntry>` action to `journalStore` for lazy-loading cold entry sections on demand. **`sectionWordCounts`:** Stores per-section word counts (computed during Pass 2, retained for cold tier). This is needed because `getSectionWordCounts()` in Phase 8 (ThreadsService) would otherwise return zero for cold entries, producing misleading section-level word count trends. **Concurrency deduplication:** Use a **module-level** in-flight promise map (`Map<string, Promise<JournalEntry>>`) — NOT part of Zustand state — to coalesce concurrent requests for the same filePath. If a load is already in progress, return the existing promise instead of starting a new `vault.cachedRead()` + parse. Clear the map entry on completion (both success and failure). Export a `clearInFlightMap()` function for testing (called in `beforeEach` to prevent inter-test state leaks). This prevents duplicate I/O when SectionReader and Lens both request the same cold entry simultaneously. Log estimated sections memory via `debugLog()` after indexing completes. Ensure `ensureSectionsLoaded()` has thorough test coverage in Phase 5.5, since every downstream consumer (SectionReader, Lens, Digest) depends on correct cold-entry lazy-loading.
+14. **Implement tiered section storage:** Add `sectionHeadings?: string[]`, `firstSectionExcerpt?: string`, and `sectionWordCounts?: Record<string, number>` to `JournalEntry` type. Update `JournalIndexService.runPass2()` to check entry age: entries older than `HOT_TIER_DAYS` store only `sectionHeadings`, `firstSectionExcerpt`, and `sectionWordCounts` instead of full `sections`. **`HOT_TIER_DAYS` is a setting from the start** — add `hotTierDays: number` (default `90`) to `HindsightSettings` under Advanced settings. This is a simple number input with a note: "Entries older than this many days store only headings and excerpts instead of full section content. Lower values reduce memory usage. Minimum: 7." Validated in settings tab to be >= 7. **Always populate `firstSectionExcerpt` for ALL entries (hot and cold).** This is ~200 chars × entries — negligible memory (~140KB for 700 entries). Echo cards and timeline cards use `firstSectionExcerpt` directly, eliminating lazy-load I/O for the single most common UI path. Only `SectionReader`, `Lens`, and `Digest` need `ensureSectionsLoaded()` for full section content. Add `ensureSectionsLoaded(filePath): Promise<JournalEntry>` action to `journalStore` for lazy-loading cold entry sections on demand. **`sectionWordCounts`:** Stores per-section word counts (computed during Pass 2, retained for cold tier). This is needed because `getSectionWordCounts()` in Phase 8 (ThreadsService) would otherwise return zero for cold entries, producing misleading section-level word count trends. **Concurrency deduplication (A22 — documented contract):** Use a **module-level** in-flight promise map (`Map<string, Promise<JournalEntry>>`) — NOT part of Zustand state — to coalesce concurrent requests for the same filePath. **Why module-level:** Zustand state must be serializable and immutable-update-friendly; `Map<string, Promise>` is neither. The module-level Map is intentional and documented here as the single source of truth for this design decision. If a load is already in progress, return the existing promise instead of starting a new `vault.cachedRead()` + parse. Clear the map entry on completion (both success and failure) in a `finally` block. Export a `clearInFlightMap()` function for testing (called in `beforeEach` to prevent inter-test state leaks). **Cleanup contract:** `clearInFlightMap()` must also be called from `resetAllStores()` in `storeWiring.ts` during plugin unload to prevent stale promises surviving a disable/re-enable cycle. This prevents duplicate I/O when SectionReader and Lens both request the same cold entry simultaneously. Log estimated sections memory via `debugLog()` after indexing completes. Ensure `ensureSectionsLoaded()` has thorough test coverage in Phase 5.5, since every downstream consumer (SectionReader, Lens, Digest) depends on correct cold-entry lazy-loading.
 15. **Add `settingsStore.reset()` action:** Add a `reset()` action to `settingsStore` that returns settings to `DEFAULT_SETTINGS`. Include it in the `onunload()` store reset sequence.
 16. **Add `storeSubscriptions` and `cleanupRegistry` arrays to plugin class:** Add `private storeSubscriptions: (() => void)[] = [];` and `private cleanupRegistry: (() => void)[] = [];` to `HindsightPlugin`. Populate `storeSubscriptions` during `onload()` (item 13). Clean up both in `onunload()` — subscriptions first, then general cleanup, then store resets (see Plan-Wide Rules "Store Lifecycle").
 17. **Add ESLint with guideline-critical rules:** Install `@typescript-eslint/eslint-plugin` and configure these three rules that the Obsidian review bot checks:
     - `@typescript-eslint/no-floating-promises: "error"` — #1 most-flagged issue in plugin reviews
-    - `no-console: ["error", { allow: ["warn", "error"] }]` — bot flags `console.log`. Note: `console.debug` is intentionally NOT in the allow list. All debug output must go through `debugLog()`, which internally calls `console.debug`. This ensures future contributors can't bypass the settings-gated debug output.
+    - `no-console: ["error", { allow: ["warn", "error"] }]` — bot flags `console.log`. Note: `console.debug` is intentionally NOT in the allow list. All debug output must go through `debugLog()`, which internally calls `console.debug`. This ensures future contributors can't bypass the settings-gated debug output. **ESLint override:** Add a per-file eslint-disable for `src/utils/debugLog.ts` only: `/* eslint-disable no-console */` at the top of that file. The console grep gate (exit gate below) must also exclude `debugLog.ts`: `grep -rn 'console\.debug' src/ --include='*.ts' --include='*.tsx' | grep -v 'debugLog.ts'`.
     - `@typescript-eslint/no-explicit-any: "error"` — bot flags `any` type
 
    **Priority note:** Complete this IMMEDIATELY after item 0 (promise fix) and item 1 (uPlot removal). Every subsequent new code addition should be validated by lint as it's written, not retroactively after 16 items of new code. Configure `"build": "npm run lint && node esbuild.config.mjs production"` to enforce lint-on-build.
 18. **Extract store wiring to `src/storeWiring.ts` (unconditional — do not defer):** Create `src/storeWiring.ts` with `wireStoreSubscriptions(plugin: HindsightPluginInterface): (() => void)[]` (all cross-store subscription setup from item 13) and `resetAllStores(): void` (all store reset calls, with `appStore` reset last). `main.ts onload()` becomes `this.storeSubscriptions = wireStoreSubscriptions(this);` and `onunload()` becomes `this.storeSubscriptions.forEach(fn => fn()); this.cleanupRegistry.forEach(fn => fn()); resetAllStores();`. This keeps `main.ts` thin by design (target: ~80-100 lines), not by hope. `main.ts` is already 192 lines pre-cleanup — without proactive extraction, the additions from items 7-16 will push it well past 150 even after command extraction.
 19. **Create `src/utils/settingsMigration.ts`:** Implement versioned `migrateSettings()` (see Plan-Wide Rules "Settings Schema Migration"). Add `settingsVersion: number` (default `1`) to `HindsightSettings` and `DEFAULT_SETTINGS`. Initial migration: v0 (no version field) → v1 (adds version field + applies defaults). Update `loadSettings()` to call `migrateSettings()`. **Settings validation:** After `migrateSettings()`, run `validateSettings(settings: unknown): HindsightSettings` that checks types and ranges for each field. For each field: validate expected type, valid range (e.g., `thumbnailSize` must be 80/120/160, `hotTierDays` must be >= 7), and fall back to the `DEFAULT_SETTINGS` value if invalid. This catches manual `data.json` edits (e.g., `"thumbnailSize": "banana"`). Especially important for complex nested objects like `goalTargets` and `savedFilters`. Each subsequent phase that adds/renames settings increments the version and adds a migration function. **Downgrade handling:** If `loaded.settingsVersion > CURRENT_MAX_VERSION`, log via `debugLog()` ("Settings version newer than plugin — possible downgrade") and skip migration. Do NOT reset settings to defaults on downgrade — that would silently lose the user's configuration. **Prototype pollution guard:** Call `sanitizeLoadedData()` on the raw loaded data before applying defaults (see Plan-Wide Rules "Prototype pollution guard").
-  **Explicit path validation call sites (amendment):** Phase 5a item 22 must explicitly validate ALL path-type settings: journalFolder, weeklyReviewFolder, AND exportFolder. Do not rely on Plan-Wide Rules alone. Include verification checks for all three paths in the Phase 5a verification gate.
+  **Explicit path validation call sites (amendment):** Phase 5a creates the `validateVaultRelativePath()` validator and wires it to `journalFolder` only. Other path settings (`weeklyReviewFolder`, `exportFolder`) don't exist yet — their validation call sites are wired in Phase 10 and Phase 11 respectively, each with their own verification checks. **Defense-in-depth (A9):** `ensureFolderExists()` (in `src/utils/vaultUtils.ts`) must also call `validateVaultRelativePath()` internally, so that any caller — even one that forgets to pre-validate — is protected against path traversal:
+    ```typescript
+    export async function ensureFolderExists(vault: Vault, folderPath: string): Promise<void> {
+        const validated = validateVaultRelativePath(folderPath);
+        if (!validated) throw new Error(`Invalid folder path: ${folderPath}`);
+        // ... rest of function using validated path
+    }
+    ```
  On downgrade, validateSettings still runs normally to catch type mismatches on known keys. It ignores unknown keys added by the newer version.
  **Amendment:** Use range validation (typeof value === number AND value >= 40 AND value <= 320) instead of strict enum checks for numeric settings like thumbnailSize. The settings UI offers preset values, but the validation layer should accept any reasonable number. Apply the same principle to similar numeric settings (e.g., hotTierDays >= 7 AND hotTierDays <= 365).
  **Settings migration contract:** Each migration function is **idempotent** — safe to re-run on already-migrated data. On migration failure: log error via `debugLog()`, keep existing settings unchanged, bump `settingsVersion` anyway (prevents infinite retry loops on corrupt data). Run migrations in `loadSettings()` BEFORE any service initialization. Store the raw loaded data in a transient `debugLog()` call for debugging.
 20. **Create `src/utils/chartSetup.ts`:** Side-effect module for Chart.js tree-shaking registration. Import and register only the chart types and components actually used (see Plan-Wide Rules "Chart.js Tree-Shaking"). Chart components import this module once — registration is idempotent.
 21. **Extract `FileWatcherService` from `JournalIndexService`:** `JournalIndexService.ts` is already 396 lines (above the 300-line guideline). Extract all file watcher handlers into `src/services/FileWatcherService.ts` (~150 lines). `FileWatcherService` receives events from Obsidian, debounces them, and calls back into `JournalIndexService` for the actual parsing/indexing work. This splits "what triggers indexing" from "how to index", keeping both files under 300 lines. `JournalIndexService` retains: `initialize()`, `runPass1()`, `runPass2()`, `reconfigure()`, `ensureSectionsLoaded()`, `destroy()`. `FileWatcherService` handles: all `vault.on()` and `metadataCache.on()` registrations, debouncing, bulk settling mode (item 9b), and the schema-dirty flag.
 22. **Add `normalizePathSetting()` and `validateVaultRelativePath()` helpers:** Add both to appropriate utility files (see Plan-Wide Rules "Path Safety"). Update the settings tab to validate + normalize `journalFolder` on save. **Note:** This creates the reusable validator and wires it to `journalFolder` only. Other path settings (`exportFolder`, `weeklyReviewFolder`) don't exist yet — their call sites are wired in Phase 10 and Phase 11 respectively, each with their own verification checks.
+23. **Create `src/utils/sanitize.ts`:** Add the `sanitizeLoadedData()` utility for prototype pollution protection (referenced in item 19 and Plan-Wide Rules). This must strip `__proto__`, `constructor`, and `prototype` keys recursively from any deserialized object:
+    ```typescript
+    export function sanitizeLoadedData(obj: unknown): unknown {
+        if (typeof obj !== 'object' || obj === null) return obj;
+        if (Array.isArray(obj)) return obj.map(sanitizeLoadedData);
+        const clean: Record<string, unknown> = {};
+        for (const key of Object.keys(obj)) {
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+            clean[key] = sanitizeLoadedData((obj as Record<string, unknown>)[key]);
+        }
+        return clean;
+    }
+    ```
+    Called from `migrateSettings()` (item 19) on raw loaded data before applying defaults, and from saved filter deserialization in Phase 7.
 
-> **Implementation order:** Session 1: items 0, 1, 2, 3, **6** (create `debugLog` + replace `console.debug`), **17** (ESLint — now all existing violations are fixed), 4, 10. The `console.debug` in `main.ts` must be replaced with `debugLog()` BEFORE ESLint is enabled, otherwise the `no-console` rule fails immediately on the existing `console.debug('Hindsight Journal loaded')` call. Session 2: items 5, 7-9. Session 3: items 11-16, 18-22.
+> **Implementation order:** Session 1: items 1, 2 (EVAL VIEW DELETION FIRST — security gate), 0, 3, **6** (create `debugLog` + replace ALL `console.debug`), **17** (ESLint — now all existing violations are fixed), 4, 10. The eval views must be the absolute first deletions so the innerHTML grep gate passes immediately. The `console.debug` calls across the ENTIRE codebase must be replaced with `debugLog()` BEFORE ESLint is enabled, otherwise the `no-console` rule fails immediately. Session 2: items 5, 7-9. Session 3: items 11-16, 18-23.
+
+> **Pre-5a async audit (A26):** Before starting item 0, run `grep -rn 'async.*=>' src/ main.ts | grep -E 'addEventListener|setTimeout|on\('` and save the output. Create a checklist proving each async listener site is wrapped (`void`, `await`, or `.catch`). This artifact must exist before proceeding.
 
 **Phase 5a is effectively 3 sub-sessions** due to its 23 items. Suggested session boundaries: Session 1: items 0-4, 6, 10, 17 (cleanup + debugLog + ESLint + infrastructure). Session 2: items 5, 7-9 (stores + indexing + debouncing). Session 3: items 11-16, 18-22 (remaining utilities, migration, wiring).
 
@@ -2660,12 +2715,13 @@ Expected: zero results. Only then proceed to item 4+.
 
 Before starting Phase 5b, verify all cleanup and infrastructure is sound:
 - [ ] `grep -rn "innerHTML\|outerHTML\|dangerouslySetInnerHTML" src/` → 0 results
-- [ ] `grep -rn "console\.log\|console\.info\|console\.debug" src/` → 0 results (all converted to `debugLog()`)
+- [ ] `grep -rn "console\.log\|console\.info" src/` → 0 results; `grep -rn "console\.debug" src/ | grep -v 'debugLog.ts'` → 0 results (all debug output goes through `debugLog()`, which is the only file allowed to call `console.debug`)
 - [ ] `grep -rn "UPlotEvalView\|ChartJsEvalView\|HINDSIGHT_UPLOT\|CHARTJS_EVAL" src/ main.ts` → 0 results
-- [ ] `grep -rn "style={" src/` → only documented exceptions (VirtualList spacers and CSS custom property assignments via `style.setProperty('--hindsight-*', ...)` or `style={{ '--hindsight-cell-bg': color }}`)
+- [ ] `grep -rn "style={" src/` → 0 results (no inline JSX styles — all dynamic styling via ref-based `style.setProperty()`; VirtualList spacer heights use imperative `style.height`, which is acceptable)
 - [ ] `npm run build` passes with zero warnings
 - [ ] ESLint runs with `no-floating-promises` and `no-explicit-any` active and passing
 - [ ] React production mode check: `grep 'development' main.js` returns 0 results (React dev-mode warnings include the string 'development' — their presence means the bundle includes ~90KB of dev-mode code)
+- [ ] `grep 'uplot\|uPlot' main.js` returns 0 results (verify uPlot is fully tree-shaken from the bundle)
 
 ---
 
@@ -2771,7 +2827,7 @@ interface ChartUiState {
     /** Dismissed trend alert IDs for the current session. Plain array, not Set, to ensure
      *  immutable updates trigger re-renders. Reset on plugin reload. */
     dismissedAlertIds: string[];
- **Cap:** ``dismissedAlertIds`` is capped at 100 entries (FIFO). When the array exceeds 100, the oldest entries are dropped. This prevents unbounded growth during long sessions with frequent trend alert regeneration.
+ **Cap:** ``dismissedAlertIds`` is capped at 500 entries (FIFO). When the array exceeds 500, the oldest entries are dropped. This prevents unbounded growth during long sessions with frequent trend alert regeneration. The array resets on session reload regardless, so the cap is insurance against runaway sessions. At ~50 bytes per ID, 500 entries = ~25KB, which is negligible.
 }
 
 interface ChartUiActions {
@@ -2836,15 +2892,18 @@ interface MetricsCacheActions {
 }
 ```
 
-**Cache staleness pattern:** When journal entries change, `markStale()` is called immediately (sets `stale = true`). Components reading from the cache check `stale` and show a subtle "Updating..." indicator. The actual `invalidateCache(changedFieldKeys)` runs after a 2-second debounce. If `changedFieldKeys` is non-empty, only those fields' entries are cleared from `timeSeriesCache` and `rollingAverageCache`; `correlationResults` are only cleared if a changed field participates in a cached correlation pair (granular check). `cachedAlerts` are only cleared if a changed field appears in a cached alert's `relatedFields` list. If `changedFieldKeys` is empty, all caches are cleared (full invalidation). This gives the user visual feedback that data is refreshing without hammering the CPU on every keystroke.
-**Data flow:** `Component → useChartData() hook → reads metricsCacheStore.getTimeSeries(fieldKey)` → on cache miss (`null`), hook reads entries from `journalStore`, calls `ChartDataService.getTimeSeries(entries, fieldKey)`, and stores the result via `metricsCacheStore.setTimeSeries()`. `ChartDataService` remains a pure stateless calculator; `metricsCacheStore` is a pure cache (stores/retrieves only, never reaches into other stores). This separation makes `metricsCacheStore` testable without mocking `journalStore`.
+**Cache staleness pattern:** When journal entries change, `markStale()` is called immediately (sets `stale = true`). Components reading from the cache check `stale` and show a subtle "Updating..." indicator **wrapped in `aria-live="polite"`** for screen reader accessibility. The actual `invalidateCache(changedFieldKeys)` runs after a 2-second debounce. If `changedFieldKeys` is non-empty, only those fields' entries are cleared from `timeSeriesCache` and `rollingAverageCache`; `correlationResults` are only cleared if a changed field participates in a cached correlation pair (granular check). `cachedAlerts` are only cleared if a changed field appears in a cached alert's `relatedFields` list. **`cachedWeeklyComparison` is always cleared on any invalidation** (it iterates all numeric fields and is cheap to recompute — granular invalidation is not worth the complexity). If `changedFieldKeys` is empty, all caches are cleared (full invalidation). This gives the user visual feedback that data is refreshing without hammering the CPU on every keystroke.
+**Data flow:** `Component → useChartData() hook → reads metricsCacheStore.getTimeSeries(fieldKey)` → on cache miss (`null`), hook **triggers computation in a `useEffect`** (not inline during render — writing to a Zustand store during render violates React's render purity contract and can cause infinite render loops). The effect reads entries from `journalStore.getState()`, calls `ChartDataService.getTimeSeries(entries, fieldKey)`, and stores the result via `metricsCacheStore.getState().setTimeSeries()`. The component renders with the cached value (possibly empty `[]` on first render), then re-renders when the effect completes and the store updates. `ChartDataService` remains a pure stateless calculator; `metricsCacheStore` is a pure cache (stores/retrieves only, never reaches into other stores). This separation makes `metricsCacheStore` testable without mocking `journalStore`.
 
 **`src/hooks/useMetrics.ts`** (~20 lines)
 ```typescript
 /** Subscribe to chartUiStore + metricsCacheStore for chart config and data */
 export function useMetrics()
 
-/** Get chart-ready time series for a field, with caching */
+/** Get chart-ready time series for a field, with caching.
+ *  Uses useEffect for cache-miss computation (NOT inline during render).
+ *  Returns cached value (possibly empty [] on first render); re-renders
+ *  when the effect completes and the store updates. */
 export function useChartData(fieldKey: string): {
     data: MetricDataPoint[];
     rolling: MetricDataPoint[];
@@ -2865,6 +2924,9 @@ Chart.js wrapper component:
 - Supports multi-metric overlay (dual Y axes when ranges differ by >10x)
 - Click handler on data points: shows a small popover with that day's excerpt (uses `stripMarkdown()` on first non-empty section, truncated to 200 chars)
 - Responsive: `maintainAspectRatio: false`, container controls height
+- **MUST disable default Chart.js tooltip plugin:** Set `plugins: { tooltip: { enabled: false } }` in the chart config. The default Chart.js tooltip plugin uses `innerHTML` internally, which is a [BLOCKER] per Obsidian guidelines. Use the React-rendered `<div>` tooltip layer instead (same pattern as the Heatmap tooltip).
+- **Canvas accessibility:** The `<canvas>` element must have `role="img"` and a descriptive `aria-label` dynamically generated from selected fields and date range (e.g., `aria-label="Line chart showing mood and energy over the last 30 days"`).
+- **Error handling (A20):** Wrap Chart.js initialization and `chart.update()` calls inside `useEffect` with `try/catch`. Chart.js can throw on canvas context loss, `Infinity`/`NaN` data, or corrupt datasets. On error, set a local error state and render an inline message: "Chart rendering failed. Try selecting different fields." Log via `console.error`.
 - CSS class: `hindsight-chart-container`
 
 **`src/components/charts/Sparkline.tsx`** (~60 lines)
@@ -3199,6 +3261,8 @@ Interactive scatter plot using Chart.js `Scatter` type:
  **File-exists guard:** Before opening, check ``app.vault.getFileByPath(entry.filePath)``. If ``null``, show a Notice: "Entry file no longer exists." Apply the same guard to Heatmap click handlers and Gallery click handlers.
 - Shows Pearson r value in the corner (via `MetricsEngine.pearsonCorrelation()`)
 - Regression line overlay
+- **MUST disable default Chart.js tooltip plugin:** Set `plugins: { tooltip: { enabled: false } }` in the chart config (same as MetricChart — the default tooltip uses `innerHTML` which is a [BLOCKER]).
+- **Canvas accessibility:** The `<canvas>` element must have `role="img"` and a descriptive `aria-label` (e.g., `aria-label="Scatter plot showing mood vs sleep duration"`).
 - CSS class: `hindsight-scatter-plot`
 
 **`src/components/charts/CorrelationCards.tsx`** (~70 lines)
@@ -3374,6 +3438,19 @@ Additional tests:
 ```
 Tests:
 - Command IDs: no command ID contains the plugin manifest id (Obsidian auto-prefixes)
+- Command IDs: dynamically checks ALL registered commands, not a hardcoded list
+```
+
+**`test/utils/pathValidation.test.ts`** (~15 lines)
+```
+Tests:
+- validateVaultRelativePath: rejects paths containing .. after normalization
+- validateVaultRelativePath: rejects absolute paths starting with /
+- validateVaultRelativePath: rejects absolute paths starting with drive letter (C:)
+- validateVaultRelativePath: rejects paths containing null bytes
+- validateVaultRelativePath: accepts valid relative paths
+- validateVaultRelativePath: accepts paths with subdirectories (Health/Journals)
+- validateVaultRelativePath: returns normalized path on success
 ```
 
 **`test/utils/periodUtils.test.ts`** (~30 lines)
@@ -3435,7 +3512,7 @@ GitHub-style contribution/mood heatmap (React SVG, no external library):
 - Color intensity based on field value, using `getPolarityColor()` for polarity-awareness
 - Empty days = `--background-modifier-border` (barely visible)
 - Hover tooltip: date and field value only (no tags — tags can be long and numerous, cluttering the tooltip). Tooltip is a **React-rendered `<div>`** positioned via state (not a CSS pseudo-element with `attr()`), keeping all content in JSX auto-escape land.
-- **Accessibility:** Individual `<rect>` elements must have `aria-label` attributes with date and value (e.g., `aria-label="March 7, 2026: mood 8"`). The `<svg>` root has `role="img"` with a descriptive `aria-label` (e.g., `aria-label="Heatmap showing mood over the last 12 months"`).
+- **Accessibility:** Do NOT annotate each individual `<rect>` with `aria-label` attributes — 365 rects × 3 attributes creates significant DOM overhead on mobile. Instead, provide a **visually-hidden `<table>` alternative** for screen readers: render a `<table>` with `class="sr-only"` (visually hidden but screen-reader-accessible) that contains the same data as the heatmap grid. The `<svg>` heatmap has `aria-hidden="true"` (the table provides the accessible version). The `<table>` uses standard `<th>` for day-of-week headers and `<td>` for values. The `.sr-only` class uses the standard clip-rect technique (`position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0);`). The SVG root still has `role="img"` with a descriptive `aria-label` for context (e.g., `aria-label="Heatmap showing mood over the last 12 months"`).
 - **Event delegation:** single `onClick` handler on the SVG container, identifies cell via `event.target.dataset.date`. Same for hover. No per-rect event listeners.
 - **Heatmap displays 1 year at a time** (year navigation buttons, not multi-year render). This caps SVG elements at ~365 `<rect>` nodes.
 - **Cell performance:** Cell components wrapped in `React.memo()` — only re-render on value/color change. Drag selection uses event delegation on the SVG container, NOT per-cell handlers. `pointermove` throttled via `requestAnimationFrame` during drag.
@@ -4083,7 +4160,7 @@ Milestone celebration (subtle, not gamified):
 
 Full-text search and compound filtering (Explore -> Lens tab):
 - **Search input:** searches `entry.sections` values first (already in memory, covers ~95% of content). Full raw file search is an opt-in toggle ("Search full note content") that warns about slower first-use performance.
-- **Full-content search (opt-in):** uses `vault.cachedRead()` with `processWithYielding()` (time-based, 10ms budget per chunk) for smooth UI on all hardware. Shows a "Scanning history..." progress bar. Uses an abort pattern: if the user types a new query while a search is running, the in-progress search is cancelled via a generation counter. **Yielded global search:** instead of an arbitrary cap on cold entries, the search traverses all cold entries from newest to oldest using `processWithYielding()` with a 10-second timeout. The timeout naturally adapts to device speed. **Multi-term AND logic:** queries containing spaces are split into terms, and entries must contain ALL terms (e.g., "Paris food" matches entries containing both words). This significantly increases the Lens feature's discovery utility. **Safety limits (full-content only):** 10-second timeout. If the timeout is reached, return partial results with a UI message: "Showing first N matches — refine your query for more results." Section-based search (default) has no limits since it operates on in-memory data.
+- **Full-content search (opt-in):** uses `vault.cachedRead()` with `processWithYielding()` (time-based, 10ms budget per chunk) for smooth UI on all hardware. Shows a "Scanning history..." progress bar. Uses an abort pattern: if the user types a new query while a search is running, the in-progress search is cancelled via a generation counter. **Yielded global search:** instead of an arbitrary cap on cold entries, the search traverses all cold entries from newest to oldest using `processWithYielding()` with a **device-adaptive timeout**: `Platform.isMobile ? 5000 : 10000` milliseconds. The shorter mobile timeout prevents the UI feeling frozen on slower devices while still allowing thorough results on desktop. **Multi-term AND logic:** queries containing spaces are split into terms, and entries must contain ALL terms (e.g., "Paris food" matches entries containing both words). This significantly increases the Lens feature's discovery utility. **Safety limits (full-content only):** Device-adaptive timeout as above. If the timeout is reached, return partial results with a UI message: "Showing first N matches — refine your query for more results." Section-based search (default) has no limits since it operates on in-memory data.
 - **Search term highlighting:** uses the shared `HighlightText.tsx` component (string-split + `<mark>` tags). Never uses `dangerouslySetInnerHTML`.
 - **Compound filters** (stackable, AND logic):
   - Date range (from/to date pickers)
@@ -4335,7 +4412,8 @@ Tag frequency visualization:
 **`src/components/threads/TagCoOccurrence.tsx`** (~60 lines)
 
 Co-occurrence matrix display:
-- React SVG grid: rows and columns are top N tags (default 10)
+- React SVG grid: rows and columns are top N tags (**user-configurable, default 10, via a dropdown above the matrix**)
+- **Performance notification (B10):** When the user selects a matrix size > 15, show an inline notice: "Larger matrices may take longer to render and be harder to read. Consider using the tag search instead for specific relationships." The computation itself handles any reasonable number; this is a UX advisory, not a hard cap.
 - Cell color intensity = co-occurrence count
 - Hover tooltip: "therapy + exercise: 12 co-occurrences"
 - CSS class: `hindsight-tag-cooccurrence`
@@ -4370,6 +4448,7 @@ Continuous feed of a single section heading across entries:
 - **`VirtualVariableList.tsx` design:** Supports a `measuredHeights: Map<number, number>` cache. On first render of each item, use `estimatedItemHeight` (default 200px for section reader). After the **shared `ResizeObserver`** measures the actual height (see `useSharedObserver` below), update the cache. Subsequent scroll calculations use measured heights. This prevents scroll-position jumping caused by the wildly variable heights of section content (a "Dreams" section might be 20 words, "What Actually Happened" could be 500 words).
  **Instance-scoped, not module singleton (amendment):** The shared ResizeObserver must be scoped to a specific VirtualVariableList instance, not module-level. Pass it from VirtualVariableList to children via React context. Each list instance owns its observer; items within that list share it.
    **Height cache batching:** When multiple ResizeObserver callbacks fire within the same frame (which they will — ResizeObserver batches observations), collect all height changes and apply them in a single `requestAnimationFrame()` callback. This prevents multiple scroll-position adjustments per frame.
+   **Container resize debounce (A13):** Add a separate `ResizeObserver` on the `VirtualVariableList` container element. When the container WIDTH changes (sidebar resize, workspace split), debounce the invalidation by 200ms to absorb resize animations, then invalidate ALL measured heights and remeasure. Text wrapping depends on container width, so width changes make cached heights stale. This is separate from the item-level shared observer.
    **CSS-change invalidation:** On `css-change` event, do NOT clear the entire height cache immediately (this causes violent scroll jumps). Instead, mark the cache as "stale" and re-measure only the currently visible items. For items above the viewport, keep old heights until they scroll into view and get re-measured. Only do a full cache clear + scroll-to-top if the user changes the section heading or date range.
 - **Shared `ResizeObserver` via `useSharedObserver` hook:** Create `src/hooks/useSharedObserver.ts` — a single `ResizeObserver` instance shared across all `VirtualVariableList` items. Each item row calls `observe(el, callback)` on mount, `unobserve(el)` on unmount. The hook creates the `ResizeObserver` lazily on first `observe()` call and destroys it when all items have been unobserved. This avoids instantiating hundreds of individual `ResizeObserver` instances (one per visible row in the virtual list), which causes severe performance degradation — a 50-item overscan would create 50 `ResizeObserver` instances, each with browser-level bookkeeping overhead.
 - **Key contract (required):** `getKey: (index: number) => string` prop. Keys must be content-versioned: `${filePath}::${sectionHeading}::${mtime}`. This ensures: (1) React properly reconciles items when entries are edited, (2) MarkdownRenderer Component lifecycles are correctly unmounted on content change, (3) `measuredHeights` cache invalidates when an entry's mtime changes. **Height cache invalidation:** clear `measuredHeights` entirely when the section heading dropdown or date range changes. Clear individual entries when their mtime changes. **CSS-change invalidation:** Register a `css-change` workspace event listener that clears all `measuredHeights` and triggers a re-measure. Theme changes can alter font sizes, line heights, and margins, making cached heights incorrect. This is the same `css-change` event used for Chart.js theme reactivity.
@@ -4416,6 +4495,8 @@ Continuous feed of a single section heading across entries:
               component.unload();
           };
       }, [content, sourcePath]);
+      ```
+      **`sourcePath` specification (A14):** The `sourcePath` argument passed to `MarkdownRenderer.renderMarkdown()` MUST be `entry.filePath` (the actual journal entry file path). This enables Obsidian's link resolution to work correctly for wikilinks within the rendered content (e.g., `[[Note Name]]` resolves relative to the entry's folder). Add a defensive guard: if `entry.filePath` is falsy, skip rich rendering and fall back to `stripMarkdown()` — rendering with an empty sourcePath produces broken links.
       ```
     - VirtualList handles DOM virtualization (mount/unmount as items enter/leave viewport)
     - Interactive markdown elements (checkboxes, embedded content) work correctly because the `Component` tree is intact
@@ -4871,10 +4952,25 @@ Tests:
 - clearCache: empties the store
 - getCacheStats: correct count and size estimation
 - getThumbnail returns null when thumbnails disabled
+- Concurrent request deduplication (same image requested twice simultaneously)
+- PNG fallback when WebP encoding fails (iOS Safari)
+- OffscreenCanvas fallback to regular canvas when unavailable
+- Image path resolution via getFirstLinkpathDest (vault security gate)
+- External URL images are skipped (not processed)
+- data: URI images are skipped (not processed)
+- Thumbnail size validation (rejects invalid dimensions)
+- Batch processing respects concurrency limit
+- Signal cancellation stops in-progress generation
+- IndexedDB unavailable degrades gracefully (no crash)
+- Cache hit returns stored blob without regeneration
+- Cache miss triggers generation and stores result
+- LRU ordering updates on access
+- Per-batch eviction with lower peak memory (mobile optimization)
+- destroy() cleans up in-flight operations
 ```
 
 ### Verification
-All tests pass. Approximately 10-15 new tests.
+All tests pass. Target: **25-30 tests** for thorough coverage. This is a critical service touching IndexedDB, WebWorkers (OffscreenCanvas), and platform-specific fallbacks — thorough testing here prevents hard-to-debug production issues.
 
 ---
 
@@ -4921,6 +5017,7 @@ Export functionality:
 - All file creation guarded by `vault.getFileByPath()` check -- if file exists, appends a datestamp + random hex suffix (format: `hindsight-export-YYYY-MM-DD-XXXX.csv` where XXXX is 4 random hex chars for uniqueness). **Race condition safety:** `vault.create()` is wrapped in try/catch. If it throws (e.g., Obsidian Sync or another plugin created a file at the same path between the existence check and the create call), retry with a random suffix (timestamp + 4 random chars). Same defensive pattern as `ensureFolderExists()`.
  **Maximum retries (amendment):** Maximum 3 retries with different random suffixes. If all fail, show a Notice with the error and the attempted filename. After all retries exhausted, throw with a descriptive message so the caller can decide how to handle it (ExportButton shows a Notice, other callers may handle differently).
 - **Filename sanitization:** Export filenames are sanitized via a `sanitizeFileName(name: string): string` utility (in `vaultUtils.ts`) that strips characters illegal on any OS (`/\\:*?"<>|`), trims whitespace, and enforces a max length of 200 characters. This runs before `normalizePath()` to prevent path traversal via user-configured export names.
+- **Read-only vault detection (A30):** Before any file creation, verify the vault is writable. Wrap the `vault.create()` call in a `try/catch` that detects permission errors (check `error.message` for common OS permission error patterns: `EPERM`, `EACCES`, `read-only`). On detection, show a Notice: "Export failed: vault appears to be read-only. Check file system permissions." This catches the edge case where the vault is on a read-only mount (USB, network drive) or the device is in low-storage mode.
 - CSS class: `hindsight-export-button`
 
 **`src/utils/csvSafety.ts`** (~15 lines)
@@ -5175,12 +5272,12 @@ Settings tab: "Annotations" section with storage mode dropdown and editable pres
 
 Annotation migration between plugin storage and frontmatter storage is a **simple, non-resumable** process:
 1. Copy all annotations from source to destination (using `processWithYielding()` for progress reporting)
-2. Verify the copied count matches the source count
-3. If counts match, delete source data
-4. If counts don't match (or any file is inaccessible), abort — report skipped files, do NOT delete source
+2. **Verify with content-based checksum (A10):** Instead of simple count matching, compute a hash (using string concatenation of sorted `filePath + annotationText + timestamp` for each annotation) on both source and destination. Count matching alone is insufficient — it can't detect silently corrupted or truncated annotations. The hash comparison catches data corruption during copy.
+3. If checksums match, delete source data
+4. If checksums don't match (or any file is inaccessible), abort — report skipped files, do NOT delete source
 5. On failure or crash, the user retries from scratch — no `lastProcessedIndex` or resume state is tracked
 
-No migration-in-progress state is persisted in settings. This simplicity is deliberate — annotation migration is a rare, user-initiated action with a built-in safety net (count verification before deletion).
+No migration-in-progress state is persisted in settings. This simplicity is deliberate — annotation migration is a rare, user-initiated action with a built-in safety net (checksum verification before deletion).
 
 ### NoteCreationService (lightweight, Phase 10 scope)
 
@@ -5437,13 +5534,11 @@ Multi-page entry wizard:
 
     await app.vault.process(file, (data) => {
         // getFrontMatterInfo safely handles missing frontmatter, BOMs,
-        // and edge cases. It returns { contentStart } â€” the CHARACTER INDEX (not byte offset)
-        // and edge cases. It returns { contentStart } — the byte offset
-        // where body content begins (after the closing ---).
-        const { contentStart } = getFrontMatterInfo(data);
-        // getFrontMatterInfo returns { exists, contentStart, ... }.
+        // and edge cases. It returns { exists, contentStart, ... }.
+        // `contentStart` is a CHARACTER INDEX (not byte offset) where
+        // body content begins (after the closing `---`).
         // Verify `exists` is true and `contentStart` is a number before using.
-        // On older Obsidian versions, the return type may differ slightly.
+        const { contentStart } = getFrontMatterInfo(data);
 
         const frontmatterBlock = data.substring(0, contentStart);
         let bodyText = data.substring(contentStart);
@@ -5633,6 +5728,9 @@ Tests:
 - replaceSectionContent: handles empty section (heading immediately followed by another heading)
 - replaceSectionContent: ignores headings inside code blocks
 - replaceSectionContent: handles section at end of file (no next heading)
+- replaceSectionContent: handles CRLF line endings correctly
+- replaceSectionContent: handles section with only whitespace content
+- replaceSectionContent: handles nested headings (### inside ## section)
 ```
 
 **`test/integration/wizard-integration.test.ts`** (~40 lines)
@@ -5695,7 +5793,19 @@ To prevent architectural surprises when building Phase 12, the following precede
 **Implementation note:** Phase 12 adds the slider UI and the above override/pass-through logic to each component.
 
 **Note for earlier phases:** Components built in Phases 6b-11 (Morning Briefing, Digest, Quick-Edit, Weekly Review) should read their default date from a hook that can be overridden later. Use `useTimeMachineDate()` (returns `timeMachineDate ?? startOfDay(new Date())`) from Phase 12's store if it exists, or fall back to `startOfDay(new Date())` if Phase 12 hasn't been implemented yet. The precedence matrix above will be expanded to cover Phase 10-11 features (Digest period default, Quick-edit default date, Weekly Review baseline, annotation marker filtering) during Phase 12 planning — these don't need to be decided now.
- **Memoization (amendment):** ``startOfDay(new Date())`` creates a new ``Date`` object on every render when the time machine is inactive (the common case). Since the reference changes each render, downstream ``useMemo`` and ``useEffect`` dependencies fire unnecessarily. **Fix:** Compute ``startOfDay(new Date())`` once in the store initialization and update via a ``setInterval`` that fires once per minute (cleanup interval in `reset()`). The hook returns a stable reference that only changes when the day actually rolls over (or the time machine date changes). The interval is registered via `plugin.registerInterval()` for automatic cleanup.
+ **Midnight timeout optimization (A18):** Instead of a per-minute `setInterval` that fires 1,440 times/day just to check if the date rolled over, use a **single `setTimeout` that fires at midnight**:
+  ```typescript
+  function scheduleNextMidnight(callback: () => void): ReturnType<typeof setTimeout> {
+      const now = new Date();
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const msUntilMidnight = tomorrow.getTime() - now.getTime() + 100; // +100ms buffer
+      return setTimeout(() => {
+          callback();
+          scheduleNextMidnight(callback); // chain for the next day
+      }, msUntilMidnight);
+  }
+  ```
+  On each midnight tick, update the store's `today` value. The `reset()` action must clear the timeout ID. Register via `plugin.registerInterval()` if possible, otherwise track manually in `cleanupRegistry`. This reduces timer overhead from 1,440 fires/day to 1 fire/day.
 
 ### Architecture Notes (decided now to prevent coupling issues)
 
