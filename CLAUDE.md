@@ -119,6 +119,7 @@ Instructions for AI assistants working on this project.
 - Skip testing before deployment
 - Use `vault.modify()` for frontmatter — use `app.fileManager.processFrontMatter()`
 - Use `moment()` for date parsing — use native `Date`
+- Use `detachLeavesOfType()` in `onunload()` — Obsidian handles leaf lifecycle on plugin update/disable
 - Start writing tests before Brad has manually verified the feature
 
 ### Do:
