@@ -534,28 +534,30 @@ Files: 12 new, 3 modified
 ## Next Session Prompt
 
 ```
-Phase 5a Session 1 complete. Infrastructure cleanup done:
-- Eval views deleted (security gate), uplot uninstalled
-- ESLint v10 with 3 critical rules, all violations fixed
-- debugLog utility created, debugMode setting added
-- Commands extracted to src/commands.ts
-- Types split into src/types/ modules
-- 175 tests passing, all exit gate greps clean
+Phase 5a Session 2 complete. Store + service infrastructure done:
+- appStore created, all 9 components refactored (no more app prop-drilling)
+- All 4 stores have reset() actions with proper onunload() sequencing
+- journalStore has revision counter, schemaDirty, pendingChangedFieldKeys
+- JournalIndexService refactored: processWithYielding, debounced detectFields,
+  indexing lock, bulk event settling, conflict file filter
+- CalendarCell inline style remediated to CSS variable pattern
+- 202 tests passing, all lint/build gates clean
 
-Continue with Phase 5a Session 2 (items 5, 7-9):
-- Item 5: Create src/utils/yieldUtils.ts (processWithYielding)
-- Item 7: Create src/store/appStore.ts + HindsightPluginInterface
-- Item 8: Add store reset() actions to all stores
-- Item 9: Debounce detectFields() + schemaDirty flag
-- Item 9a: Atomic indexing lock
-- Item 9b: Bulk event settling mode
-- Item 9c: Conflict file filter
+Continue with Phase 5a Session 3 — remaining items:
+- Item 11: Inline style remediation audit (grep for remaining style={{ )
+  NOTE: CalendarCell is already done. Check for others.
+- Item 12 WIRING: The revision counter state was added to journalStore this
+  session. Session 3 needs to wire the cross-store subscription in storeWiring.ts:
+  journalStore.revision -> metricsCacheStore.markStale() [debounced 2s].
+  The state is ready, the subscription is not.
+- Any remaining Phase 5a items from the plan not covered by Sessions 1-2
 
 Key files to reference:
-- docs/development/Implementation Plan.md — Phase 5a (line 2555)
-- Plan-Wide Rules — Time-Based Yielding, App/Plugin Access, Store Lifecycle
-- src/services/JournalIndexService.ts — Will be refactored for items 5, 9
-- src/store/journalStore.ts — Needs reset() action, schemaDirty flag
+- docs/development/Implementation Plan.md — Phase 5a (line 2555+)
+- src/store/journalStore.ts — Has revision, schemaDirty, pendingChangedFieldKeys
+- src/store/appStore.ts — Global app/plugin access
+- src/services/JournalIndexService.ts — Refactored with all new infrastructure
+- src/utils/yieldUtils.ts — processWithYielding utility
 ```
 
 ## Git Commit Message
@@ -592,4 +594,175 @@ Code Organization:
 
 All 175 tests passing, all exit gate greps clean
 ```
+
+---
+
+## 2026-03-08 - Phase 5a Session 2: Stores, appStore Refactoring, JournalIndexService Infrastructure
+
+**Focus:** Create appStore and HindsightPluginInterface to eliminate app prop-drilling, add store reset actions, add revision counter and schemaDirty to journalStore, refactor JournalIndexService with time-based yielding / debounced detectFields / indexing lock / bulk event settling, remediate CalendarCell inline styles.
+
+### Completed:
+
+#### processWithYielding (Item 5)
+- ✅ Created `src/utils/yieldUtils.ts` — time-based yielding with configurable budget (mobile/desktop), cancellation signals, error recovery, and progress callbacks
+- ✅ Refactored `JournalIndexService.runPass2()` to use `processWithYielding` instead of fixed PARSE_BATCH_SIZE
+
+#### Conflict File Filter (Item 9c)
+- ✅ Updated `src/utils/fileNameParser.ts` — rejects Obsidian Sync conflict files containing `(Conflict)` (case-insensitive)
+
+#### appStore + Prop-Drilling Removal (Item 7)
+- ✅ Created `src/types/plugin.ts` — `HindsightPluginInterface` and `ServiceRegistry` types
+- ✅ Created `src/store/appStore.ts` — global Zustand store for App and plugin singletons
+- ✅ Updated `src/types/index.ts` — barrel re-exports for new types
+- ✅ Refactored 9 components to use `useAppStore` instead of `app: App` prop:
+  - `EchoCard`, `EchoesPanel`, `SidebarApp`, `TodayStatus`
+  - `CalendarCell`, `CalendarGrid`, `MainApp`, `TimelineList`, `JournalIndex`
+- ✅ Updated `HindsightSidebarView.tsx` — removed plugin param from constructor/render
+- ✅ Updated `HindsightMainView.tsx` — removed plugin param from constructor/render
+- ✅ Updated `main.ts` — implements `HindsightPluginInterface`, initializes appStore with reset-then-set for re-enable safety (A17)
+
+#### Store `reset()` Actions (Item 8)
+- ✅ Added `reset()` to `journalStore`, `uiStore`, `settingsStore`, `appStore`
+- ✅ Wired `onunload()` cleanup sequence in `main.ts`: signal teardown → unsubscribe cross-store subs → destroy services → cleanup registry → reset stores (appStore LAST)
+
+#### Debounced detectFields + Schema-Dirty (Item 9)
+- ✅ Added `debouncedDetectFields()` (5s) — all watchers use this instead of direct calls
+- ✅ Added `checkSchemaChange()` — sets `schemaDirty` only when frontmatter keys change, not just values
+- ✅ Added `schemaDirty`, `pendingChangedFieldKeys` (Set), `fullInvalidation`, `setSchemaDirty()`, `clearPendingChanges()` to journalStore
+
+#### Atomic Indexing Lock (Item 9a)
+- ✅ Added `isIndexing` / `needsReindex` to `JournalIndexService`
+- ✅ `initialize()` guards with lock, queues re-index if triggered mid-run
+
+#### Bulk Event Settling (Item 9b)
+- ✅ >10 events in 500ms → pauses individual processing, waits 2s silence → full re-index
+- ✅ All timers cleaned up in `destroy()`
+
+#### Revision Counter + Pending Changes (Item 12 — state only)
+- ✅ Added `revision` counter (increments on every mutation: setEntries, upsertEntry, upsertEntries, removeEntry, clear)
+- ✅ Added `pendingChangedFieldKeys` (accumulates frontmatter keys on upsertEntry)
+- ✅ Added `fullInvalidation` flag (set on bulk operations)
+- ⚠️ **Note for Session 3:** Cross-store subscription wiring (journalStore.revision → metricsCacheStore.markStale) is NOT done. Only the state was added this session.
+
+#### Inline Style Remediation
+- ✅ Migrated `CalendarCell` `style={{backgroundColor}}` to ref-based CSS variable pattern (`--hindsight-cell-bg`) via `useEffect` + `cellRef.current.style.setProperty()`
+- ✅ Added `.hindsight-calendar-cell.has-metric-color` CSS rule to `calendar.css`
+
+### Files Changed:
+
+**New Files (5):**
+- `src/utils/yieldUtils.ts`
+- `src/types/plugin.ts`
+- `src/store/appStore.ts`
+- `test/utils/yieldUtils.test.ts`
+- `test/store/appStore.test.ts`
+
+**Modified Files (14):**
+- `main.ts` — Implements HindsightPluginInterface, appStore init, onunload sequence, view constructors updated
+- `src/services/JournalIndexService.ts` — processWithYielding, debounced detectFields, indexing lock, bulk settle, checkSchemaChange
+- `src/store/journalStore.ts` — revision, schemaDirty, pendingChangedFieldKeys, fullInvalidation, reset(), clearPendingChanges()
+- `src/store/uiStore.ts` — reset() action
+- `src/store/settingsStore.ts` — reset() action
+- `src/types/index.ts` — Added plugin type re-exports
+- `src/components/SidebarApp.tsx` — Removed plugin/app props
+- `src/components/MainApp.tsx` — Removed plugin/app props, uses appStore
+- `src/components/calendar/CalendarCell.tsx` — Uses appStore, CSS variable pattern for bg color
+- `src/components/calendar/CalendarGrid.tsx` — Removed app prop
+- `src/components/echoes/EchoCard.tsx` — Uses appStore
+- `src/components/echoes/EchoesPanel.tsx` — Removed app prop
+- `src/components/sidebar/TodayStatus.tsx` — Uses appStore
+- `src/components/timeline/TimelineList.tsx` — Uses appStore
+- `src/components/index-table/JournalIndex.tsx` — Uses appStore
+- `src/views/HindsightSidebarView.tsx` — Removed plugin param
+- `src/views/HindsightMainView.tsx` — Removed plugin param
+- `src/utils/fileNameParser.ts` — Conflict file filter
+- `src/styles/calendar.css` — has-metric-color CSS variable rule
+- `test/store/journalStore.test.ts` — revision, reset, schemaDirty, pendingChangedFieldKeys tests
+- `test/store/uiStore.test.ts` — reset test
+- `test/utils/fileNameParser.test.ts` — Conflict filter tests
+
+### Testing Notes:
+- ✅ `npm run lint` passes
+- ✅ `npm run build` passes (lint + CSS + TypeScript + esbuild)
+- ✅ All 202 unit tests pass across 13 test files (41 new, zero regressions)
+- ✅ `npm run deploy:test` successful
+- ✅ Brad confirmed in Obsidian: sidebar loads, calendar color-coding works, timeline/index tabs work
+
+### Blockers/Issues:
+- None
+
+### Design Notes:
+- **appStore re-enable safety (A17):** On plugin re-enable, `onload()` calls `appStore.reset()` immediately followed by `appStore.setApp(this.app, this)` with no awaits between, eliminating the window where `app` is null.
+- **CalendarCell inline style fix:** Obsidian review bot flags all `style={{}}` JSX attributes equally, regardless of whether they set CSS custom properties or regular inline styles. Migrated to imperative `ref.current.style.setProperty('--hindsight-cell-bg', bgColor)` paired with a CSS class rule.
+- **runPass2 bulk upsert:** Changed from per-batch `upsertEntries()` to collecting all updated entries then one final `upsertEntries()` call, resulting in a single `revision` increment instead of N increments (important for the upcoming DAG subscription wiring).
+
+---
+
+## Next Session Prompt
+
+```
+Phase 5a Session 2 complete. Store + service infrastructure done:
+- appStore created, all 9 components refactored (no more app prop-drilling)
+- All 4 stores have reset() actions with proper onunload() sequencing
+- journalStore has revision counter, schemaDirty, pendingChangedFieldKeys
+- JournalIndexService refactored: processWithYielding, debounced detectFields,
+  indexing lock, bulk event settling, conflict file filter
+- CalendarCell inline style remediated to CSS variable pattern
+- 202 tests passing, all lint/build gates clean
+
+Continue with Phase 5a Session 3 — remaining items:
+- Item 11: Inline style remediation audit (grep for remaining style={{ )
+  NOTE: CalendarCell is already done. Check for others.
+- Item 12 WIRING: The revision counter state was added to journalStore this
+  session. Session 3 needs to wire the cross-store subscription in storeWiring.ts:
+  journalStore.revision -> metricsCacheStore.markStale() [debounced 2s].
+  The state is ready, the subscription is not.
+- Any remaining Phase 5a items from the plan not covered by Sessions 1-2
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 5a (line 2555+)
+- src/store/journalStore.ts — Has revision, schemaDirty, pendingChangedFieldKeys
+- src/store/appStore.ts — Global app/plugin access
+- src/services/JournalIndexService.ts — Refactored with all new infrastructure
+- src/utils/yieldUtils.ts — processWithYielding utility
+```
+
+## Git Commit Message
+
+```
+refactor(phase-5a): appStore, store resets, JournalIndexService infrastructure - session 2
+
+appStore + Prop-Drilling Removal:
+- Create src/store/appStore.ts with useAppStore Zustand store
+- Create src/types/plugin.ts with HindsightPluginInterface and ServiceRegistry
+- Refactor 9 components to use appStore instead of app prop-drilling
+  (EchoCard, EchoesPanel, SidebarApp, TodayStatus, CalendarCell,
+  CalendarGrid, MainApp, TimelineList, JournalIndex)
+- Update view shells to remove plugin param from constructors
+- Update main.ts to implement HindsightPluginInterface with re-enable safety
+
+Store Lifecycle:
+- Add reset() to journalStore, uiStore, settingsStore, appStore
+- Wire onunload() cleanup: signal -> unsub subs -> destroy services -> reset stores
+
+JournalIndexService Infrastructure:
+- Replace fixed PARSE_BATCH_SIZE with processWithYielding (time-based yielding)
+- Add debouncedDetectFields() at 5s instead of immediate calls in watchers
+- Add checkSchemaChange() setting schemaDirty only on key changes
+- Add isIndexing/needsReindex atomic indexing lock
+- Add bulk event settling (>10 events in 500ms -> wait 2s -> full re-index)
+- Add conflict file filter rejecting Obsidian Sync conflict files
+
+Revision Counter:
+- Add revision (increments on every journalStore mutation)
+- Add pendingChangedFieldKeys, fullInvalidation, clearPendingChanges()
+- Cross-store wiring deferred to Session 3
+
+Inline Style Remediation:
+- Migrate CalendarCell style={{backgroundColor}} to CSS variable pattern
+- Add .hindsight-calendar-cell.has-metric-color CSS rule
+
+Tests: 202 passing (41 new), zero regressions
+```
+
 

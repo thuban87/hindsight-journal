@@ -65,6 +65,8 @@ interface UIState {
     removeFieldFilter(index: number): void;
     /** Reset all filters to defaults */
     clearAllFilters(): void;
+    /** Reset entire UI state to defaults (called from plugin.onunload()) */
+    reset(): void;
 }
 
 const now = new Date();
@@ -129,4 +131,23 @@ export const useUIStore = create<UIState>((set, get) => ({
             fieldFilters: [],
         },
     }),
+
+    reset: () => {
+        const now = new Date();
+        set({
+            activeSidebarTab: 'today',
+            echoSectionKey: null,
+            echoMetricKey: 'mood',
+            activeMainTab: 'calendar',
+            calendarMonth: now.getMonth(),
+            calendarYear: now.getFullYear(),
+            selectedMetric: null,
+            indexSort: { field: 'date', direction: 'desc' },
+            indexFilters: {
+                search: '',
+                dateRange: null,
+                fieldFilters: [],
+            },
+        });
+    },
 }));

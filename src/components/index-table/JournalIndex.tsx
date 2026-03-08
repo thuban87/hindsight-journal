@@ -8,17 +8,13 @@
  */
 
 import React, { useMemo } from 'react';
-import type { App } from 'obsidian';
-import type { JournalEntry, FrontmatterField } from '../../types';
+import type { FrontmatterField } from '../../types';
 import { useJournalStore } from '../../store/journalStore';
 import { useUIStore } from '../../store/uiStore';
+import { useAppStore } from '../../store/appStore';
 import { applyFilters, applySorting } from '../../utils/filterUtils';
 import { IndexFilters } from './IndexFilters';
 import { EmptyState } from '../shared/EmptyState';
-
-interface JournalIndexProps {
-    app: App;
-}
 
 /** Format date for table display */
 function formatTableDate(date: Date): string {
@@ -29,16 +25,19 @@ function formatTableDate(date: Date): string {
     });
 }
 
-export function JournalIndex({ app }: JournalIndexProps): React.ReactElement {
+export function JournalIndex(): React.ReactElement | null {
+    const app = useAppStore(s => s.app);
     const allEntries = useJournalStore(state => state.getAllEntriesSorted());
     const detectedFields = useJournalStore(state => state.detectedFields);
     const indexSort = useUIStore(state => state.indexSort);
     const setIndexSort = useUIStore(state => state.setIndexSort);
     const indexFilters = useUIStore(state => state.indexFilters);
 
+    if (!app) return null;
+
     /** Dynamic columns — numeric and boolean fields only */
     const dynamicColumns = useMemo(() => {
-        return detectedFields.filter(f => f.type === 'number' || f.type === 'boolean');
+        return detectedFields.filter((f: FrontmatterField) => f.type === 'number' || f.type === 'boolean');
     }, [detectedFields]);
 
     /** Apply filters */

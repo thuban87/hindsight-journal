@@ -224,4 +224,115 @@ describe('journalStore', () => {
             expect(result).toHaveLength(0);
         });
     });
+
+    describe('reset', () => {
+        it('clears all state back to initial values', () => {
+            // Populate store with data
+            const entries = [
+                makeEntry('a.md', new Date(2026, 2, 1)),
+                makeEntry('b.md', new Date(2026, 2, 5)),
+            ];
+            useJournalStore.getState().setEntries(entries);
+            useJournalStore.getState().setLoading(true);
+            useJournalStore.getState().setError('test error');
+            useJournalStore.getState().setSchemaDirty(true);
+
+            // Reset
+            useJournalStore.getState().reset();
+
+            const state = useJournalStore.getState();
+            expect(state.entries.size).toBe(0);
+            expect(state.dateIndex.size).toBe(0);
+            expect(state.sortedDates).toHaveLength(0);
+            expect(state.detectedFields).toHaveLength(0);
+            expect(state.loading).toBe(false);
+            expect(state.error).toBeNull();
+            expect(state.revision).toBe(0);
+            expect(state.schemaDirty).toBe(false);
+            expect(state.pendingChangedFieldKeys.size).toBe(0);
+            expect(state.fullInvalidation).toBe(false);
+        });
+    });
+
+    describe('revision counter', () => {
+        it('increments on setEntries', () => {
+            const before = useJournalStore.getState().revision;
+            useJournalStore.getState().setEntries([makeEntry('a.md', new Date(2026, 2, 1))]);
+            expect(useJournalStore.getState().revision).toBe(before + 1);
+        });
+
+        it('increments on upsertEntry', () => {
+            const before = useJournalStore.getState().revision;
+            useJournalStore.getState().upsertEntry(makeEntry('a.md', new Date(2026, 2, 1)));
+            expect(useJournalStore.getState().revision).toBe(before + 1);
+        });
+
+        it('increments on upsertEntries', () => {
+            useJournalStore.getState().setEntries([makeEntry('a.md', new Date(2026, 2, 1))]);
+            const before = useJournalStore.getState().revision;
+            useJournalStore.getState().upsertEntries([makeEntry('a.md', new Date(2026, 2, 1), { wordCount: 500 })]);
+            expect(useJournalStore.getState().revision).toBe(before + 1);
+        });
+
+        it('increments on removeEntry', () => {
+            useJournalStore.getState().setEntries([makeEntry('a.md', new Date(2026, 2, 1))]);
+            const before = useJournalStore.getState().revision;
+            useJournalStore.getState().removeEntry('a.md');
+            expect(useJournalStore.getState().revision).toBe(before + 1);
+        });
+
+        it('increments on clear', () => {
+            useJournalStore.getState().setEntries([makeEntry('a.md', new Date(2026, 2, 1))]);
+            const before = useJournalStore.getState().revision;
+            useJournalStore.getState().clear();
+            expect(useJournalStore.getState().revision).toBe(before + 1);
+        });
+    });
+
+    describe('schemaDirty', () => {
+        it('defaults to false', () => {
+            expect(useJournalStore.getState().schemaDirty).toBe(false);
+        });
+
+        it('can be set to true', () => {
+            useJournalStore.getState().setSchemaDirty(true);
+            expect(useJournalStore.getState().schemaDirty).toBe(true);
+        });
+
+        it('clearPendingChanges resets schemaDirty-related state', () => {
+            useJournalStore.getState().upsertEntry(
+                makeEntry('a.md', new Date(2026, 2, 1), { frontmatter: { mood: 7 } })
+            );
+            expect(useJournalStore.getState().pendingChangedFieldKeys.size).toBeGreaterThan(0);
+
+            useJournalStore.getState().clearPendingChanges();
+
+            expect(useJournalStore.getState().pendingChangedFieldKeys.size).toBe(0);
+            expect(useJournalStore.getState().fullInvalidation).toBe(false);
+        });
+    });
+
+    describe('pendingChangedFieldKeys', () => {
+        it('accumulates changed frontmatter keys on upsertEntry', () => {
+            useJournalStore.getState().upsertEntry(
+                makeEntry('a.md', new Date(2026, 2, 1), { frontmatter: { mood: 7, energy: 5 } })
+            );
+            const keys = useJournalStore.getState().pendingChangedFieldKeys;
+            expect(keys.has('mood')).toBe(true);
+            expect(keys.has('energy')).toBe(true);
+        });
+
+        it('accumulates across multiple upserts', () => {
+            useJournalStore.getState().upsertEntry(
+                makeEntry('a.md', new Date(2026, 2, 1), { frontmatter: { mood: 7 } })
+            );
+            useJournalStore.getState().upsertEntry(
+                makeEntry('b.md', new Date(2026, 2, 2), { frontmatter: { sleep: 8 } })
+            );
+            const keys = useJournalStore.getState().pendingChangedFieldKeys;
+            expect(keys.has('mood')).toBe(true);
+            expect(keys.has('sleep')).toBe(true);
+        });
+    });
 });
+

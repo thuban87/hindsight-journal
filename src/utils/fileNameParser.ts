@@ -9,6 +9,9 @@ export interface ParsedFileName {
  * Returns null if the filename doesn't match the expected pattern.
  */
 export function parseJournalFileName(filename: string): ParsedFileName | null {
+    // Reject Obsidian Sync conflict files (e.g., "2026-03-05, Thursday (Conflict).md")
+    if (filename.toLowerCase().includes('(conflict)')) return null;
+
     // Regex: YYYY-MM-DD, DayName.md
     const match = filename.match(/^(\d{4})-(\d{2})-(\d{2}),\s+(\w+)\.md$/);
     if (!match) return null;

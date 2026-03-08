@@ -14,3 +14,6 @@ export type { JournalEntry, ParsedSection } from './journal';
 
 // Metrics
 export type { FrontmatterField, MetricDataPoint, DateRange } from './metrics';
+
+// Plugin interface
+export type { HindsightPluginInterface, ServiceRegistry } from './plugin';

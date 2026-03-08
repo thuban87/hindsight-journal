@@ -8,24 +8,23 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import type { App } from 'obsidian';
 import { useJournalStore } from '../../store/journalStore';
+import { useAppStore } from '../../store/appStore';
 import { VirtualList } from '../shared/VirtualList';
 import { EntryCard } from './EntryCard';
 import { EmptyState } from '../shared/EmptyState';
 
 const ENTRIES_PER_PAGE = 50;
 
-interface TimelineListProps {
-    app: App;
-}
-
-export function TimelineList({ app }: TimelineListProps): React.ReactElement {
+export function TimelineList(): React.ReactElement | null {
+    const app = useAppStore(s => s.app);
     const allEntries = useJournalStore(state => state.getAllEntriesSorted());
     const detectedFields = useJournalStore(state => state.detectedFields);
 
     const [sortNewest, setSortNewest] = useState(true);
     const [visibleCount, setVisibleCount] = useState(ENTRIES_PER_PAGE);
+
+    if (!app) return null;
 
     /** Sorted entries — getAllEntriesSorted returns newest-first, reverse for oldest-first */
     const sortedEntries = useMemo(() => {

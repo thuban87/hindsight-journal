@@ -7,13 +7,12 @@
  */
 
 import React from 'react';
-import type { App } from 'obsidian';
 import type { JournalEntry } from '../../types';
 import { stripMarkdown } from '../../services/SectionParserService';
+import { useAppStore } from '../../store/appStore';
 
 interface EchoCardProps {
     entry: JournalEntry;
-    app: App;
     /** Which section to show as the excerpt (null = auto-detect) */
     sectionKey: string | null;
     /** Which frontmatter field to show as the badge */
@@ -67,7 +66,10 @@ function formatMetricValue(value: unknown): string {
     return String(value);
 }
 
-export function EchoCard({ entry, app, sectionKey, metricKey }: EchoCardProps): React.ReactElement {
+export function EchoCard({ entry, sectionKey, metricKey }: EchoCardProps): React.ReactElement | null {
+    const app = useAppStore(s => s.app);
+    if (!app) return null;
+
     const rawExcerpt = getSectionContent(entry, sectionKey);
     const cleanText = stripMarkdown(rawExcerpt);
     const excerpt = cleanText.length > 100 ? cleanText.slice(0, 100) + '…' : cleanText;

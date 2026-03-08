@@ -1,17 +1,33 @@
 import { Plugin } from 'obsidian';
 import { HindsightSettingTab } from './src/settings';
-import { DEFAULT_SETTINGS, HindsightSettings } from './src/types';
+import { DEFAULT_SETTINGS } from './src/types';
+import type { HindsightSettings, HindsightPluginInterface, ServiceRegistry } from './src/types';
 import { HINDSIGHT_SIDEBAR_VIEW_TYPE, HINDSIGHT_MAIN_VIEW_TYPE } from './src/constants';
 import { HindsightSidebarView } from './src/views/HindsightSidebarView';
 import { HindsightMainView } from './src/views/HindsightMainView';
 import { JournalIndexService } from './src/services/JournalIndexService';
 import { useSettingsStore } from './src/store/settingsStore';
+import { useAppStore } from './src/store/appStore';
+import { useJournalStore } from './src/store/journalStore';
+import { useUIStore } from './src/store/uiStore';
 import { registerCommands } from './src/commands';
 import { debugLog } from './src/utils/debugLog';
 
-export default class HindsightPlugin extends Plugin {
+export default class HindsightPlugin extends Plugin implements HindsightPluginInterface {
     settings: HindsightSettings = DEFAULT_SETTINGS;
     journalIndex: JournalIndexService | null = null;
+
+    /** Cross-store subscriptions — unsubscribed FIRST in onunload() */
+    private storeSubscriptions: (() => void)[] = [];
+    /** General cleanup callbacks — cleaned up SECOND in onunload() */
+    private cleanupRegistry: (() => void)[] = [];
+
+    /** Service registry for the plugin interface */
+    get services(): ServiceRegistry {
+        return {
+            journalIndex: this.journalIndex,
+        };
+    }
 
     async onload(): Promise<void> {
         await this.loadSettings();
@@ -20,17 +36,22 @@ export default class HindsightPlugin extends Plugin {
         // Sync settings to reactive store for React components
         useSettingsStore.getState().setSettings(this.settings);
 
+        // Initialize appStore — components access app/plugin from here
+        const appState = useAppStore.getState();
+        appState.reset(); // Clear any stale state from previous enable cycle
+        appState.setApp(this.app, this);
+
         // === Journal Index Service ===
         this.journalIndex = new JournalIndexService(this.app, this);
         this.app.workspace.onLayoutReady(async () => {
-            await this.journalIndex!.initialize();
-            this.journalIndex!.registerFileWatchers();
+            await this.journalIndex?.initialize();
+            this.journalIndex?.registerFileWatchers();
         });
 
         // === Sidebar View ===
         this.registerView(
             HINDSIGHT_SIDEBAR_VIEW_TYPE,
-            (leaf) => new HindsightSidebarView(leaf, this)
+            (leaf) => new HindsightSidebarView(leaf)
         );
 
         // Auto-open sidebar if enabled
@@ -43,7 +64,7 @@ export default class HindsightPlugin extends Plugin {
         // === Main Full-Page View ===
         this.registerView(
             HINDSIGHT_MAIN_VIEW_TYPE,
-            (leaf) => new HindsightMainView(leaf, this)
+            (leaf) => new HindsightMainView(leaf)
         );
 
         // Ribbon icon for quick access
@@ -58,7 +79,25 @@ export default class HindsightPlugin extends Plugin {
     }
 
     onunload(): void {
+        // 0. Signal teardown to React components and async hooks
+        useAppStore.getState().setIsUnloading(true);
+
+        // 1. Unsubscribe all cross-store subscriptions FIRST
+        this.storeSubscriptions.forEach(unsub => unsub());
+        this.storeSubscriptions = [];
+
+        // 2. Destroy services
         this.journalIndex?.destroy();
+
+        // 3. Run general cleanup (timers, observers, listeners)
+        this.cleanupRegistry.forEach(fn => fn());
+        this.cleanupRegistry = [];
+
+        // 4. Reset all stores — appStore LAST
+        useJournalStore.getState().reset();
+        useUIStore.getState().reset();
+        useSettingsStore.getState().reset();
+        useAppStore.getState().reset(); // LAST — components may reference app during teardown
     }
 
     async loadSettings(): Promise<void> {

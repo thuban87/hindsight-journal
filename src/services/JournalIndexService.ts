@@ -7,7 +7,14 @@
  *
  * Two-pass initialization:
  *   Pass 1 (instant): frontmatter via MetadataCache (zero file I/O)
- *   Pass 2 (background): full content via cachedRead, batched
+ *   Pass 2 (background): full content via cachedRead, time-based yielding
+ *
+ * File watcher features:
+ *   - Debounced metadata changes (400ms per file)
+ *   - Debounced detectFields() re-detection (5s after last change)
+ *   - Schema-dirty flag (only set when frontmatter KEYS change, not just values)
+ *   - Atomic indexing lock (prevents re-entry during initialize/reconfigure)
+ *   - Bulk event settling (>10 events in 500ms → wait 2s → full re-index)
  */
 
 import { App, TFile, TFolder, normalizePath, Notice } from 'obsidian';
@@ -18,17 +25,37 @@ import { formatDateISO } from '../utils/dateUtils';
 import { parseSections, extractImagePaths, countWords } from '../services/SectionParserService';
 import { detectFields } from '../services/FrontmatterService';
 import { useJournalStore } from '../store/journalStore';
+import { processWithYielding } from '../utils/yieldUtils';
+import { debugLog } from '../utils/debugLog';
 
 /** Debounce delay for file change events (ms) */
 const DEBOUNCE_MS = 400;
-/** Batch size for pass 2 background content parsing */
-const PARSE_BATCH_SIZE = 50;
+/** Debounce delay for detectFields() re-detection (ms) */
+const DETECT_FIELDS_DEBOUNCE_MS = 5000;
+/** Bulk event threshold — events within the window */
+const BULK_EVENT_THRESHOLD = 10;
+/** Bulk event window (ms) */
+const BULK_EVENT_WINDOW_MS = 500;
+/** Bulk settle delay — silence required before re-index (ms) */
+const BULK_SETTLE_MS = 2000;
 
 export class JournalIndexService {
     private app: App;
     private plugin: HindsightPlugin;
     private journalFolder: string; // normalizePath'd
     private debounceTimers: Map<string, ReturnType<typeof setTimeout>>;
+
+    // Item 9: Debounced detectFields
+    private detectFieldsTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Item 9a: Atomic indexing lock
+    private isIndexing = false;
+    private needsReindex = false;
+
+    // Item 9b: Bulk event settling
+    private bulkEventTimestamps: number[] = [];
+    private bulkSettleTimer: ReturnType<typeof setTimeout> | null = null;
+    private inBulkMode = false;
 
     constructor(app: App, plugin: HindsightPlugin) {
         this.app = app;
@@ -40,8 +67,17 @@ export class JournalIndexService {
     /**
      * Two-pass initialization. Delegates to runPass1() and runPass2().
      * Called once on plugin load via workspace.onLayoutReady().
+     * Protected by atomic indexing lock (item 9a).
      */
     async initialize(): Promise<void> {
+        // Atomic indexing lock: if already indexing, flag for re-run
+        if (this.isIndexing) {
+            this.needsReindex = true;
+            debugLog('initialize() called while already indexing — will re-run');
+            return;
+        }
+
+        this.isIndexing = true;
         const store = useJournalStore.getState();
         store.setLoading(true);
         store.setError(null);
@@ -56,6 +92,14 @@ export class JournalIndexService {
         } finally {
             store.setLoading(false);
             store.setIndexingProgress(null);
+            this.isIndexing = false;
+
+            // Check if a re-index was requested during our run
+            if (this.needsReindex) {
+                this.needsReindex = false;
+                debugLog('Re-index requested during indexing — starting again');
+                await this.initialize();
+            }
         }
     }
 
@@ -107,15 +151,14 @@ export class JournalIndexService {
     }
 
     /**
-     * PASS 2 (background, batched):
-     *   - Process files in chunks of PARSE_BATCH_SIZE
-     *   - For each file: vault.cachedRead() → parse sections, word count, image paths
-     *   - Yield to main thread between batches via setTimeout(0)
-     *   - Uses store.upsertEntries() (bulk) per batch — one sort per batch, not per entry
+     * PASS 2 (background, time-based yielding via processWithYielding):
+     *   - For each entry: vault.cachedRead() → parse sections, word count, image paths
+     *   - Yields to main thread based on time budget (not fixed batch size)
+     *   - Collects updated entries and bulk upserts at the end
      *   - Set fullyIndexed = true per entry
      *   - Compute qualityScore per entry based on detected fields vs filled fields
      *   - Updates store.indexingProgress as batches complete
-     *   - Calls detectFields() ONE MORE TIME after all batches finish
+     *   - Calls detectFields() ONE MORE TIME after all entries finish
      *     (for accurate coverage/ranges with full data)
      */
     private async runPass2(): Promise<void> {
@@ -127,41 +170,46 @@ export class JournalIndexService {
 
         store.setIndexingProgress({ phase: 2, processed: 0, total });
 
-        for (let i = 0; i < total; i += PARSE_BATCH_SIZE) {
-            const batch = entries.slice(i, i + PARSE_BATCH_SIZE);
-            const updatedEntries: JournalEntry[] = [];
+        const updatedEntries: JournalEntry[] = [];
 
-            for (const entry of batch) {
+        await processWithYielding(
+            entries,
+            async (entry) => {
                 const file = this.app.vault.getFileByPath(entry.filePath);
                 if (file && file instanceof TFile) {
                     await this.parseEntryContent(file, entry);
                     updatedEntries.push(entry);
                 }
+            },
+            {
+                onProgress: (processed, _total) => {
+                    useJournalStore.getState().setIndexingProgress({
+                        phase: 2,
+                        processed,
+                        total: _total,
+                    });
+                },
+                onError: (item, err) => {
+                    debugLog('Pass 2 parse error for', item.filePath, err);
+                },
             }
+        );
 
-            // Compute quality scores after content parsing
-            const detectedFields = useJournalStore.getState().detectedFields;
-            for (const entry of updatedEntries) {
-                entry.qualityScore = this.computeQualityScore(entry, detectedFields);
-            }
+        // Compute quality scores after content parsing
+        const detectedFields = useJournalStore.getState().detectedFields;
+        for (const entry of updatedEntries) {
+            entry.qualityScore = this.computeQualityScore(entry, detectedFields);
+        }
 
-            // Bulk upsert this batch
+        // Bulk upsert all updated entries at once (single revision increment)
+        if (updatedEntries.length > 0) {
             useJournalStore.getState().upsertEntries(updatedEntries);
-            useJournalStore.getState().setIndexingProgress({
-                phase: 2,
-                processed: Math.min(i + PARSE_BATCH_SIZE, total),
-                total,
-            });
-
-            // Yield to main thread between batches
-            if (i + PARSE_BATCH_SIZE < total) {
-                await new Promise<void>(resolve => setTimeout(resolve, 0));
-            }
         }
 
         // Re-detect fields with full data for accurate coverage/ranges
         const allEntries = Array.from(useJournalStore.getState().entries.values());
         useJournalStore.getState().setDetectedFields(detectFields(allEntries));
+        useJournalStore.getState().setSchemaDirty(false);
     }
 
     /**
@@ -263,11 +311,109 @@ export class JournalIndexService {
      * Re-index with a new journal folder.
      * Called when the user changes the folder in settings (via onBlur).
      * Clears the store, updates this.journalFolder, and re-runs both passes.
+     * Protected by atomic indexing lock (item 9a).
      */
     async reconfigure(newFolder: string): Promise<void> {
         this.journalFolder = normalizePath(newFolder);
         useJournalStore.getState().clear();
         await this.initialize();
+    }
+
+    /**
+     * Debounced detectFields() — waits 5 seconds after last trigger.
+     * Direct calls remain in runPass1/runPass2/reconfigure; watchers use this.
+     */
+    private debouncedDetectFields(): void {
+        if (this.detectFieldsTimer) {
+            clearTimeout(this.detectFieldsTimer);
+        }
+        this.detectFieldsTimer = setTimeout(() => {
+            this.detectFieldsTimer = null;
+            const store = useJournalStore.getState();
+            const allEntries = Array.from(store.entries.values());
+            store.setDetectedFields(detectFields(allEntries));
+            store.setSchemaDirty(false);
+            debugLog('detectFields() completed (debounced)');
+        }, DETECT_FIELDS_DEBOUNCE_MS);
+    }
+
+    /**
+     * Check if a file change altered the frontmatter KEY set (not just values).
+     * If keys changed, set schemaDirty = true for UI feedback.
+     */
+    private checkSchemaChange(entry: JournalEntry): void {
+        const store = useJournalStore.getState();
+        const currentKeys = new Set(store.detectedFields.map(f => f.key));
+        const entryKeys = Object.keys(entry.frontmatter);
+
+        // Check if any key in the entry is NOT in detectedFields
+        for (const key of entryKeys) {
+            if (!currentKeys.has(key)) {
+                store.setSchemaDirty(true);
+                debugLog('Schema change detected: new key', key);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Track a file watcher event for bulk event settling.
+     * If >BULK_EVENT_THRESHOLD events occur within BULK_EVENT_WINDOW_MS,
+     * switch to bulk mode: pause individual processing, wait for
+     * BULK_SETTLE_MS of silence, then run full re-index.
+     *
+     * Returns true if the event should be handled individually (normal mode),
+     * or false if bulk mode is active (caller should skip individual processing).
+     */
+    private trackBulkEvent(): boolean {
+        const now = Date.now();
+
+        // Add this event timestamp
+        this.bulkEventTimestamps.push(now);
+
+        // Remove timestamps older than the window
+        this.bulkEventTimestamps = this.bulkEventTimestamps.filter(
+            ts => now - ts < BULK_EVENT_WINDOW_MS
+        );
+
+        // Check if we've exceeded the threshold
+        if (this.bulkEventTimestamps.length >= BULK_EVENT_THRESHOLD) {
+            if (!this.inBulkMode) {
+                this.inBulkMode = true;
+                debugLog('Bulk event mode activated:', this.bulkEventTimestamps.length, 'events in window');
+            }
+
+            // Reset settle timer — wait for silence
+            if (this.bulkSettleTimer) {
+                clearTimeout(this.bulkSettleTimer);
+            }
+            this.bulkSettleTimer = setTimeout(() => {
+                this.bulkSettleTimer = null;
+                this.inBulkMode = false;
+                this.bulkEventTimestamps = [];
+                debugLog('Bulk settle complete — running full re-index');
+                void this.initialize();
+            }, BULK_SETTLE_MS);
+
+            return false; // Skip individual processing
+        }
+
+        // Also reset settle timer in bulk mode (any event extends the settle wait)
+        if (this.inBulkMode) {
+            if (this.bulkSettleTimer) {
+                clearTimeout(this.bulkSettleTimer);
+            }
+            this.bulkSettleTimer = setTimeout(() => {
+                this.bulkSettleTimer = null;
+                this.inBulkMode = false;
+                this.bulkEventTimestamps = [];
+                debugLog('Bulk settle complete — running full re-index');
+                void this.initialize();
+            }, BULK_SETTLE_MS);
+            return false;
+        }
+
+        return true; // Normal mode — handle individually
     }
 
     /**
@@ -288,6 +434,8 @@ export class JournalIndexService {
      *     → Removes old path, adds new if it matches pattern.
      *
      * All handlers check file instanceof TFile and file.path starts with journalFolder.
+     * All handlers check bulk event settling before processing individually.
+     * detectFields() is debounced at 5 seconds — watchers never call it directly.
      */
     registerFileWatchers(): void {
         const store = useJournalStore;
@@ -298,6 +446,9 @@ export class JournalIndexService {
                 if (!(file instanceof TFile)) return;
                 if (!file.path.startsWith(this.journalFolder)) return;
                 if (!parseJournalFileName(file.name)) return;
+
+                // Bulk event check
+                if (!this.trackBulkEvent()) return;
 
                 // Check mtime to skip no-ops
                 const existing = store.getState().entries.get(file.path);
@@ -318,11 +469,14 @@ export class JournalIndexService {
                                     await this.parseEntryContent(file, entry);
                                     const detectedFields = store.getState().detectedFields;
                                     entry.qualityScore = this.computeQualityScore(entry, detectedFields);
+
+                                    // Check schema before upserting
+                                    this.checkSchemaChange(entry);
+
                                     store.getState().upsertEntry(entry);
 
-                                    // Re-detect fields
-                                    const allEntries = Array.from(store.getState().entries.values());
-                                    store.getState().setDetectedFields(detectFields(allEntries));
+                                    // Debounced field re-detection (5s)
+                                    this.debouncedDetectFields();
                                 }
                             } catch (err) {
                                 console.error('[Hindsight] File watcher error:', err);
@@ -341,15 +495,18 @@ export class JournalIndexService {
                         if (!(file instanceof TFile)) return;
                         if (!file.path.startsWith(this.journalFolder)) return;
 
+                        // Bulk event check
+                        if (!this.trackBulkEvent()) return;
+
                         const entry = this.parseEntryFrontmatterOnly(file);
                         if (entry) {
                             await this.parseEntryContent(file, entry);
                             const detectedFields = store.getState().detectedFields;
                             entry.qualityScore = this.computeQualityScore(entry, detectedFields);
-                            store.getState().upsertEntry(entry);
 
-                            const allEntries = Array.from(store.getState().entries.values());
-                            store.getState().setDetectedFields(detectFields(allEntries));
+                            this.checkSchemaChange(entry);
+                            store.getState().upsertEntry(entry);
+                            this.debouncedDetectFields();
                         }
                     } catch (err) {
                         console.error('[Hindsight] File watcher error:', err);
@@ -364,10 +521,11 @@ export class JournalIndexService {
                 if (!(file instanceof TFile)) return;
                 if (!file.path.startsWith(this.journalFolder)) return;
 
-                store.getState().removeEntry(file.path);
+                // Bulk event check
+                if (!this.trackBulkEvent()) return;
 
-                const allEntries = Array.from(store.getState().entries.values());
-                store.getState().setDetectedFields(detectFields(allEntries));
+                store.getState().removeEntry(file.path);
+                this.debouncedDetectFields();
             })
         );
 
@@ -377,6 +535,9 @@ export class JournalIndexService {
                 void (async () => {
                     try {
                         if (!(file instanceof TFile)) return;
+
+                        // Bulk event check
+                        if (!this.trackBulkEvent()) return;
 
                         // Remove old path if it was in our index
                         if (oldPath.startsWith(this.journalFolder)) {
@@ -390,12 +551,12 @@ export class JournalIndexService {
                                 await this.parseEntryContent(file, entry);
                                 const detectedFields = store.getState().detectedFields;
                                 entry.qualityScore = this.computeQualityScore(entry, detectedFields);
+                                this.checkSchemaChange(entry);
                                 store.getState().upsertEntry(entry);
                             }
                         }
 
-                        const allEntries = Array.from(store.getState().entries.values());
-                        store.getState().setDetectedFields(detectFields(allEntries));
+                        this.debouncedDetectFields();
                     } catch (err) {
                         console.error('[Hindsight] File watcher error:', err);
                     }
@@ -410,5 +571,18 @@ export class JournalIndexService {
             clearTimeout(timer);
         }
         this.debounceTimers.clear();
+
+        if (this.detectFieldsTimer) {
+            clearTimeout(this.detectFieldsTimer);
+            this.detectFieldsTimer = null;
+        }
+
+        if (this.bulkSettleTimer) {
+            clearTimeout(this.bulkSettleTimer);
+            this.bulkSettleTimer = null;
+        }
+
+        this.bulkEventTimestamps = [];
+        this.inBulkMode = false;
     }
 }
