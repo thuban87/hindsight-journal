@@ -309,19 +309,25 @@ export class JournalIndexService {
 
                 this.debounceTimers.set(
                     file.path,
-                    setTimeout(async () => {
-                        this.debounceTimers.delete(file.path);
-                        const entry = this.parseEntryFrontmatterOnly(file);
-                        if (entry) {
-                            await this.parseEntryContent(file, entry);
-                            const detectedFields = store.getState().detectedFields;
-                            entry.qualityScore = this.computeQualityScore(entry, detectedFields);
-                            store.getState().upsertEntry(entry);
+                    setTimeout(() => {
+                        void (async () => {
+                            try {
+                                this.debounceTimers.delete(file.path);
+                                const entry = this.parseEntryFrontmatterOnly(file);
+                                if (entry) {
+                                    await this.parseEntryContent(file, entry);
+                                    const detectedFields = store.getState().detectedFields;
+                                    entry.qualityScore = this.computeQualityScore(entry, detectedFields);
+                                    store.getState().upsertEntry(entry);
 
-                            // Re-detect fields
-                            const allEntries = Array.from(store.getState().entries.values());
-                            store.getState().setDetectedFields(detectFields(allEntries));
-                        }
+                                    // Re-detect fields
+                                    const allEntries = Array.from(store.getState().entries.values());
+                                    store.getState().setDetectedFields(detectFields(allEntries));
+                                }
+                            } catch (err) {
+                                console.error('[Hindsight] File watcher error:', err);
+                            }
+                        })();
                     }, DEBOUNCE_MS)
                 );
             })
@@ -329,20 +335,26 @@ export class JournalIndexService {
 
         // New file handler
         this.plugin.registerEvent(
-            this.app.vault.on('create', async (file) => {
-                if (!(file instanceof TFile)) return;
-                if (!file.path.startsWith(this.journalFolder)) return;
+            this.app.vault.on('create', (file) => {
+                void (async () => {
+                    try {
+                        if (!(file instanceof TFile)) return;
+                        if (!file.path.startsWith(this.journalFolder)) return;
 
-                const entry = this.parseEntryFrontmatterOnly(file);
-                if (entry) {
-                    await this.parseEntryContent(file, entry);
-                    const detectedFields = store.getState().detectedFields;
-                    entry.qualityScore = this.computeQualityScore(entry, detectedFields);
-                    store.getState().upsertEntry(entry);
+                        const entry = this.parseEntryFrontmatterOnly(file);
+                        if (entry) {
+                            await this.parseEntryContent(file, entry);
+                            const detectedFields = store.getState().detectedFields;
+                            entry.qualityScore = this.computeQualityScore(entry, detectedFields);
+                            store.getState().upsertEntry(entry);
 
-                    const allEntries = Array.from(store.getState().entries.values());
-                    store.getState().setDetectedFields(detectFields(allEntries));
-                }
+                            const allEntries = Array.from(store.getState().entries.values());
+                            store.getState().setDetectedFields(detectFields(allEntries));
+                        }
+                    } catch (err) {
+                        console.error('[Hindsight] File watcher error:', err);
+                    }
+                })();
             })
         );
 
@@ -361,27 +373,33 @@ export class JournalIndexService {
 
         // Rename handler
         this.plugin.registerEvent(
-            this.app.vault.on('rename', async (file, oldPath) => {
-                if (!(file instanceof TFile)) return;
+            this.app.vault.on('rename', (file, oldPath) => {
+                void (async () => {
+                    try {
+                        if (!(file instanceof TFile)) return;
 
-                // Remove old path if it was in our index
-                if (oldPath.startsWith(this.journalFolder)) {
-                    store.getState().removeEntry(oldPath);
-                }
+                        // Remove old path if it was in our index
+                        if (oldPath.startsWith(this.journalFolder)) {
+                            store.getState().removeEntry(oldPath);
+                        }
 
-                // Add new path if it matches pattern and is in our folder
-                if (file.path.startsWith(this.journalFolder)) {
-                    const entry = this.parseEntryFrontmatterOnly(file);
-                    if (entry) {
-                        await this.parseEntryContent(file, entry);
-                        const detectedFields = store.getState().detectedFields;
-                        entry.qualityScore = this.computeQualityScore(entry, detectedFields);
-                        store.getState().upsertEntry(entry);
+                        // Add new path if it matches pattern and is in our folder
+                        if (file.path.startsWith(this.journalFolder)) {
+                            const entry = this.parseEntryFrontmatterOnly(file);
+                            if (entry) {
+                                await this.parseEntryContent(file, entry);
+                                const detectedFields = store.getState().detectedFields;
+                                entry.qualityScore = this.computeQualityScore(entry, detectedFields);
+                                store.getState().upsertEntry(entry);
+                            }
+                        }
+
+                        const allEntries = Array.from(store.getState().entries.values());
+                        store.getState().setDetectedFields(detectFields(allEntries));
+                    } catch (err) {
+                        console.error('[Hindsight] File watcher error:', err);
                     }
-                }
-
-                const allEntries = Array.from(store.getState().entries.values());
-                store.getState().setDetectedFields(detectFields(allEntries));
+                })();
             })
         );
     }

@@ -1,14 +1,13 @@
 import { Plugin } from 'obsidian';
 import { HindsightSettingTab } from './src/settings';
 import { DEFAULT_SETTINGS, HindsightSettings } from './src/types';
-import { HINDSIGHT_UPLOT_EVAL_VIEW_TYPE, CHARTJS_EVAL_VIEW_TYPE, HINDSIGHT_SIDEBAR_VIEW_TYPE, HINDSIGHT_MAIN_VIEW_TYPE } from './src/constants';
-import { UPlotEvalView } from './src/views/UPlotEvalView';
-import { ChartJsEvalView } from './src/views/ChartJsEvalView';
+import { HINDSIGHT_SIDEBAR_VIEW_TYPE, HINDSIGHT_MAIN_VIEW_TYPE } from './src/constants';
 import { HindsightSidebarView } from './src/views/HindsightSidebarView';
 import { HindsightMainView } from './src/views/HindsightMainView';
 import { JournalIndexService } from './src/services/JournalIndexService';
 import { useSettingsStore } from './src/store/settingsStore';
-import { useJournalStore } from './src/store/journalStore';
+import { registerCommands } from './src/commands';
+import { debugLog } from './src/utils/debugLog';
 
 export default class HindsightPlugin extends Plugin {
     settings: HindsightSettings = DEFAULT_SETTINGS;
@@ -28,34 +27,11 @@ export default class HindsightPlugin extends Plugin {
             this.journalIndex!.registerFileWatchers();
         });
 
-        // Temporary debug command (remove after Phase 1 verification)
-        this.addCommand({
-            id: 'debug-index',
-            name: 'Debug: log journal index',
-            callback: () => {
-                const { entries, detectedFields } = useJournalStore.getState();
-                console.debug(`Hindsight index: ${entries.size} entries`);
-                console.debug('Detected fields:', detectedFields);
-                if (entries.size > 0) {
-                    const sample = entries.values().next().value;
-                    console.debug('Sample entry:', sample);
-                }
-            },
-        });
-
         // === Sidebar View ===
         this.registerView(
             HINDSIGHT_SIDEBAR_VIEW_TYPE,
             (leaf) => new HindsightSidebarView(leaf, this)
         );
-
-        this.addCommand({
-            id: 'open-sidebar',
-            name: 'Open sidebar',
-            callback: () => {
-                void this.activateSidebarView();
-            },
-        });
 
         // Auto-open sidebar if enabled
         if (this.settings.enableSidebar) {
@@ -70,66 +46,15 @@ export default class HindsightPlugin extends Plugin {
             (leaf) => new HindsightMainView(leaf, this)
         );
 
-        this.addCommand({
-            id: 'open-main',
-            name: 'Open journal view',
-            callback: () => {
-                void this.activateMainView();
-            },
-        });
-
         // Ribbon icon for quick access
         this.addRibbonIcon('book-open', 'Open Hindsight', () => {
             void this.activateMainView();
         });
 
-        // === Temporary: uPlot evaluation view ===
-        this.registerView(
-            HINDSIGHT_UPLOT_EVAL_VIEW_TYPE,
-            (leaf) => new UPlotEvalView(leaf, this)
-        );
+        // === Commands ===
+        registerCommands(this);
 
-        this.addCommand({
-            id: 'open-uplot-eval',
-            name: 'Open uPlot evaluation charts',
-            callback: async () => {
-                const existing = this.app.workspace.getLeavesOfType(HINDSIGHT_UPLOT_EVAL_VIEW_TYPE);
-                if (existing.length > 0) {
-                    this.app.workspace.revealLeaf(existing[0]);
-                    return;
-                }
-                const leaf = this.app.workspace.getLeaf('tab');
-                await leaf.setViewState({
-                    type: HINDSIGHT_UPLOT_EVAL_VIEW_TYPE,
-                    active: true,
-                });
-            },
-        });
-
-        // === Temporary: Chart.js evaluation view ===
-        this.registerView(
-            CHARTJS_EVAL_VIEW_TYPE,
-            (leaf) => new ChartJsEvalView(leaf, this)
-        );
-
-        this.addCommand({
-            id: 'open-chartjs-eval',
-            name: 'Open Chart.js evaluation charts',
-            callback: async () => {
-                const existing = this.app.workspace.getLeavesOfType(CHARTJS_EVAL_VIEW_TYPE);
-                if (existing.length > 0) {
-                    this.app.workspace.revealLeaf(existing[0]);
-                    return;
-                }
-                const leaf = this.app.workspace.getLeaf('tab');
-                await leaf.setViewState({
-                    type: CHARTJS_EVAL_VIEW_TYPE,
-                    active: true,
-                });
-            },
-        });
-
-        console.debug('Hindsight Journal loaded');
+        debugLog('Plugin loaded');
     }
 
     onunload(): void {
@@ -159,7 +84,7 @@ export default class HindsightPlugin extends Plugin {
             const rightRoot = this.app.workspace.rightSplit;
             const isOnRight = rightRoot && leaves[0].getRoot() === rightRoot;
             if (isOnRight) {
-                this.app.workspace.revealLeaf(leaves[0]);
+                void this.app.workspace.revealLeaf(leaves[0]);
                 return;
             }
             // Wrong side — detach so we can recreate on the right
@@ -169,7 +94,7 @@ export default class HindsightPlugin extends Plugin {
         const leaf = this.app.workspace.getRightLeaf(false);
         if (leaf) {
             await leaf.setViewState({ type: HINDSIGHT_SIDEBAR_VIEW_TYPE });
-            this.app.workspace.revealLeaf(leaf);
+            void this.app.workspace.revealLeaf(leaf);
         }
     }
 
@@ -185,7 +110,7 @@ export default class HindsightPlugin extends Plugin {
                 await leaf.setViewState({ type: HINDSIGHT_MAIN_VIEW_TYPE });
             }
         } else {
-            this.app.workspace.revealLeaf(leaves[0]);
+            void this.app.workspace.revealLeaf(leaves[0]);
         }
     }
 }

@@ -444,24 +444,152 @@ Files: 12 new, 3 modified
 
 ---
 
+## 2026-03-08 - Phase 5a Session 1: Infrastructure Cleanup + Foundation Utilities
+
+**Focus:** Remove dead eval code (security gate), fix unhandled promises, add ESLint, create debugLog utility, extract commands, and split types into modules. Pure infrastructure — no new user-facing features.
+
+### Completed:
+
+#### Security Gate (Items 1-2)
+- ✅ Deleted `src/views/UPlotEvalView.ts` — contained `innerHTML` usage (automatic plugin review blocker)
+- ✅ Deleted `src/views/ChartJsEvalView.ts` — temporary eval code
+- ✅ Removed `HINDSIGHT_UPLOT_EVAL_VIEW_TYPE` and `CHARTJS_EVAL_VIEW_TYPE` from `constants.ts`
+- ✅ Removed all eval view imports, registrations, and commands from `main.ts`
+- ✅ `npm uninstall uplot` — removed from dependencies
+
+#### Unhandled Promises (Item 0)
+- ✅ Fixed 2 `addEventListener('blur', async ...)` handlers in `settings.ts` — wrapped with `void` IIFE
+- ✅ Fixed 3 async file watcher handlers in `JournalIndexService.ts` — `setTimeout(async ...)`, `vault.on('create', async ...)`, `vault.on('rename', async ...)` — wrapped with `void` IIFE + `try/catch`
+
+#### Debug Cleanup (Items 3, 6)
+- ✅ Removed `debug-index` command from `main.ts`
+- ✅ Created `src/utils/debugLog.ts` — settings-gated debug logger reading from `settingsStore`
+- ✅ Added `debugMode: boolean` to `HindsightSettings` + `DEFAULT_SETTINGS`
+- ✅ Added "Advanced" section to settings tab with debug mode toggle
+- ✅ Replaced all 4 `console.debug` calls — only `debugLog.ts` itself calls `console.debug`
+
+#### ESLint (Item 17)
+- ✅ Installed ESLint v10 + `@typescript-eslint/eslint-plugin` + `@typescript-eslint/parser`
+- ✅ Created `eslint.config.mjs` (flat config) with: `no-floating-promises`, `no-explicit-any`, `no-console` (allow warn/error)
+- ✅ Updated `build` script to run lint first: `npm run lint && npm run css:build && ...`
+- ✅ Fixed 4 pre-existing lint errors: 3 floating `revealLeaf()` promises in `main.ts`, 1 floating `reconfigure()` in `settings.ts`
+- ✅ Removed unused eslint-disable directive in `TodayStatus.tsx`
+
+#### Command Extraction (Item 4)
+- ✅ Created `src/commands.ts` with `registerCommands(plugin)` — contains `open-sidebar` and `open-main` commands
+- ✅ Zero `addCommand()` calls remain in `main.ts`
+
+#### Types Split (Item 10)
+- ✅ Created `src/types/settings.ts` — `HindsightSettings`, `DEFAULT_SETTINGS`
+- ✅ Created `src/types/journal.ts` — `JournalEntry`, `ParsedSection`
+- ✅ Created `src/types/metrics.ts` — `FrontmatterField`, `MetricDataPoint`, `DateRange`
+- ✅ Created `src/types/insights.ts` — empty placeholder for Phase 5c
+- ✅ Created `src/types/index.ts` — barrel re-exports
+- ✅ Deleted `src/types.ts` — all imports resolve via barrel automatically
+
+### Files Changed:
+
+**New Files (7):**
+- `eslint.config.mjs`
+- `src/commands.ts`
+- `src/utils/debugLog.ts`
+- `src/types/settings.ts`
+- `src/types/journal.ts`
+- `src/types/metrics.ts`
+- `src/types/insights.ts`
+- `src/types/index.ts`
+
+**Modified Files (7):**
+- `main.ts` — Removed eval views/imports/commands/debug-index, added `registerCommands()` + `debugLog`, fixed floating promises
+- `package.json` — Added lint script, updated build to lint-first, removed uplot dep
+- `package-lock.json` — ESLint + typescript-eslint deps added, uplot removed
+- `src/constants.ts` — Removed eval view type constants
+- `src/settings.ts` — Fixed async blur handlers, added Advanced section with debugMode toggle
+- `src/services/JournalIndexService.ts` — Wrapped async file watcher handlers in void IIFE + try/catch
+- `src/components/sidebar/TodayStatus.tsx` — Removed unused eslint-disable directive
+
+**Deleted Files (3):**
+- `src/types.ts` — Replaced by `src/types/` modules
+- `src/views/UPlotEvalView.ts` — Security blocker (innerHTML)
+- `src/views/ChartJsEvalView.ts` — Temporary eval code
+
+### Testing Notes:
+- ✅ `npm run lint` passes — zero errors, zero warnings
+- ✅ `npm run build` passes — lint + CSS + TypeScript + esbuild
+- ✅ All 175 unit tests pass across 11 test files (1.80s)
+- ✅ `npm run deploy:test` successful
+- ✅ Brad verified in Obsidian: plugin loads, sidebar/main view work, no eval commands in palette, debugMode toggle present
+- ✅ All exit gate greps return zero results (innerHTML, console.debug, eval remnants, addCommand in main.ts)
+
+### Blockers/Issues:
+- None
+
+### Design Notes:
+- **debugLog signature:** Plan specified `debugLog(plugin, ...args)` but we used `debugLog(...args)` reading from `settingsStore` instead. This avoids prop-drilling the plugin instance through utility functions and is consistent with the existing pattern of services reading from stores. Brad approved.
+- **ESLint v10 flat config:** Installed ESLint v10 which uses flat config (`eslint.config.mjs`) instead of the legacy `.eslintrc.json` format.
+- **Types barrel resolution:** TypeScript resolves `from '../types'` to `../types/index.ts` automatically when the directory contains an `index.ts`, so no import path changes were needed across the 25+ files that import from types.
+
+---
+
 ## Next Session Prompt
 
 ```
-Phase 4 + 4.5 complete. Timeline feed and sortable index table are deployed and tested.
-175 total tests passing across 11 test files.
+Phase 5a Session 1 complete. Infrastructure cleanup done:
+- Eval views deleted (security gate), uplot uninstalled
+- ESLint v10 with 3 critical rules, all violations fixed
+- debugLog utility created, debugMode setting added
+- Commands extracted to src/commands.ts
+- Types split into src/types/ modules
+- 175 tests passing, all exit gate greps clean
 
-Continue with Phase 5: Chart Engine + Correlation Discovery
-- Chart.js wrapper component for time-series line charts
-- React SVG Sparkline for inline mini-charts
-- MetricsEngine for rolling averages, trends, Pearson correlation
-- Correlation Discovery cards
-- Interactive scatter plot
-- Time Machine date slider
-- Trend Alerts (heuristic, no AI)
+Continue with Phase 5a Session 2 (items 5, 7-9):
+- Item 5: Create src/utils/yieldUtils.ts (processWithYielding)
+- Item 7: Create src/store/appStore.ts + HindsightPluginInterface
+- Item 8: Add store reset() actions to all stores
+- Item 9: Debounce detectFields() + schemaDirty flag
+- Item 9a: Atomic indexing lock
+- Item 9b: Bulk event settling mode
+- Item 9c: Conflict file filter
 
 Key files to reference:
-- docs/development/Implementation Plan.md — Phase 5 details (line 1862)
-- src/utils/filterUtils.ts — Pattern for pure testable utility extraction
-- src/store/uiStore.ts — May need new state for chart selections
+- docs/development/Implementation Plan.md — Phase 5a (line 2555)
+- Plan-Wide Rules — Time-Based Yielding, App/Plugin Access, Store Lifecycle
+- src/services/JournalIndexService.ts — Will be refactored for items 5, 9
+- src/store/journalStore.ts — Needs reset() action, schemaDirty flag
+```
+
+## Git Commit Message
+
+```
+refactor(phase-5a): infrastructure cleanup and foundation utilities - session 1
+
+Security Gate:
+- Delete UPlotEvalView.ts and ChartJsEvalView.ts (innerHTML blocker)
+- Remove eval view constants, imports, registrations, and commands
+- Uninstall uplot dependency
+
+Promise Handling:
+- Wrap async blur handlers in settings.ts with void IIFE
+- Wrap async file watcher handlers in JournalIndexService.ts with
+  void IIFE + try/catch (metadata change, create, rename)
+- Fix 3 floating revealLeaf() promises in main.ts
+- Fix floating reconfigure() promise in settings.ts
+
+Debug Infrastructure:
+- Create src/utils/debugLog.ts — settings-gated debug logger
+- Add debugMode setting to HindsightSettings + Advanced settings section
+- Remove debug-index command and all console.debug calls
+
+ESLint:
+- Install ESLint v10 + typescript-eslint
+- Configure no-floating-promises, no-explicit-any, no-console rules
+- Add lint script, update build to lint-first
+
+Code Organization:
+- Extract commands to src/commands.ts with registerCommands()
+- Split src/types.ts into src/types/ modules with barrel re-exports
+  (settings, journal, metrics, insights, index)
+
+All 175 tests passing, all exit gate greps clean
 ```
 

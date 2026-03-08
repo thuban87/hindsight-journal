@@ -29,14 +29,16 @@ export class HindsightSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.journalFolder);
                 // Attach folder autocomplete
                 new FolderSuggest(this.app, text.inputEl);
-                text.inputEl.addEventListener('blur', async () => {
-                    const newFolder = text.inputEl.value.trim();
-                    if (newFolder !== this.plugin.settings.journalFolder) {
-                        this.plugin.settings.journalFolder = newFolder;
-                        await this.plugin.saveSettings();
-                        // Trigger re-index with the new folder
-                        this.plugin.journalIndex?.reconfigure(newFolder);
-                    }
+                text.inputEl.addEventListener('blur', () => {
+                    void (async () => {
+                        const newFolder = text.inputEl.value.trim();
+                        if (newFolder !== this.plugin.settings.journalFolder) {
+                            this.plugin.settings.journalFolder = newFolder;
+                            await this.plugin.saveSettings();
+                            // Trigger re-index with the new folder
+                            void this.plugin.journalIndex?.reconfigure(newFolder);
+                        }
+                    })();
                 });
             });
 
@@ -48,12 +50,14 @@ export class HindsightSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.weeklyReviewFolder);
                 // Attach folder autocomplete
                 new FolderSuggest(this.app, text.inputEl);
-                text.inputEl.addEventListener('blur', async () => {
-                    const value = text.inputEl.value.trim();
-                    if (value !== this.plugin.settings.weeklyReviewFolder) {
-                        this.plugin.settings.weeklyReviewFolder = value;
-                        await this.plugin.saveSettings();
-                    }
+                text.inputEl.addEventListener('blur', () => {
+                    void (async () => {
+                        const value = text.inputEl.value.trim();
+                        if (value !== this.plugin.settings.weeklyReviewFolder) {
+                            this.plugin.settings.weeklyReviewFolder = value;
+                            await this.plugin.saveSettings();
+                        }
+                    })();
                 });
             });
 
@@ -68,6 +72,20 @@ export class HindsightSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.enableSidebar)
                 .onChange(async (value) => {
                     this.plugin.settings.enableSidebar = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Advanced');
+
+        new Setting(containerEl)
+            .setName('Debug mode')
+            .setDesc('Enable verbose debug logging to the developer console.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.debugMode)
+                .onChange(async (value) => {
+                    this.plugin.settings.debugMode = value;
                     await this.plugin.saveSettings();
                 }));
     }

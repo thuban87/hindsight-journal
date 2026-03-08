@@ -39,7 +39,6 @@ export function TodayStatus({ app }: TodayStatusProps): React.ReactElement {
     const todayEntry = useTodayEntry();
     const { detectedFields, loading } = useJournalEntries();
     const allEntries = useJournalStore(state => state.getAllEntriesSorted());
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _today = useToday(); // Subscribe to midnight updates for re-render
 
     if (loading) {
