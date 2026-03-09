@@ -27,6 +27,7 @@
         "@types/react-dom": "^18.2.0",
         "@typescript-eslint/eslint-plugin": "^8.56.1",
         "@typescript-eslint/parser": "^8.56.1",
+        "@vitest/coverage-v8": "^4.0.18",
         "builtin-modules": "^3.3.0",
         "esbuild": "^0.19.0",
         "eslint": "^10.0.3",
