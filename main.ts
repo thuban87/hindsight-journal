@@ -6,16 +6,18 @@ import { HINDSIGHT_SIDEBAR_VIEW_TYPE, HINDSIGHT_MAIN_VIEW_TYPE } from './src/con
 import { HindsightSidebarView } from './src/views/HindsightSidebarView';
 import { HindsightMainView } from './src/views/HindsightMainView';
 import { JournalIndexService } from './src/services/JournalIndexService';
+import { FileWatcherService } from './src/services/FileWatcherService';
 import { useSettingsStore } from './src/store/settingsStore';
 import { useAppStore } from './src/store/appStore';
-import { useJournalStore } from './src/store/journalStore';
-import { useUIStore } from './src/store/uiStore';
 import { registerCommands } from './src/commands';
+import { wireStoreSubscriptions, resetAllStores } from './src/storeWiring';
+import { migrateSettings } from './src/utils/settingsMigration';
 import { debugLog } from './src/utils/debugLog';
 
 export default class HindsightPlugin extends Plugin implements HindsightPluginInterface {
     settings: HindsightSettings = DEFAULT_SETTINGS;
     journalIndex: JournalIndexService | null = null;
+    private fileWatcher: FileWatcherService | null = null;
 
     /** Cross-store subscriptions — unsubscribed FIRST in onunload() */
     private storeSubscriptions: (() => void)[] = [];
@@ -41,11 +43,16 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
         appState.reset(); // Clear any stale state from previous enable cycle
         appState.setApp(this.app, this);
 
-        // === Journal Index Service ===
+        // === Journal Index Service + File Watcher ===
         this.journalIndex = new JournalIndexService(this.app, this);
+        this.fileWatcher = new FileWatcherService(this, this.journalIndex, this.settings.journalFolder);
+
+        // Wire cross-store subscriptions (e.g., revision → markStale)
+        this.storeSubscriptions = wireStoreSubscriptions(this);
+
         this.app.workspace.onLayoutReady(async () => {
             await this.journalIndex?.initialize();
-            this.journalIndex?.registerFileWatchers();
+            this.fileWatcher?.registerFileWatchers();
         });
 
         // === Sidebar View ===
@@ -88,20 +95,19 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
 
         // 2. Destroy services
         this.journalIndex?.destroy();
+        this.fileWatcher?.destroy();
 
         // 3. Run general cleanup (timers, observers, listeners)
         this.cleanupRegistry.forEach(fn => fn());
         this.cleanupRegistry = [];
 
-        // 4. Reset all stores — appStore LAST
-        useJournalStore.getState().reset();
-        useUIStore.getState().reset();
-        useSettingsStore.getState().reset();
-        useAppStore.getState().reset(); // LAST — components may reference app during teardown
+        // 4. Reset all stores via centralized function (appStore LAST)
+        resetAllStores();
     }
 
     async loadSettings(): Promise<void> {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        const loaded = await this.loadData() as Record<string, unknown> | null;
+        this.settings = migrateSettings(loaded);
     }
 
     async saveSettings(): Promise<void> {

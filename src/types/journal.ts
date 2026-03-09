@@ -31,6 +31,22 @@ export interface JournalEntry {
     fullyIndexed: boolean;
     /** Entry quality score (0-100): percentage of detected fields that are filled */
     qualityScore: number;
+    /**
+     * Heading names only — populated for cold-tier entries (older than hotTierDays).
+     * Hot-tier entries have full `sections` and this is undefined.
+     */
+    sectionHeadings?: string[];
+    /**
+     * First 200 chars of the first non-empty section.
+     * Always populated for ALL entries (hot and cold) to avoid lazy-load I/O
+     * for the most common UI path (echo cards, timeline cards).
+     */
+    firstSectionExcerpt?: string;
+    /**
+     * Per-section word counts — computed during Pass 2, retained for cold tier.
+     * Needed because getSectionWordCounts() would otherwise return zero for cold entries.
+     */
+    sectionWordCounts?: Record<string, number>;
 }
 
 /** Parsed section from a journal entry */

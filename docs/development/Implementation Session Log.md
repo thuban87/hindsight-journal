@@ -698,71 +698,137 @@ All 175 tests passing, all exit gate greps clean
 
 ---
 
+## 2026-03-08 - Phase 5a Session 3: Store Wiring, Settings Migration, Cold-Tier Display Fixes
+
+**Focus:** Complete remaining Phase 5a infrastructure: storeWiring, FileWatcherService extraction, settings migration, and fix cold-tier section display regressions. Add timeline section selector.
+
+### Completed:
+
+**Infrastructure:**
+- ✅ Created `src/storeWiring.ts` — wireStoreSubscriptions (journalStore.revision → metricsCacheStore.markStale debounced 2s), resetAllStores
+- ✅ Created `src/services/FileWatcherService.ts` — Extracted file watching from JournalIndexService
+- ✅ Created `src/utils/settingsMigration.ts` — migrateSettings (versioned), validateSettings, normalizePathSetting, sanitizeLoadedData (prototype pollution guard with array traversal)
+- ✅ Updated `src/settings.ts` — Added hotTierDays setting, path validation on journalFolder/weeklyReviewFolder using normalizePathSetting + validateVaultRelativePath
+- ✅ Updated `main.ts` — Integrated FileWatcherService, storeWiring, migrateSettings; onunload uses resetAllStores
+
+**Cold-Tier Section Display Fixes:**
+- ✅ `EchoCard.tsx` — Lazy-loads sections via ensureSectionsLoaded for cold-tier entries; skipInstructionPrefix skips template lines
+- ✅ `EchoesPanel.tsx` — Uses entry.sectionHeadings for dropdown on cold-tier entries
+- ✅ `EntryCard.tsx` — Lazy-loads sections (same pattern as EchoCard); getRealContent validates sections have real content
+- ✅ `JournalIndexService.ts` — firstSectionExcerpt uses partial match (.includes) for What Actually Happened (handles emoji-prefixed headings like 🗒️), skips template-only sections
+
+**Timeline Section Selector (new feature):**
+- ✅ `uiStore.ts` — Added timelineSectionKey/setTimelineSectionKey state
+- ✅ `TimelineList.tsx` — Section dropdown (same UX as echoes sidebar), collects headings from hot-tier entries only
+- ✅ `EntryCard.tsx` — Accepts sectionKey prop, uses it in getExcerpt when user selects specific section
+- ✅ `timeline.css` — Styles for section dropdown control
+
+**Tests:**
+- ✅ Created `test/utils/sanitize.test.ts` — sanitizeLoadedData prototype pollution tests
+- ✅ Created `test/utils/vaultUtils.test.ts` — validateVaultRelativePath tests
+
+### Files Changed:
+- `main.ts` — FileWatcherService integration, storeWiring, migrateSettings
+- `src/storeWiring.ts` — [NEW] Cross-store subscriptions + resetAllStores
+- `src/services/FileWatcherService.ts` — [NEW] Extracted file watcher
+- `src/utils/settingsMigration.ts` — [NEW] Settings migration + validation
+- `src/settings.ts` — hotTierDays, path validation
+- `src/store/uiStore.ts` — timelineSectionKey state
+- `src/components/echoes/EchoCard.tsx` — Lazy-load + skipInstructionPrefix + getRealContent
+- `src/components/echoes/EchoesPanel.tsx` — Cold-tier sectionHeadings fallback
+- `src/components/timeline/EntryCard.tsx` — Lazy-load + sectionKey prop + getRealContent
+- `src/components/timeline/TimelineList.tsx` — Section dropdown
+- `src/services/JournalIndexService.ts` — firstSectionExcerpt partial match + skip logic
+- `src/styles/timeline.css` — Section dropdown styles
+- `test/utils/sanitize.test.ts` — [NEW]
+- `test/utils/vaultUtils.test.ts` — [NEW]
+
+### Testing Notes:
+- ✅ `npm run lint` passes
+- ✅ `npm run build` passes (lint + CSS + TypeScript + esbuild)
+- ✅ All 260 unit tests pass across 18 test files (58 new, zero regressions)
+- ✅ `npm run deploy:test` successful
+- ✅ Brad confirmed: echoes sidebar section dropdown works with cold-tier entries, timeline section selector works, section excerpts show actual content instead of template instructions
+
+### Blockers/Issues:
+- **Template format discovery:** Section headings use emoji prefixes (e.g., `🗒️ What Actually Happened`), so exact string matching failed. Fixed with `.includes()` partial matching.
+- **Template instruction lines:** Sections like Dreams contain only template prompts (`> Record immediately upon waking.` + `-`). Fixed with getRealContent that validates sections have real content after stripping instructions.
+- **Cold-tier vs hot-tier heading mismatch:** Older entries had headings without emojis, newer entries have them. Timeline dropdown now only collects from hot-tier entries to avoid duplicates.
+
+### Design Notes:
+- **skipInstructionPrefix:** Scans line-by-line, skips empty lines, punctuation-only separators, and the first 2 short lines (<80 chars). Falls through to original text if nothing substantial remains.
+- **getRealContent:** Validates section has real content (>5 chars after strip, not just punctuation). Used by both EntryCard and EchoCard to skip template-only sections in auto-detect mode.
+- **Timeline section selector:** Mirrors echoes sidebar pattern — dropdown in controls bar, state in uiStore, passed as prop to cards.
+
+---
+
 ## Next Session Prompt
 
 ```
-Phase 5a Session 2 complete. Store + service infrastructure done:
-- appStore created, all 9 components refactored (no more app prop-drilling)
-- All 4 stores have reset() actions with proper onunload() sequencing
-- journalStore has revision counter, schemaDirty, pendingChangedFieldKeys
-- JournalIndexService refactored: processWithYielding, debounced detectFields,
-  indexing lock, bulk event settling, conflict file filter
-- CalendarCell inline style remediated to CSS variable pattern
-- 202 tests passing, all lint/build gates clean
+Phase 5a Session 3 complete. Core utilities, wiring, and cold-tier display all done:
+- storeWiring.ts created (cross-store subscriptions + resetAllStores)
+- FileWatcherService extracted from JournalIndexService
+- settingsMigration.ts created (migrateSettings, validateSettings, normalizePathSetting)
+- settings.ts updated with hotTierDays setting and path validation
+- main.ts refactored to integrate FileWatcherService, storeWiring, migrateSettings
+- Cold-tier section display fixed: EchoCard lazy-loads via ensureSectionsLoaded,
+  EchoesPanel uses sectionHeadings for dropdown, EntryCard lazy-loads sections
+- Section excerpt logic fixed: partial matching for emoji-prefixed headings,
+  getRealContent skips template-only sections, skipInstructionPrefix skips
+  instruction lines and separators
+- Timeline section selector dropdown added (same pattern as echoes)
+- uiStore gained timelineSectionKey
+- 260 tests passing, all lint/build gates clean
 
-Continue with Phase 5a Session 3 — remaining items:
-- Item 11: Inline style remediation audit (grep for remaining style={{ )
-  NOTE: CalendarCell is already done. Check for others.
-- Item 12 WIRING: The revision counter state was added to journalStore this
-  session. Session 3 needs to wire the cross-store subscription in storeWiring.ts:
-  journalStore.revision -> metricsCacheStore.markStale() [debounced 2s].
-  The state is ready, the subscription is not.
-- Any remaining Phase 5a items from the plan not covered by Sessions 1-2
+Continue with remaining Phase 5a items or begin Phase 5b.
+The session 3 items from the plan should be marked complete.
 
 Key files to reference:
 - docs/development/Implementation Plan.md — Phase 5a (line 2555+)
-- src/store/journalStore.ts — Has revision, schemaDirty, pendingChangedFieldKeys
-- src/store/appStore.ts — Global app/plugin access
-- src/services/JournalIndexService.ts — Refactored with all new infrastructure
-- src/utils/yieldUtils.ts — processWithYielding utility
+- src/storeWiring.ts — Cross-store subscriptions + resetAllStores
+- src/services/FileWatcherService.ts — Extracted file watcher
+- src/utils/settingsMigration.ts — Settings migration + validation
 ```
 
 ## Git Commit Message
 
 ```
-refactor(phase-5a): appStore, store resets, JournalIndexService infrastructure - session 2
+feat(phase-5a): storeWiring, FileWatcherService, settingsMigration, cold-tier section display, timeline section selector - session 3
 
-appStore + Prop-Drilling Removal:
-- Create src/store/appStore.ts with useAppStore Zustand store
-- Create src/types/plugin.ts with HindsightPluginInterface and ServiceRegistry
-- Refactor 9 components to use appStore instead of app prop-drilling
-  (EchoCard, EchoesPanel, SidebarApp, TodayStatus, CalendarCell,
-  CalendarGrid, MainApp, TimelineList, JournalIndex)
-- Update view shells to remove plugin param from constructors
-- Update main.ts to implement HindsightPluginInterface with re-enable safety
+Store Wiring + Lifecycle:
+- Create src/storeWiring.ts with wireStoreSubscriptions and resetAllStores
+- Wire journalStore.revision -> metricsCacheStore.markStale (debounced 2s)
+- Refactor main.ts onunload to use resetAllStores instead of direct store resets
 
-Store Lifecycle:
-- Add reset() to journalStore, uiStore, settingsStore, appStore
-- Wire onunload() cleanup: signal -> unsub subs -> destroy services -> reset stores
+FileWatcherService:
+- Extract file watching logic from JournalIndexService into FileWatcherService
+- Integrate into main.ts lifecycle
 
-JournalIndexService Infrastructure:
-- Replace fixed PARSE_BATCH_SIZE with processWithYielding (time-based yielding)
-- Add debouncedDetectFields() at 5s instead of immediate calls in watchers
-- Add checkSchemaChange() setting schemaDirty only on key changes
-- Add isIndexing/needsReindex atomic indexing lock
-- Add bulk event settling (>10 events in 500ms -> wait 2s -> full re-index)
-- Add conflict file filter rejecting Obsidian Sync conflict files
+Settings Migration:
+- Create src/utils/settingsMigration.ts with migrateSettings, validateSettings,
+  normalizePathSetting, sanitizeLoadedData (prototype pollution guard)
+- Add hotTierDays setting to settings.ts with path validation on folder inputs
+- Wire migrateSettings into loadSettings in main.ts
 
-Revision Counter:
-- Add revision (increments on every journalStore mutation)
-- Add pendingChangedFieldKeys, fullInvalidation, clearPendingChanges()
-- Cross-store wiring deferred to Session 3
+Cold-Tier Section Display Fixes:
+- EchoCard: lazy-load sections via ensureSectionsLoaded for cold-tier entries
+- EchoesPanel: use entry.sectionHeadings for dropdown on cold-tier entries
+- EntryCard: lazy-load sections via ensureSectionsLoaded (same pattern as EchoCard)
+- JournalIndexService: firstSectionExcerpt uses partial match for What Actually
+  Happened (emoji-prefixed headings), skips template-only sections
 
-Inline Style Remediation:
-- Migrate CalendarCell style={{backgroundColor}} to CSS variable pattern
-- Add .hindsight-calendar-cell.has-metric-color CSS rule
+Section Excerpt Intelligence:
+- Add skipInstructionPrefix: skips leading instruction lines, separators, and
+  punctuation-only lines in section content
+- Add getRealContent: validates section has real content after stripping templates
+- Partial match with .includes for What Actually Happened (handles emoji prefixes)
 
-Tests: 202 passing (41 new), zero regressions
+Timeline Section Selector:
+- Add timelineSectionKey/setTimelineSectionKey to uiStore
+- Add section dropdown to TimelineList (same UX as echoes sidebar)
+- EntryCard accepts sectionKey prop for user-selected section excerpts
+- CSS for section dropdown control in timeline.css
+
+Tests: 260 passing (58 new from sanitize.test.ts and vaultUtils.test.ts), zero regressions
 ```
-
 

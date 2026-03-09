@@ -16,6 +16,10 @@ export interface HindsightSettings {
     excludedSections: string[];
     /** Enable verbose debug logging to the developer console */
     debugMode: boolean;
+    /** Settings schema version for migration (DO NOT edit manually) */
+    settingsVersion: number;
+    /** Entries older than this many days use cold-tier storage (headings + excerpt only) */
+    hotTierDays: number;
 }
 
 export const DEFAULT_SETTINGS: HindsightSettings = {
@@ -27,4 +31,6 @@ export const DEFAULT_SETTINGS: HindsightSettings = {
     productivitySections: [],
     excludedSections: ['Meds'],
     debugMode: false,
+    settingsVersion: 1,
+    hotTierDays: 90,
 };

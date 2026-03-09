@@ -8,6 +8,24 @@
 import { create } from 'zustand';
 import type { JournalEntry, FrontmatterField, DateRange } from '../types';
 import { formatDateISO, startOfDay } from '../utils/dateUtils';
+import { useAppStore } from './appStore';
+import { parseSections } from '../services/SectionParserService';
+import { debugLog } from '../utils/debugLog';
+
+/**
+ * Module-level in-flight promise map for ensureSectionsLoaded() deduplication.
+ * NOT part of Zustand state — Promise is not serializable/immutable-update-friendly.
+ * See A22 design decision in Plan-Wide Rules.
+ */
+const inFlightSectionLoads = new Map<string, Promise<JournalEntry>>();
+
+/**
+ * Clear the in-flight map. Called from resetAllStores() during plugin unload
+ * and from test beforeEach to prevent inter-test state leaks.
+ */
+export function clearInFlightMap(): void {
+    inFlightSectionLoads.clear();
+}
 
 interface IndexingProgress {
     /** Current indexing phase (1 = frontmatter only, 2 = full content) */
@@ -84,6 +102,13 @@ interface JournalActions {
      * O(1) lookup via dateIndex. Key format: "MM-DD".
      */
     getEntriesByMonthDay(monthDay: string): JournalEntry[];
+    /**
+     * Lazy-load full sections for a cold-tier entry.
+     * Returns the entry with sections populated. Uses in-flight promise
+     * deduplication to prevent duplicate vault.cachedRead() calls when
+     * SectionReader and Lens request the same entry simultaneously.
+     */
+    ensureSectionsLoaded(filePath: string): Promise<JournalEntry | null>;
 }
 
 /**
@@ -420,5 +445,50 @@ export const useJournalStore = create<JournalState & JournalActions>((set, get) 
 
     getEntriesByMonthDay(monthDay: string): JournalEntry[] {
         return get().dateIndex.get(monthDay) ?? [];
+    },
+
+    async ensureSectionsLoaded(filePath: string): Promise<JournalEntry | null> {
+        const entry = get().entries.get(filePath);
+        if (!entry) return null;
+
+        // Hot-tier entry already has full sections
+        if (Object.keys(entry.sections).length > 0) return entry;
+
+        // Check if a load is already in progress for this file
+        const existing = inFlightSectionLoads.get(filePath);
+        if (existing) return existing;
+
+        // Start a new load
+        const loadPromise = (async (): Promise<JournalEntry> => {
+            try {
+                const app = useAppStore.getState().app;
+                if (!app) return entry;
+
+                const file = app.vault.getFileByPath(filePath);
+                if (!file) {
+                    debugLog('ensureSectionsLoaded: file not found', filePath);
+                    return entry;
+                }
+
+                const content = await app.vault.cachedRead(file);
+                const sections = parseSections(content);
+
+                // Create an updated entry with sections populated
+                const updatedEntry: JournalEntry = {
+                    ...entry,
+                    sections,
+                };
+
+                // Update the store with the loaded sections
+                get().upsertEntry(updatedEntry);
+
+                return updatedEntry;
+            } finally {
+                inFlightSectionLoads.delete(filePath);
+            }
+        })();
+
+        inFlightSectionLoads.set(filePath, loadPromise);
+        return loadPromise;
     },
 }));

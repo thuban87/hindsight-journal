@@ -3,13 +3,15 @@
  *
  * Paginated entry card feed for the Timeline tab.
  * Shows ENTRIES_PER_PAGE entries at a time with a "Load more" button.
- * Supports sort toggle (newest/oldest first).
+ * Supports sort toggle (newest/oldest first) and section selector
+ * for choosing which section excerpt to display on cards.
  * Uses VirtualList for scroll performance with 700+ entries.
  */
 
 import React, { useState, useMemo } from 'react';
 import { useJournalStore } from '../../store/journalStore';
 import { useAppStore } from '../../store/appStore';
+import { useUIStore } from '../../store/uiStore';
 import { VirtualList } from '../shared/VirtualList';
 import { EntryCard } from './EntryCard';
 import { EmptyState } from '../shared/EmptyState';
@@ -21,10 +23,24 @@ export function TimelineList(): React.ReactElement | null {
     const allEntries = useJournalStore(state => state.getAllEntriesSorted());
     const detectedFields = useJournalStore(state => state.detectedFields);
 
+    const timelineSectionKey = useUIStore(state => state.timelineSectionKey);
+    const setTimelineSectionKey = useUIStore(state => state.setTimelineSectionKey);
+
     const [sortNewest, setSortNewest] = useState(true);
     const [visibleCount, setVisibleCount] = useState(ENTRIES_PER_PAGE);
 
     if (!app) return null;
+
+    /** Collect unique section headings from entries with loaded sections */
+    const sectionHeadings = useMemo(() => {
+        const headings = new Set<string>();
+        for (const entry of allEntries) {
+            for (const key of Object.keys(entry.sections)) {
+                headings.add(key);
+            }
+        }
+        return Array.from(headings).sort();
+    }, [allEntries]);
 
     /** Sorted entries — getAllEntriesSorted returns newest-first, reverse for oldest-first */
     const sortedEntries = useMemo(() => {
@@ -54,6 +70,29 @@ export function TimelineList(): React.ReactElement | null {
                 >
                     {sortNewest ? '↓ Newest first' : '↑ Oldest first'}
                 </button>
+
+                <div className="hindsight-timeline-section-control">
+                    <label
+                        className="hindsight-timeline-section-label"
+                        htmlFor="timeline-section-select"
+                    >
+                        Section
+                    </label>
+                    <select
+                        id="timeline-section-select"
+                        className="hindsight-timeline-section-select"
+                        value={timelineSectionKey ?? '__auto__'}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setTimelineSectionKey(val === '__auto__' ? null : val);
+                        }}
+                    >
+                        <option value="__auto__">Auto (best available)</option>
+                        {sectionHeadings.map(heading => (
+                            <option key={heading} value={heading}>{heading}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             <VirtualList
@@ -65,6 +104,7 @@ export function TimelineList(): React.ReactElement | null {
                         key={entry.filePath}
                         entry={entry}
                         detectedFields={detectedFields}
+                        sectionKey={timelineSectionKey}
                         onClick={() => {
                             void app.workspace.openLinkText(entry.filePath, '', false);
                         }}

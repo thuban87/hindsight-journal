@@ -672,9 +672,30 @@
 }
 .hindsight-timeline-controls {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
+    gap: 12px;
     padding: 8px 0;
     margin-bottom: 4px;
+}
+.hindsight-timeline-section-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.hindsight-timeline-section-label {
+    font-size: 0.82em;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.hindsight-timeline-section-select {
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 0.82em;
+    max-width: 200px;
 }
 .hindsight-sort-toggle {
     background: var(--background-secondary);

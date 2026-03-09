@@ -31,8 +31,17 @@ export function EchoesPanel(): React.ReactElement {
     const sectionHeadings = useMemo(() => {
         const headings = new Set<string>();
         for (const entry of allEntries) {
-            for (const key of Object.keys(entry.sections)) {
-                headings.add(key);
+            // Hot-tier entries: headings from sections
+            const sectionKeys = Object.keys(entry.sections);
+            if (sectionKeys.length > 0) {
+                for (const key of sectionKeys) {
+                    headings.add(key);
+                }
+            } else if (entry.sectionHeadings) {
+                // Cold-tier entries: headings from sectionHeadings array
+                for (const heading of entry.sectionHeadings) {
+                    headings.add(heading);
+                }
             }
         }
         return Array.from(headings).sort();
