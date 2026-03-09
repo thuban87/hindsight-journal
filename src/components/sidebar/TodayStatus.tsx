@@ -10,9 +10,11 @@ import { useJournalEntries, useTodayEntry } from '../../hooks/useJournalEntries'
 import { useJournalStore } from '../../store/journalStore';
 import { useAppStore } from '../../store/appStore';
 import { getCurrentStreak } from '../../services/PulseService';
+import { getFieldTimeSeries } from '../../services/FrontmatterService';
 
 import { useToday } from '../../hooks/useToday';
 import { EmptyState } from '../shared/EmptyState';
+import { SparklineRow } from './SparklineRow';
 
 /**
  * Format the time difference between now and a date as a relative string.
@@ -73,6 +75,9 @@ export function TodayStatus(): React.ReactElement | null {
         todayEntry.frontmatter[field.key] !== ''
     ).length;
 
+    // Numeric fields for sparklines
+    const numericFields = detectedFields.filter(f => f.type === 'number');
+
     return (
         <div className="hindsight-today-status">
             <div className="hindsight-today-header">
@@ -107,6 +112,28 @@ export function TodayStatus(): React.ReactElement | null {
             >
                 Open today's note
             </button>
+
+            {/* Sparklines for numeric fields */}
+            {numericFields.length > 0 && (
+                <div className="hindsight-today-sparklines">
+                    {numericFields.map(field => {
+                        const timeSeries = getFieldTimeSeries(allEntries, field.key);
+                        const currentValue = todayEntry.frontmatter[field.key];
+                        const numValue = currentValue !== undefined && currentValue !== null && currentValue !== ''
+                            ? (isNaN(Number(currentValue)) ? null : Number(currentValue))
+                            : null;
+                        return (
+                            <SparklineRow
+                                key={field.key}
+                                fieldKey={field.key}
+                                label={field.key}
+                                currentValue={numValue}
+                                data={timeSeries}
+                            />
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }

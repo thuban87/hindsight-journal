@@ -11,7 +11,8 @@ describe('uiStore', () => {
         // Reset store to defaults
         useUIStore.setState({
             activeSidebarTab: 'today',
-            activeMainTab: 'calendar',
+            activeGroup: 'journal',
+            activeSubTab: 'calendar',
             indexSort: { field: 'date', direction: 'desc' },
             indexFilters: {
                 search: '',
@@ -124,9 +125,9 @@ describe('uiStore', () => {
             expect(useUIStore.getState().activeSidebarTab).toBe('echoes');
         });
 
-        it('activeMainTab persists across state reads', () => {
-            useUIStore.getState().setActiveMainTab('index');
-            expect(useUIStore.getState().activeMainTab).toBe('index');
+        it('activeGroup/activeSubTab persists across state reads', () => {
+            useUIStore.getState().setActiveSubTab('index');
+            expect(useUIStore.getState().activeSubTab).toBe('index');
         });
     });
 
@@ -134,7 +135,7 @@ describe('uiStore', () => {
         it('resets all state to defaults', () => {
             // Modify various state
             useUIStore.getState().setActiveSidebarTab('echoes');
-            useUIStore.getState().setActiveMainTab('index');
+            useUIStore.getState().setActiveSubTab('index');
             useUIStore.getState().setSearchFilter('test');
             useUIStore.getState().addFieldFilter('mood', '>=', 7);
 
@@ -143,7 +144,8 @@ describe('uiStore', () => {
 
             const state = useUIStore.getState();
             expect(state.activeSidebarTab).toBe('today');
-            expect(state.activeMainTab).toBe('calendar');
+            expect(state.activeGroup).toBe('journal');
+            expect(state.activeSubTab).toBe('calendar');
             expect(state.indexFilters.search).toBe('');
             expect(state.indexFilters.fieldFilters).toHaveLength(0);
             expect(state.indexFilters.dateRange).toBeNull();

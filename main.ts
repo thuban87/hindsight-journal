@@ -13,6 +13,8 @@ import { registerCommands } from './src/commands';
 import { wireStoreSubscriptions, resetAllStores } from './src/storeWiring';
 import { migrateSettings } from './src/utils/settingsMigration';
 import { debugLog } from './src/utils/debugLog';
+import './src/utils/chartSetup'; // Side-effect: registers Chart.js components
+import { useChartUiStore } from './src/store/chartUiStore';
 
 export default class HindsightPlugin extends Plugin implements HindsightPluginInterface {
     settings: HindsightSettings = DEFAULT_SETTINGS;
@@ -37,6 +39,11 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
 
         // Sync settings to reactive store for React components
         useSettingsStore.getState().setSettings(this.settings);
+
+        // Initialize chartUiStore from persisted settings
+        const chartUi = useChartUiStore.getState();
+        chartUi.setSelectedChartFields(this.settings.selectedChartFields);
+        chartUi.setRollingWindow(this.settings.rollingWindow);
 
         // Initialize appStore — components access app/plugin from here
         const appState = useAppStore.getState();

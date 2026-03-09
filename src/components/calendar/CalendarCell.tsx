@@ -54,7 +54,8 @@ export function CalendarCell({
     onClick,
 }: CalendarCellProps): React.ReactElement | null {
     const app = useAppStore(s => s.app);
-    const setActiveMainTab = useUIStore(state => state.setActiveMainTab);
+    const setActiveSubTab = useUIStore(state => state.setActiveSubTab);
+    const setTimelineScrollToDate = useUIStore(state => state.setTimelineScrollToDate);
     const cellRef = useRef<HTMLDivElement>(null);
 
     // Compute background color
@@ -129,13 +130,14 @@ export function CalendarCell({
                 item.setTitle('View in timeline')
                     .setIcon('list')
                     .onClick(() => {
-                        setActiveMainTab('timeline');
+                        setTimelineScrollToDate(date);
+                        setActiveSubTab('timeline');
                     });
             });
 
             menu.showAtMouseEvent(e.nativeEvent);
         },
-        [entry, app, setActiveMainTab]
+        [entry, app, setActiveSubTab, setTimelineScrollToDate, date]
     );
 
     return (

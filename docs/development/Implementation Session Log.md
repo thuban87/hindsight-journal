@@ -832,3 +832,150 @@ Timeline Section Selector:
 Tests: 260 passing (58 new from sanitize.test.ts and vaultUtils.test.ts), zero regressions
 ```
 
+---
+
+## 2026-03-09 - Phase 5b: Chart Engine + Tab Groups + Sparklines
+
+**Focus:** Install Chart.js integration, build the chart data pipeline, create charting and sparkline components, restructure the main view with two-tier tab group navigation.
+
+### Completed:
+
+#### Chart Engine & Data Pipeline
+- ✅ Verified `src/utils/chartSetup.ts` (from Phase 5a) — tree-shaken Chart.js registration, Tooltip plugin excluded (innerHTML policy)
+- ✅ Created `src/services/ChartDataService.ts` — `getTimeSeries`, `rollingAverage`, `trendLine`, `buildChartDataset`, `buildMultiMetricDataset` (dual Y-axis support)
+- ✅ Created `src/store/chartUiStore.ts` — Selected fields, date range, rolling window, dismissed alerts, reset
+- ✅ Expanded `src/store/metricsCacheStore.ts` — Full caching for time series and rolling averages, granular invalidation, stale flag
+- ✅ Created `src/hooks/useMetrics.ts` — `useMetrics()` config hook, `useChartData()` cache-miss computation in useEffect
+
+#### Chart Components
+- ✅ Created `src/components/charts/Sparkline.tsx` — SVG sparkline with null gap handling, ARIA attributes
+- ✅ Created `src/components/sidebar/SparklineRow.tsx` — Field label + value + sparkline row for sidebar
+- ✅ Created `src/components/charts/MetricChart.tsx` — Chart.js line chart wrapper with canvas null guard, theme reactivity (css-change), disabled tooltip (React popover), click handler for excerpts, multi-metric dual Y-axis, error handling, ARIA
+- ✅ Created `src/components/charts/ChartsPanel.tsx` — Charts sub-tab with field selection, date range presets, custom date pickers, rolling average/trend line toggles
+
+#### Tab Group Navigation
+- ✅ Created `src/components/shared/TabGroup.tsx` — Two-tier tab component with ARIA tablist/tab/tabpanel roles
+- ✅ Updated `src/store/uiStore.ts` — Replaced flat `activeMainTab` with type-safe `TabGroup`/`SubTab` mapping, `setActiveGroup` resets sub-tab
+- ✅ Restructured `src/components/MainApp.tsx` — Two-tier TabGroup (Journal→Calendar|Timeline|Index, Insights→Charts|Pulse|Digest, Explore→Lens|Threads|Gallery) with CalendarContent inline composition
+
+#### Sidebar Sparklines
+- ✅ Updated `src/components/sidebar/TodayStatus.tsx` — Added sparkline rows for all numeric fields below existing stats
+
+#### Lifecycle & Store Wiring
+- ✅ Updated `main.ts` — `chartSetup` side-effect import, `chartUiStore` initialization from persisted settings
+- ✅ Updated `src/storeWiring.ts` — Added `chartUiStore.reset()` to `resetAllStores`
+- ✅ Updated `src/utils/settingsMigration.ts` — v1→v2 migration for `selectedChartFields` and `rollingWindow`
+- ✅ Updated `src/types/settings.ts` — Added `selectedChartFields: string[]`, `rollingWindow: number` to settings
+
+#### Bug Fixes (post-testing)
+- ✅ Fixed CalendarCell "View in timeline" — Added `timelineScrollToDate` to uiStore; CalendarCell sets target date, TimelineList scrolls to entry with pulse highlight animation
+- ✅ Fixed chart date range filtering — `MetricChart` now reactively subscribes to `chartDateRange` and filters at render time; cache stores full data
+- ✅ Fixed preset active detection — ChartsPanel matches current range to nearest preset within ±2 days
+- ✅ Added custom date pickers to ChartsPanel — HTML date inputs for custom range selection
+- ✅ Fixed CalendarCell and uiStore test references to old `activeMainTab` API
+- ✅ Fixed settingsMigration tests for settingsVersion 2
+
+### Files Changed (15 files):
+
+| File | Change | Description |
+|------|--------|-------------|
+| `main.ts` | Modified | chartSetup import, chartUiStore init from settings |
+| `src/components/MainApp.tsx` | Rewritten | Two-tier TabGroup routing, CalendarContent composition |
+| `src/components/calendar/CalendarCell.tsx` | Modified | setActiveSubTab + timelineScrollToDate |
+| `src/components/charts/ChartsPanel.tsx` | New | Charts sub-tab controls and MetricChart rendering |
+| `src/components/charts/MetricChart.tsx` | New | Chart.js wrapper with theme reactivity, date range filter |
+| `src/components/shared/TabGroup.tsx` | New | Two-tier tab navigation component |
+| `src/components/sidebar/SparklineRow.tsx` | New | Sidebar sparkline row |
+| `src/components/sidebar/TodayStatus.tsx` | Modified | Added sparkline rows for numeric fields |
+| `src/components/timeline/EntryCard.tsx` | Modified | Added data-entry-date attribute |
+| `src/components/timeline/TimelineList.tsx` | Modified | Scroll-to-date effect with highlight |
+| `src/services/ChartDataService.ts` | New | Chart data transformations |
+| `src/store/chartUiStore.ts` | New | Chart UI state management |
+| `src/store/metricsCacheStore.ts` | Expanded | Full cache with granular invalidation |
+| `src/store/uiStore.ts` | Modified | TabGroup/SubTab types, timelineScrollToDate |
+| `src/storeWiring.ts` | Modified | chartUiStore reset |
+| `src/styles/charts.css` | New | All chart, sparkline, tab, popover, highlight styles |
+| `src/hooks/useMetrics.ts` | New | useMetrics, useChartData hooks |
+| `src/utils/settingsMigration.ts` | Modified | v1→v2 migration |
+| `src/types/settings.ts` | Modified | selectedChartFields, rollingWindow |
+| `test/store/uiStore.test.ts` | Modified | Updated for TabGroup API |
+| `test/utils/settingsMigration.test.ts` | Modified | Updated expectations for v2 |
+
+### Testing Notes:
+- All 18 test files passing (260 tests), zero regressions
+- Lint + CSS build + tsc + esbuild all clean
+- Bundle size: 377.9 KB (Chart.js tree-shaking effective)
+- Grep gates pass: innerHTML (comment only), style={{ (VirtualList spacers + comment)
+- Manually verified in Obsidian: tab groups, charts, sparklines, date range, timeline scroll-to-date
+
+### Blockers/Issues:
+- None discovered
+
+### Next Steps:
+- Phase 5c: Trend Alerts + Correlation Engine
+- The Insights → Pulse and Digest sub-tabs are stubs ready for future phases
+- The Explore → Lens, Threads, Gallery sub-tabs are stubs ready for future phases
+
+## Next Session Prompt
+
+```
+Continue with Phase 5c: Trend Alerts + Correlation Engine.
+
+Key context:
+- Phase 5b is complete. Chart engine, tab groups, sparklines, and date pickers all working.
+- metricsCacheStore has placeholders for correlationResults and cachedAlerts (Phase 5c)
+- chartUiStore has dismissedAlertIds (Phase 5c)
+- Main view has Insights → Pulse stub tab ready for Phase 5c content
+- 260 tests passing, bundle at 377.9 KB
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 5c section
+- src/store/metricsCacheStore.ts — Cache store with correlation/alert placeholders
+- src/store/chartUiStore.ts — Chart UI store with dismissedAlertIds
+- src/services/ChartDataService.ts — Existing data pipeline to extend
+- src/hooks/useMetrics.ts — Hook layer for chart data
+```
+
+## Git Commit Message
+
+```
+feat(phase-5b): chart engine, tab groups, sparklines, date range filtering
+
+Chart Engine:
+- Create ChartDataService with getTimeSeries, rollingAverage, trendLine,
+  buildChartDataset, buildMultiMetricDataset (dual Y-axis support)
+- Create chartUiStore for selected fields, date range, rolling window
+- Expand metricsCacheStore with full time series and rolling average caching
+- Create useMetrics and useChartData hooks with cache-miss useEffect pattern
+
+Chart Components:
+- Create MetricChart.tsx: Chart.js line chart wrapper with theme reactivity,
+  disabled tooltip (React popover), date range filter, multi-metric, ARIA
+- Create ChartsPanel.tsx: field selection, date range presets, custom date
+  pickers, rolling average and trend line toggles
+- Create Sparkline.tsx and SparklineRow.tsx for sidebar sparklines
+
+Tab Group Navigation:
+- Create TabGroup.tsx with two-tier navigation and ARIA roles
+- Restructure MainApp.tsx: Journal/Insights/Explore groups with 9 sub-tabs
+- Replace activeMainTab with type-safe TabGroup/SubTab in uiStore
+
+Sidebar:
+- Add sparkline rows for all numeric fields in TodayStatus
+
+Bug Fixes:
+- CalendarCell View in timeline now scrolls to entry with highlight animation
+- Chart date range filtering works reactively via chartDateRange subscription
+- Preset buttons show correct active state with custom date picker inputs
+
+Settings:
+- Add selectedChartFields and rollingWindow to settings with v1-to-v2 migration
+- Wire chartUiStore init from persisted settings in main.ts
+
+Lifecycle:
+- Add chartUiStore.reset() to resetAllStores in storeWiring.ts
+- Add chartSetup side-effect import for Chart.js component registration
+
+Tests: 260 passing, updated uiStore and settingsMigration tests for new API
+Bundle: 377.9 KB with Chart.js tree-shaking
+```

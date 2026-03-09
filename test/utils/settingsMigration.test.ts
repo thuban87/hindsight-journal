@@ -105,8 +105,11 @@ describe('migrateSettings', () => {
             // No settingsVersion field
         };
         const result = migrateSettings(v0);
-        expect(result.settingsVersion).toBe(1);
+        expect(result.settingsVersion).toBe(2);
         expect(result.journalFolder).toBe('Journal');
+        // Should also have chart settings from v2 migration
+        expect(result.selectedChartFields).toEqual([]);
+        expect(result.rollingWindow).toBe(7);
     });
 
     it('preserves existing valid settings during migration', () => {
@@ -171,7 +174,9 @@ describe('migrateSettings', () => {
         };
         const result = migrateSettings(minimal);
         expect(result.hotTierDays).toBe(DEFAULT_SETTINGS.hotTierDays);
-        expect(result.settingsVersion).toBe(1);
+        expect(result.settingsVersion).toBe(2);
+        expect(result.selectedChartFields).toEqual([]);
+        expect(result.rollingWindow).toBe(7);
         expect(result.thumbnailsEnabled).toBe(DEFAULT_SETTINGS.thumbnailsEnabled);
     });
 });

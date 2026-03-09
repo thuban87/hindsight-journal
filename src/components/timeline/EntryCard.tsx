@@ -160,6 +160,7 @@ export function EntryCard({ entry, detectedFields, sectionKey, onClick }: EntryC
     return (
         <div
             className="hindsight-entry-card"
+            data-entry-date={entry.date.getTime()}
             onClick={onClick}
             role="button"
             tabIndex={0}

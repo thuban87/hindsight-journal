@@ -8,7 +8,7 @@
  * Uses VirtualList for scroll performance with 700+ entries.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useJournalStore } from '../../store/journalStore';
 import { useAppStore } from '../../store/appStore';
 import { useUIStore } from '../../store/uiStore';
@@ -25,9 +25,57 @@ export function TimelineList(): React.ReactElement | null {
 
     const timelineSectionKey = useUIStore(state => state.timelineSectionKey);
     const setTimelineSectionKey = useUIStore(state => state.setTimelineSectionKey);
+    const timelineScrollToDate = useUIStore(state => state.timelineScrollToDate);
+    const setTimelineScrollToDate = useUIStore(state => state.setTimelineScrollToDate);
 
     const [sortNewest, setSortNewest] = useState(true);
     const [visibleCount, setVisibleCount] = useState(ENTRIES_PER_PAGE);
+    const scrollTargetRef = useRef<Date | null>(null);
+
+    // Handle scroll-to-date from calendar context menu
+    useEffect(() => {
+        if (!timelineScrollToDate) return;
+
+        // Store the target date before clearing
+        scrollTargetRef.current = timelineScrollToDate;
+
+        // Ensure newest-first sorting so dates are predictable
+        setSortNewest(true);
+
+        // Find the entry index in the sorted list
+        const targetTime = timelineScrollToDate.getTime();
+        const idx = allEntries.findIndex(e => {
+            const d = e.date;
+            return d.getFullYear() === timelineScrollToDate.getFullYear() &&
+                d.getMonth() === timelineScrollToDate.getMonth() &&
+                d.getDate() === timelineScrollToDate.getDate();
+        });
+
+        if (idx >= 0) {
+            // Ensure the entry is within the visible range
+            if (idx >= visibleCount) {
+                setVisibleCount(idx + ENTRIES_PER_PAGE);
+            }
+
+            // Scroll to the entry after a brief delay to let the DOM render
+            setTimeout(() => {
+                const entryEl = document.querySelector(
+                    `[data-entry-date="${targetTime}"]`
+                );
+                if (entryEl) {
+                    entryEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    entryEl.classList.add('hindsight-entry-highlight');
+                    // Remove highlight after animation
+                    setTimeout(() => {
+                        entryEl.classList.remove('hindsight-entry-highlight');
+                    }, 2000);
+                }
+            }, 100);
+        }
+
+        // Clear the scroll target after handling
+        setTimelineScrollToDate(null);
+    }, [timelineScrollToDate, allEntries, visibleCount, setTimelineScrollToDate]);
 
     if (!app) return null;
 

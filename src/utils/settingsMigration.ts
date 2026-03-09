@@ -14,7 +14,7 @@ import { validateVaultRelativePath } from './vaultUtils';
 import { debugLog } from './debugLog';
 
 /** Current settings schema version */
-const CURRENT_MAX_VERSION = 1;
+const CURRENT_MAX_VERSION = 2;
 
 /**
  * Normalize a path-type setting value.
@@ -99,6 +99,22 @@ export function validateSettings(settings: unknown): HindsightSettings {
         result.settingsVersion = s['settingsVersion'];
     }
 
+    // selectedChartFields: string[]
+    if (Array.isArray(s['selectedChartFields'])) {
+        result.selectedChartFields = s['selectedChartFields'].filter(
+            (v: unknown) => typeof v === 'string'
+        );
+    }
+
+    // rollingWindow: number (range: 2-90)
+    if (
+        typeof s['rollingWindow'] === 'number' &&
+        s['rollingWindow'] >= 2 &&
+        s['rollingWindow'] <= 90
+    ) {
+        result.rollingWindow = s['rollingWindow'];
+    }
+
     // hotTierDays: number (range: 7-365)
     if (
         typeof s['hotTierDays'] === 'number' &&
@@ -150,6 +166,9 @@ export function migrateSettings(loaded: Record<string, unknown> | null): Hindsig
     if (version < 1) {
         migrated = migrateV0ToV1(migrated);
     }
+    if (version < 2) {
+        migrated = migrateV1ToV2(migrated);
+    }
 
     // 4. Validate all fields
     const validated = validateSettings(migrated);
@@ -186,6 +205,26 @@ function migrateV0ToV1(data: Record<string, unknown>): Record<string, unknown> {
             debugLog('Settings migration: journalFolder path invalid, resetting to default');
             result['journalFolder'] = DEFAULT_SETTINGS.journalFolder;
         }
+    }
+
+    return result;
+}
+
+/**
+ * Migration: v1 → v2
+ * - Adds selectedChartFields and rollingWindow settings
+ */
+function migrateV1ToV2(data: Record<string, unknown>): Record<string, unknown> {
+    const result = { ...data };
+
+    result['settingsVersion'] = 2;
+
+    // Add chart settings with defaults if missing
+    if (!Array.isArray(result['selectedChartFields'])) {
+        result['selectedChartFields'] = DEFAULT_SETTINGS.selectedChartFields;
+    }
+    if (typeof result['rollingWindow'] !== 'number') {
+        result['rollingWindow'] = DEFAULT_SETTINGS.rollingWindow;
     }
 
     return result;
