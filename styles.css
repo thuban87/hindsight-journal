@@ -1092,3 +1092,315 @@
     color: var(--text-muted);
     font-size: 0.8em;
 }
+/* Insights Styles — Correlations, Scatter Plot, Trend Alerts */
+/* ─── Badge Polarity Colors ─── */
+.hindsight-entry-card-badge.has-polarity-color,
+.hindsight-echo-metric-badge.has-polarity-color {
+    background-color: var(--hindsight-badge-bg, var(--background-modifier-border));
+    color: #fff;
+}
+/* ─── Correlation Cards ─── */
+.hindsight-correlation-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.hindsight-correlation-card {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: unset;
+    text-align: left;
+    padding: 14px 16px 14px 18px;
+    border: 1px solid var(--background-modifier-border);
+    border-left: 4px solid hsl(210, 50%, 55%);
+    border-radius: 8px;
+    background: var(--background-secondary);
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    font: inherit;
+    color: inherit;
+    line-height: normal;
+    white-space: normal;
+}
+.hindsight-correlation-card:hover {
+    border-color: var(--interactive-accent);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 12px hsla(0, 0%, 0%, 0.12);
+}
+.hindsight-correlation-card:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+/* Conditional insight cards — warm accent */
+.hindsight-conditional-card {
+    border-left-color: hsl(38, 70%, 52%);
+}
+.hindsight-correlation-card-title {
+    font-weight: 600;
+    font-size: 0.9em;
+    color: var(--text-normal);
+    margin-bottom: 6px;
+    line-height: 1.35;
+}
+.hindsight-correlation-card-detail {
+    font-size: 0.78em;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.hindsight-correlation-card-detail::before {
+    content: '📊';
+    font-size: 0.95em;
+}
+.hindsight-conditional-card .hindsight-correlation-card-detail::before {
+    content: '⚡';
+}
+.hindsight-correlation-computing {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85em;
+    font-style: italic;
+}
+.hindsight-correlation-empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85em;
+    line-height: 1.5;
+}
+.hindsight-correlation-cap-notice {
+    padding: 10px 14px;
+    font-size: 0.8em;
+    color: var(--text-muted);
+    background: var(--background-secondary);
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.hindsight-analyze-all-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+    color: var(--interactive-accent);
+}
+/* ─── Scatter Plot ─── */
+.hindsight-scatter-plot {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.hindsight-scatter-controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.hindsight-scatter-controls label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+.hindsight-scatter-controls select {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.85em;
+}
+.hindsight-scatter-r-value {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 4px 0;
+}
+.hindsight-scatter-canvas-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+/* ─── Trend Alerts ─── */
+.hindsight-trend-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.hindsight-trend-alerts-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+.hindsight-trend-alert-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    font-size: 0.75em;
+    font-weight: 600;
+    padding: 0 6px;
+}
+.hindsight-updating-indicator {
+    font-size: 0.8em;
+    font-weight: 400;
+    color: var(--text-muted);
+    font-style: italic;
+}
+.hindsight-trend-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border-left: 4px solid var(--text-muted);
+    background: var(--background-secondary);
+}
+.hindsight-trend-alert-info {
+    border-left-color: hsl(210, 65%, 50%);
+}
+.hindsight-trend-alert-warning {
+    border-left-color: hsl(38, 85%, 50%);
+}
+.hindsight-trend-alert-positive {
+    border-left-color: hsl(120, 50%, 45%);
+}
+.hindsight-trend-alert-content {
+    flex: 1;
+    min-width: 0;
+}
+.hindsight-trend-alert-title {
+    font-weight: 600;
+    font-size: 0.85em;
+    color: var(--text-normal);
+    margin-bottom: 2px;
+}
+.hindsight-trend-alert-body {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+.hindsight-trend-alert-link {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 0.8em;
+    color: var(--interactive-accent);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    text-decoration: underline;
+}
+.hindsight-trend-alert-link:hover {
+    color: var(--interactive-accent-hover);
+}
+.hindsight-trend-alert-dismiss {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1.1em;
+    line-height: 1;
+    padding: 0;
+}
+.hindsight-trend-alert-dismiss:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+.hindsight-trend-alerts-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+/* ─── Chart Section Collapsibles ─── */
+.hindsight-chart-section {
+    margin-top: 20px;
+    border-top: none;
+    padding-top: 0;
+}
+.hindsight-chart-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 8px 14px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    font-size: 0.8em;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.hindsight-chart-section-header:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+}
+.hindsight-chart-section-arrow {
+    transition: transform 0.2s ease;
+    font-size: 0.65em;
+    color: var(--interactive-accent);
+    opacity: 0.7;
+}
+.hindsight-chart-section-header:hover .hindsight-chart-section-arrow {
+    opacity: 1;
+}
+.hindsight-chart-section-arrow.collapsed {
+    transform: rotate(-90deg);
+}
+.hindsight-chart-section-content {
+    padding: 12px 2px 4px;
+    animation: hindsight-section-reveal 0.2s ease;
+}
+@keyframes hindsight-section-reveal {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+/* ─── Chart Error ─── */
+.hindsight-chart-error {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-error);
+    font-size: 0.85em;
+}

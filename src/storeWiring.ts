@@ -80,6 +80,21 @@ export function wireStoreSubscriptions(_plugin: HindsightPluginInterface): (() =
         }
     });
 
+    // Subscription #5: settingsStore.fieldPolarity → metricsCacheStore.invalidateCache([]) [immediate, full]
+    // When polarity changes, all polarity-dependent computed data (trend alerts, badge colors) is stale.
+    let lastFieldPolarity = useSettingsStore.getState().settings.fieldPolarity;
+
+    const unsubPolarity = useSettingsStore.subscribe((state) => {
+        const currentPolarity = state.settings.fieldPolarity;
+        if (currentPolarity !== lastFieldPolarity) {
+            lastFieldPolarity = currentPolarity;
+            debugLog('Store event: settingsStore.fieldPolarity changed → full cache invalidation');
+            useMetricsCacheStore.getState().invalidateCache([]);
+        }
+    });
+
+    unsubscribers.push(unsubPolarity);
+
     return unsubscribers;
 }
 

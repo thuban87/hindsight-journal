@@ -24,6 +24,8 @@ export interface HindsightSettings {
     selectedChartFields: string[];
     /** Rolling average window size in days (persisted preference) */
     rollingWindow: number;
+    /** Per-field polarity setting: determines badge coloring and trend alert tone */
+    fieldPolarity: Record<string, 'higher-is-better' | 'lower-is-better' | 'neutral'>;
 }
 
 export const DEFAULT_SETTINGS: HindsightSettings = {
@@ -39,4 +41,5 @@ export const DEFAULT_SETTINGS: HindsightSettings = {
     hotTierDays: 90,
     selectedChartFields: [],
     rollingWindow: 7,
+    fieldPolarity: {},
 };

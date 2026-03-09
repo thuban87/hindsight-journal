@@ -3,7 +3,8 @@
  *
  * The Charts sub-tab content within the Insights group.
  * Provides field selection, date range controls, rolling average
- * and trend line toggles, and renders MetricChart.
+ * and trend line toggles, renders MetricChart, and collapsible
+ * sections for Correlations, Scatter Plot, and Trend Alerts.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -11,6 +12,9 @@ import { useJournalStore } from '../../store/journalStore';
 import { useChartUiStore } from '../../store/chartUiStore';
 import { useAppStore } from '../../store/appStore';
 import { MetricChart } from './MetricChart';
+import { CorrelationCards } from './CorrelationCards';
+import { ScatterPlot } from './ScatterPlot';
+import { TrendAlertsPanel } from '../insights/TrendAlertsPanel';
 import { EmptyState } from '../shared/EmptyState';
 
 /** Date range preset options */
@@ -33,6 +37,15 @@ export function ChartsPanel(): React.ReactElement | null {
 
     const [showRolling, setShowRolling] = useState(false);
     const [showTrend, setShowTrend] = useState(false);
+
+    // Collapsible section state
+    const [showCorrelations, setShowCorrelations] = useState(true);
+    const [showScatter, setShowScatter] = useState(false);
+    const [showAlerts, setShowAlerts] = useState(true);
+
+    // Scatter plot field pre-selection from correlation card click
+    const [scatterFieldX, setScatterFieldX] = useState<string | undefined>();
+    const [scatterFieldY, setScatterFieldY] = useState<string | undefined>();
 
     // Filter to numeric fields only
     const numericFields = detectedFields.filter(f => f.type === 'number');
@@ -94,6 +107,13 @@ export function ChartsPanel(): React.ReactElement | null {
     // Format Date for input value
     const formatDateInput = (d: Date): string =>
         `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    // Handle correlation card click → pre-select scatter plot fields
+    const handleCorrelationSelect = useCallback((fieldA: string, fieldB: string) => {
+        setScatterFieldX(fieldA);
+        setScatterFieldY(fieldB);
+        setShowScatter(true);
+    }, []);
 
     if (numericFields.length === 0) {
         return <EmptyState message="No numeric fields detected. Add numeric frontmatter to your journal entries to see charts." />;
@@ -215,6 +235,57 @@ export function ChartsPanel(): React.ReactElement | null {
                     <p>Select one or more fields above to visualize your data</p>
                 </div>
             )}
+
+            {/* Collapsible: Correlations */}
+            <div className="hindsight-chart-section">
+                <button
+                    className="hindsight-chart-section-header"
+                    onClick={() => setShowCorrelations(!showCorrelations)}
+                >
+                    <span className={`hindsight-chart-section-arrow ${showCorrelations ? '' : 'collapsed'}`}>▼</span>
+                    <span>Correlations</span>
+                </button>
+                {showCorrelations && (
+                    <div className="hindsight-chart-section-content">
+                        <CorrelationCards onSelectFields={handleCorrelationSelect} />
+                    </div>
+                )}
+            </div>
+
+            {/* Collapsible: Scatter Plot */}
+            <div className="hindsight-chart-section">
+                <button
+                    className="hindsight-chart-section-header"
+                    onClick={() => setShowScatter(!showScatter)}
+                >
+                    <span className={`hindsight-chart-section-arrow ${showScatter ? '' : 'collapsed'}`}>▼</span>
+                    <span>Scatter plot</span>
+                </button>
+                {showScatter && (
+                    <div className="hindsight-chart-section-content">
+                        <ScatterPlot
+                            initialFieldX={scatterFieldX}
+                            initialFieldY={scatterFieldY}
+                        />
+                    </div>
+                )}
+            </div>
+
+            {/* Collapsible: Trend Alerts */}
+            <div className="hindsight-chart-section">
+                <button
+                    className="hindsight-chart-section-header"
+                    onClick={() => setShowAlerts(!showAlerts)}
+                >
+                    <span className={`hindsight-chart-section-arrow ${showAlerts ? '' : 'collapsed'}`}>▼</span>
+                    <span>Trend alerts</span>
+                </button>
+                {showAlerts && (
+                    <div className="hindsight-chart-section-content">
+                        <TrendAlertsPanel />
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

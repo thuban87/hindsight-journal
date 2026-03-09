@@ -919,63 +919,156 @@ Tests: 260 passing (58 new from sanitize.test.ts and vaultUtils.test.ts), zero r
 ## Next Session Prompt
 
 ```
-Continue with Phase 5c: Trend Alerts + Correlation Engine.
+Continue with Phase 5.5: Chart & Metrics Tests, followed by Phase 6a: Pulse + Heatmap + Personal Bests.
 
 Key context:
-- Phase 5b is complete. Chart engine, tab groups, sparklines, and date pickers all working.
-- metricsCacheStore has placeholders for correlationResults and cachedAlerts (Phase 5c)
-- chartUiStore has dismissedAlertIds (Phase 5c)
-- Main view has Insights → Pulse stub tab ready for Phase 5c content
-- 260 tests passing, bundle at 377.9 KB
+- Phase 5c is complete. MetricsEngine, TrendAlertEngine, ScatterPlot, CorrelationCards,
+  TrendAlertsPanel, field polarity, polarity-aware badges all working.
+- Settings migration is at v3 (fieldPolarity added).
+- metricsCacheStore is fully wired with correlation/alert caching.
+- storeWiring has subscription #5 (fieldPolarity → full cache invalidation).
+- ChartsPanel has 3 collapsible sections: Correlations, Scatter Plot, Trend Alerts.
+- 18 test files passing, bundle under 400 KB.
 
 Key files to reference:
-- docs/development/Implementation Plan.md — Phase 5c section
-- src/store/metricsCacheStore.ts — Cache store with correlation/alert placeholders
-- src/store/chartUiStore.ts — Chart UI store with dismissedAlertIds
-- src/services/ChartDataService.ts — Existing data pipeline to extend
-- src/hooks/useMetrics.ts — Hook layer for chart data
+- docs/development/Implementation Plan.md — Phase 5.5 and Phase 6a sections
+- src/services/MetricsEngine.ts — Pearson correlation, conditional averages, weekly comparison
+- src/services/TrendAlertEngine.ts — Consecutive change, anomaly, gap, pattern recall alerts
+- src/store/metricsCacheStore.ts — Full caching for correlations, alerts, conditional insights
+- src/components/charts/ChartsPanel.tsx — Collapsible sections with correlation/scatter/alerts
 ```
 
 ## Git Commit Message
 
 ```
-feat(phase-5b): chart engine, tab groups, sparklines, date range filtering
+feat(phase-5c): correlation discovery, trend alerts, field polarity
 
-Chart Engine:
-- Create ChartDataService with getTimeSeries, rollingAverage, trendLine,
-  buildChartDataset, buildMultiMetricDataset (dual Y-axis support)
-- Create chartUiStore for selected fields, date range, rolling window
-- Expand metricsCacheStore with full time series and rolling average caching
-- Create useMetrics and useChartData hooks with cache-miss useEffect pattern
+MetricsEngine:
+- Create MetricsEngine.ts with pearsonCorrelation, conditionalAverage,
+  findCorrelations (20-field cap with ranking), findConditionalInsights,
+  weeklyComparison (hub-and-spoke via periodUtils)
+- All functions are pure/stateless per architecture rules
 
-Chart Components:
-- Create MetricChart.tsx: Chart.js line chart wrapper with theme reactivity,
-  disabled tooltip (React popover), date range filter, multi-metric, ARIA
-- Create ChartsPanel.tsx: field selection, date range presets, custom date
-  pickers, rolling average and trend line toggles
-- Create Sparkline.tsx and SparklineRow.tsx for sidebar sparklines
+TrendAlertEngine:
+- Create TrendAlertEngine.ts with detectConsecutiveChange (3-day streaks),
+  detectAnomaly (2-sigma), detectFieldGap (3+ days missing), patternRecall
+- generateAlerts aggregates and caps at 5, sorted by severity
+- Polarity-aware alert tone (positive vs warning based on fieldPolarity)
 
-Tab Group Navigation:
-- Create TabGroup.tsx with two-tier navigation and ARIA roles
-- Restructure MainApp.tsx: Journal/Insights/Explore groups with 9 sub-tabs
-- Replace activeMainTab with type-safe TabGroup/SubTab in uiStore
+UI Components:
+- Create ScatterPlot.tsx with Chart.js scatter, field dropdowns, optional
+  boolean color-coding, regression line, Pearson r display, click-to-open
+- Create CorrelationCards.tsx with debounced cache-miss computation,
+  stale-result guard via generation token, click-to-scatter-plot
+- Create TrendAlertCard.tsx with severity-coded left border, dismiss button
+- Create TrendAlertsPanel.tsx with aria-live count, session dismissal
+- Create insights.css with polished card styles, collapsible section headers
 
-Sidebar:
-- Add sparkline rows for all numeric fields in TodayStatus
+ChartsPanel Integration:
+- Add collapsible Correlations, Scatter Plot, Trend Alerts sections
+- Click correlation card pre-selects scatter plot fields and opens section
 
-Bug Fixes:
-- CalendarCell View in timeline now scrolls to entry with highlight animation
-- Chart date range filtering works reactively via chartDateRange subscription
-- Preset buttons show correct active state with custom date picker inputs
+Badge Polarity:
+- Add getPolarityColor to statsUtils for polarity-aware coloring
+- Update CalendarCell, EntryCard (with BadgeSpan component), EchoCard
+  to use polarity-aware badge backgrounds via ref-based CSS variables
 
 Settings:
-- Add selectedChartFields and rollingWindow to settings with v1-to-v2 migration
-- Wire chartUiStore init from persisted settings in main.ts
+- Add fieldPolarity to HindsightSettings with v2-to-v3 migration
+- Add Field configuration section to settings tab with polarity dropdowns
+- Wire subscription #5 in storeWiring (fieldPolarity change invalidates cache)
 
-Lifecycle:
-- Add chartUiStore.reset() to resetAllStores in storeWiring.ts
-- Add chartSetup side-effect import for Chart.js component registration
+Store Updates:
+- metricsCacheStore: proper Phase 5c types, setters, cachedConditionalInsights
+- chartUiStore: add analyzeAllFields session toggle
 
-Tests: 260 passing, updated uiStore and settingsMigration tests for new API
-Bundle: 377.9 KB with Chart.js tree-shaking
+Tests: 18 test files passing, updated settingsMigration tests for v3
 ```
+
+---
+
+## 2026-03-09 - Phase 5c: Correlation Discovery + Trend Alerts + Field Polarity
+
+**Focus:** Build MetricsEngine for cross-field analysis, TrendAlertEngine for proactive insights, field polarity settings, and polarity-aware badges across all components.
+
+### Completed:
+
+**Types & Settings Foundation:**
+- ✅ Added types to `src/types/insights.ts` (AlertSeverity, TrendAlert, CorrelationResult, ConditionalInsight)
+- ✅ Added `fieldPolarity` to `HindsightSettings` and `DEFAULT_SETTINGS`
+- ✅ Updated barrel export in `src/types/index.ts`
+- ✅ Settings migration v2→v3 (`migrateV2ToV3`, validation, version bump to `CURRENT_MAX_VERSION = 3`)
+
+**New Services:**
+- ✅ Created `src/services/MetricsEngine.ts` — pearsonCorrelation, conditionalAverage, findCorrelations (20-field cap with ranking), findConditionalInsights, weeklyComparison
+- ✅ Created `src/services/TrendAlertEngine.ts` — detectConsecutiveChange, detectAnomaly, detectFieldGap, patternRecall, generateAlerts
+
+**Utility Updates:**
+- ✅ Added `getPolarityColor()` to `src/utils/statsUtils.ts` for polarity-aware badge/cell coloring
+
+**Store Updates:**
+- ✅ Updated `metricsCacheStore` with proper Phase 5c types, field name fixes, new setters, `cachedConditionalInsights`
+- ✅ Updated `chartUiStore` with `analyzeAllFields` session toggle
+- ✅ Added subscription #5 in `storeWiring.ts` (fieldPolarity → full cache invalidation)
+
+**New UI Components:**
+- ✅ Created `ScatterPlot.tsx` — Chart.js scatter, field dropdowns, boolean color-coding, regression line, click-to-open, theme reactivity
+- ✅ Created `CorrelationCards.tsx` — debounced cache-miss computation, generation token guard, click-to-scatter-plot
+- ✅ Created `TrendAlertCard.tsx` — severity-coded border, view entry link, dismiss button
+- ✅ Created `TrendAlertsPanel.tsx` — cache reader, dismissal, aria-live count
+
+**Existing Component Updates:**
+- ✅ Updated `CalendarCell.tsx` — uses `getPolarityColor` with settings-driven polarity
+- ✅ Updated `EntryCard.tsx` — added `BadgeSpan` with ref-based CSS variable polarity coloring
+- ✅ Updated `EchoCard.tsx` — added ref-based metric badge polarity coloring
+- ✅ Updated `ChartsPanel.tsx` — collapsible Correlations, Scatter Plot, Trend Alerts sections
+- ✅ Updated `MainApp.tsx` — Pulse stub → Phase 6a
+
+**Settings Tab:**
+- ✅ Added Field configuration section with polarity dropdowns for all detected numeric fields
+
+**Styles:**
+- ✅ Created `insights.css` with polished correlation card styles (colored left border, hover lift, shadow), collapsible section headers (uppercase pill-shaped, accent arrow, reveal animation), trend alert cards, badge polarity support
+
+### Files Changed:
+
+| File | Status | Description |
+|------|--------|-------------|
+| `src/types/insights.ts` | Modified | AlertSeverity, TrendAlert, CorrelationResult, ConditionalInsight types |
+| `src/types/settings.ts` | Modified | Added fieldPolarity to HindsightSettings |
+| `src/types/index.ts` | Modified | Barrel export for insight types |
+| `src/utils/settingsMigration.ts` | Modified | v2→v3 migration, fieldPolarity validation |
+| `src/utils/statsUtils.ts` | Modified | Added getPolarityColor |
+| `src/services/MetricsEngine.ts` | New | Correlation and statistical analysis service |
+| `src/services/TrendAlertEngine.ts` | New | Trend alert detection service |
+| `src/store/metricsCacheStore.ts` | Modified | Phase 5c types, setters, conditional insights |
+| `src/store/chartUiStore.ts` | Modified | analyzeAllFields toggle |
+| `src/storeWiring.ts` | Modified | Subscription #5 (fieldPolarity → cache invalidation) |
+| `src/components/charts/ChartsPanel.tsx` | Modified | Collapsible sections for correlations, scatter, alerts |
+| `src/components/charts/ScatterPlot.tsx` | New | Interactive scatter plot component |
+| `src/components/charts/CorrelationCards.tsx` | New | Auto-generated correlation insight cards |
+| `src/components/insights/TrendAlertCard.tsx` | New | Individual trend alert card |
+| `src/components/insights/TrendAlertsPanel.tsx` | New | Trend alerts container with dismissal |
+| `src/components/calendar/CalendarCell.tsx` | Modified | Polarity-aware cell coloring |
+| `src/components/timeline/EntryCard.tsx` | Modified | BadgeSpan with polarity coloring |
+| `src/components/echoes/EchoCard.tsx` | Modified | Polarity-aware metric badge |
+| `src/components/MainApp.tsx` | Modified | Pulse stub → Phase 6a |
+| `src/settings.ts` | Modified | Field configuration section with polarity dropdowns |
+| `src/styles/insights.css` | New | All insight component styles |
+| `src/styles/index.css` | Modified | Import insights.css |
+| `test/utils/settingsMigration.test.ts` | Modified | Updated version assertions for v3 |
+
+### Testing Notes:
+- All 18 test files passing, zero regressions
+- Lint + CSS build + tsc + esbuild all clean
+- Grep gates pass: no innerHTML usage, no style={{}}, no console.log
+- Manually verified in Obsidian: correlation cards display, scatter plot with field selection, trend alerts with dismissal, polarity badge colors, field configuration in settings
+- CSS fix applied for button height clipping in Obsidian (height: auto + min-height: unset on correlation card buttons)
+
+### Blockers/Issues:
+- Obsidian base button styles clip content height — fixed by explicitly setting `height: auto` and `min-height: unset` on `.hindsight-correlation-card`
+
+### Next Steps:
+- Phase 5.5: Chart and Metrics Tests
+- Phase 6a: Pulse + Heatmap + Personal Bests
+

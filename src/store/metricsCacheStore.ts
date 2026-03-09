@@ -13,7 +13,7 @@
  */
 
 import { create } from 'zustand';
-import type { MetricDataPoint } from '../types';
+import type { MetricDataPoint, CorrelationResult, TrendAlert, ConditionalInsight } from '../types';
 
 interface MetricsCacheState {
     /** Cached time series per field key. Invalidated when entries change. */
@@ -22,10 +22,12 @@ interface MetricsCacheState {
     rollingAverageCache: Map<string, MetricDataPoint[]>;
     /** Cache key: entry count + latest mtime. Only invalidate fields that changed. */
     cacheKey: { entryCount: number; latestMtime: number };
-    /** Cached correlation results (Phase 5c — null until computed) */
-    correlationResults: { field1: string; field2: string; r: number }[] | null;
-    /** Cached trend alerts (Phase 5c — null until computed) */
-    cachedAlerts: unknown[] | null;
+    /** Cached correlation results — null until computed */
+    correlationResults: CorrelationResult[] | null;
+    /** Cached conditional insights (boolean × numeric) — null until computed */
+    cachedConditionalInsights: ConditionalInsight[] | null;
+    /** Cached trend alerts — null until computed */
+    cachedAlerts: TrendAlert[] | null;
     /** Cached weekly comparison (Phase 5c — null until computed) */
     cachedWeeklyComparison: { field: string; thisWeek: number; lastWeek: number; change: number; percentChange: number }[] | null;
     /** Whether cached data is stale (entry changed but recomputation pending) */
@@ -62,6 +64,18 @@ interface MetricsCacheActions {
     /** Store a computed rolling average in the cache. */
     setRollingAverage(fieldKey: string, windowSize: number, data: MetricDataPoint[]): void;
 
+    /** Store computed correlation results. */
+    setCorrelationResults(results: CorrelationResult[]): void;
+
+    /** Store computed conditional insights. */
+    setConditionalInsights(insights: ConditionalInsight[]): void;
+
+    /** Store computed trend alerts. */
+    setAlerts(alerts: TrendAlert[]): void;
+
+    /** Store weekly comparison results. */
+    setWeeklyComparison(data: { field: string; thisWeek: number; lastWeek: number; change: number; percentChange: number }[]): void;
+
     /** Reset to initial state (called from plugin.onunload()) */
     reset(): void;
 }
@@ -71,6 +85,7 @@ export const useMetricsCacheStore = create<MetricsCacheState & MetricsCacheActio
     rollingAverageCache: new Map(),
     cacheKey: { entryCount: 0, latestMtime: 0 },
     correlationResults: null,
+    cachedConditionalInsights: null,
     cachedAlerts: null,
     cachedWeeklyComparison: null,
     stale: false,
@@ -88,6 +103,7 @@ export const useMetricsCacheStore = create<MetricsCacheState & MetricsCacheActio
                 timeSeriesCache: new Map(),
                 rollingAverageCache: new Map(),
                 correlationResults: null,
+                cachedConditionalInsights: null,
                 cachedAlerts: null,
                 cachedWeeklyComparison: null,
                 stale: false,
@@ -113,10 +129,21 @@ export const useMetricsCacheStore = create<MetricsCacheState & MetricsCacheActio
         let newCorrelations = state.correlationResults;
         if (newCorrelations) {
             const hasAffected = newCorrelations.some(
-                c => changedFieldKeys.includes(c.field1) || changedFieldKeys.includes(c.field2)
+                c => changedFieldKeys.includes(c.fieldA) || changedFieldKeys.includes(c.fieldB)
             );
             if (hasAffected) {
                 newCorrelations = null;
+            }
+        }
+
+        // Conditional insights: clear if a changed field participates
+        let newConditionalInsights = state.cachedConditionalInsights;
+        if (newConditionalInsights) {
+            const hasAffected = newConditionalInsights.some(
+                c => changedFieldKeys.includes(c.numericField) || changedFieldKeys.includes(c.booleanField)
+            );
+            if (hasAffected) {
+                newConditionalInsights = null;
             }
         }
 
@@ -126,6 +153,7 @@ export const useMetricsCacheStore = create<MetricsCacheState & MetricsCacheActio
             timeSeriesCache: newTsCache,
             rollingAverageCache: newRaCache,
             correlationResults: newCorrelations,
+            cachedConditionalInsights: newConditionalInsights,
             cachedAlerts: null,
             cachedWeeklyComparison: null,
             stale: false,
@@ -156,12 +184,21 @@ export const useMetricsCacheStore = create<MetricsCacheState & MetricsCacheActio
         });
     },
 
+    setCorrelationResults: (results) => set({ correlationResults: results }),
+
+    setConditionalInsights: (insights) => set({ cachedConditionalInsights: insights }),
+
+    setAlerts: (alerts) => set({ cachedAlerts: alerts }),
+
+    setWeeklyComparison: (data) => set({ cachedWeeklyComparison: data }),
+
     reset(): void {
         set({
             timeSeriesCache: new Map(),
             rollingAverageCache: new Map(),
             cacheKey: { entryCount: 0, latestMtime: 0 },
             correlationResults: null,
+            cachedConditionalInsights: null,
             cachedAlerts: null,
             cachedWeeklyComparison: null,
             stale: false,

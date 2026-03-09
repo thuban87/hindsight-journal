@@ -17,3 +17,6 @@ export type { FrontmatterField, MetricDataPoint, DateRange } from './metrics';
 
 // Plugin interface
 export type { HindsightPluginInterface, ServiceRegistry } from './plugin';
+
+// Insights
+export type { AlertSeverity, TrendAlert, CorrelationResult, ConditionalInsight } from './insights';

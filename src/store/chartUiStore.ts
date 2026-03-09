@@ -27,6 +27,8 @@ interface ChartUiState {
      *  Plain array (not Set) to ensure immutable updates trigger re-renders.
      *  Capped at MAX_DISMISSED_ALERTS via FIFO. Reset on plugin reload. */
     dismissedAlertIds: string[];
+    /** Whether to analyze all fields (bypasses the mobile/desktop cap). Session-only. */
+    analyzeAllFields: boolean;
 }
 
 interface ChartUiActions {
@@ -35,6 +37,8 @@ interface ChartUiActions {
     setRollingWindow(window: number): void;
     /** Add an alert ID to the dismissed list. Uses immutable update (new array). */
     dismissAlert(id: string): void;
+    /** Toggle analyze-all-fields mode. */
+    setAnalyzeAllFields(value: boolean): void;
     /** Reset to initial state (called from plugin.onunload()) */
     reset(): void;
 }
@@ -44,6 +48,7 @@ export const useChartUiStore = create<ChartUiState & ChartUiActions>((set) => ({
     chartDateRange: null,
     rollingWindow: 7,
     dismissedAlertIds: [],
+    analyzeAllFields: false,
 
     setSelectedChartFields: (fields) => set({ selectedChartFields: fields }),
 
@@ -61,10 +66,13 @@ export const useChartUiStore = create<ChartUiState & ChartUiActions>((set) => ({
         return { dismissedAlertIds: next };
     }),
 
+    setAnalyzeAllFields: (value) => set({ analyzeAllFields: value }),
+
     reset: () => set({
         selectedChartFields: [],
         chartDateRange: null,
         rollingWindow: 7,
         dismissedAlertIds: [],
+        analyzeAllFields: false,
     }),
 }));

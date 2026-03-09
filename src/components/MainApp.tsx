@@ -95,7 +95,7 @@ function MainContent({ activeTab }: { activeTab: string }): React.ReactElement {
         case 'charts':
             return <ChartsPanel />;
         case 'pulse':
-            return <EmptyState message="Pulse — coming in Phase 5c" />;
+            return <EmptyState message="Pulse — coming in Phase 6a" />;
         case 'digest':
             return <EmptyState message="Digest — coming in Phase 6c" />;
         case 'lens':
