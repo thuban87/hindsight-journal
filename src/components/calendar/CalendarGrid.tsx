@@ -6,7 +6,6 @@
  */
 
 import React, { useMemo } from 'react';
-import type { App } from 'obsidian';
 import type { JournalEntry } from '../../types';
 import { CalendarCell } from './CalendarCell';
 
@@ -16,7 +15,6 @@ interface CalendarGridProps {
     entries: Map<string, JournalEntry>;
     selectedMetric: string | null;
     onDayClick: (date: Date) => void;
-    app: App;
 }
 
 const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -70,7 +68,6 @@ export function CalendarGrid({
     entries,
     selectedMetric,
     onDayClick,
-    app,
 }: CalendarGridProps): React.ReactElement {
     // Days in this month
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -128,7 +125,6 @@ export function CalendarGrid({
                         metricRange={metricRange}
                         isToday={isToday}
                         onClick={() => onDayClick(date)}
-                        app={app}
                     />
                 );
             })}

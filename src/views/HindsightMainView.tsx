@@ -11,15 +11,12 @@ import React from 'react';
 import { HINDSIGHT_MAIN_VIEW_TYPE } from '../constants';
 import { MainApp } from '../components/MainApp';
 import { ErrorBoundary } from '../components/shared/ErrorBoundary';
-import type HindsightPlugin from '../../main';
 
 export class HindsightMainView extends ItemView {
     private root: Root | null = null;
-    private plugin: HindsightPlugin;
 
-    constructor(leaf: WorkspaceLeaf, plugin: HindsightPlugin) {
+    constructor(leaf: WorkspaceLeaf) {
         super(leaf);
-        this.plugin = plugin;
     }
 
     getViewType(): string {
@@ -41,7 +38,7 @@ export class HindsightMainView extends ItemView {
         this.root = createRoot(container as HTMLElement);
         this.root.render(
             <ErrorBoundary fallback="Hindsight encountered an error.">
-                <MainApp plugin={this.plugin} app={this.app} />
+                <MainApp />
             </ErrorBoundary>
         );
     }

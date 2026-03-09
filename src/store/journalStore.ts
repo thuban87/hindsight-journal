@@ -8,6 +8,24 @@
 import { create } from 'zustand';
 import type { JournalEntry, FrontmatterField, DateRange } from '../types';
 import { formatDateISO, startOfDay } from '../utils/dateUtils';
+import { useAppStore } from './appStore';
+import { parseSections } from '../services/SectionParserService';
+import { debugLog } from '../utils/debugLog';
+
+/**
+ * Module-level in-flight promise map for ensureSectionsLoaded() deduplication.
+ * NOT part of Zustand state — Promise is not serializable/immutable-update-friendly.
+ * See A22 design decision in Plan-Wide Rules.
+ */
+const inFlightSectionLoads = new Map<string, Promise<JournalEntry>>();
+
+/**
+ * Clear the in-flight map. Called from resetAllStores() during plugin unload
+ * and from test beforeEach to prevent inter-test state leaks.
+ */
+export function clearInFlightMap(): void {
+    inFlightSectionLoads.clear();
+}
 
 interface IndexingProgress {
     /** Current indexing phase (1 = frontmatter only, 2 = full content) */
@@ -19,22 +37,33 @@ interface IndexingProgress {
 }
 
 interface JournalState {
-    /** All indexed entries, keyed by vault-relative file path */
+    /** All indexed journal entries, keyed by filePath */
     entries: Map<string, JournalEntry>;
-    /** Date-keyed index for O(1) echo lookups. Key: "MM-DD", Value: entries for that day across all years */
+    /** Date index for O(1) echo lookups. Key: "MM-DD" → entries on that month-day */
     dateIndex: Map<string, JournalEntry[]>;
-    /** Dates with entries, sorted ascending (for quick range lookups) */
+    /** Sorted array of unique entry dates (ascending) for streak/range calculations */
     sortedDates: Date[];
-    /** Cached sorted entries array (newest first). Invalidated on entry changes. */
+    /** Cached sorted entries array (newest first). Invalidated on mutations. */
     cachedSortedEntries: JournalEntry[] | null;
-    /** Detected frontmatter fields across all entries */
+    /** Detected frontmatter fields with types and ranges */
     detectedFields: FrontmatterField[];
-    /** Whether the initial scan is in progress */
+    /** Whether initial indexing is in progress */
     loading: boolean;
-    /** Error message if scan failed */
+    /** Error message from the last indexing operation */
     error: string | null;
-    /** Indexing progress for pass 1/2 — used for progress bar UI */
+    /** Current indexing progress (phase, processed count, total count) */
     indexingProgress: IndexingProgress | null;
+    /** Monotonically increasing counter — incremented on every store mutation.
+     *  Provides a cheap change signal for downstream cache invalidation. */
+    revision: number;
+    /** Whether the detected schema (field keys) has changed since last detectFields().
+     *  Set true when a file watcher detects added/removed frontmatter keys. */
+    schemaDirty: boolean;
+    /** Accumulated changed field keys since last clearPendingChanges().
+     *  Used for granular cache invalidation — only clear caches for fields that changed. */
+    pendingChangedFieldKeys: Set<string>;
+    /** When true, next invalidation should clear ALL field caches (bulk change). */
+    fullInvalidation: boolean;
 }
 
 interface JournalActions {
@@ -52,6 +81,11 @@ interface JournalActions {
     setLoading(loading: boolean): void;
     setError(error: string | null): void;
     setIndexingProgress(progress: IndexingProgress | null): void;
+    setSchemaDirty(dirty: boolean): void;
+    /** Clear accumulated pending changes after they've been consumed by cache invalidation. */
+    clearPendingChanges(): void;
+    /** Reset store to initial state (called from plugin.onunload()). */
+    reset(): void;
 
     /** Get entries within a date range (inclusive) */
     getEntriesInRange(range: DateRange): JournalEntry[];
@@ -68,6 +102,13 @@ interface JournalActions {
      * O(1) lookup via dateIndex. Key format: "MM-DD".
      */
     getEntriesByMonthDay(monthDay: string): JournalEntry[];
+    /**
+     * Lazy-load full sections for a cold-tier entry.
+     * Returns the entry with sections populated. Uses in-flight promise
+     * deduplication to prevent duplicate vault.cachedRead() calls when
+     * SectionReader and Lens request the same entry simultaneously.
+     */
+    ensureSectionsLoaded(filePath: string): Promise<JournalEntry | null>;
 }
 
 /**
@@ -107,6 +148,10 @@ export const useJournalStore = create<JournalState & JournalActions>((set, get) 
     loading: false,
     error: null,
     indexingProgress: null,
+    revision: 0,
+    schemaDirty: false,
+    pendingChangedFieldKeys: new Set<string>(),
+    fullInvalidation: false,
 
     setEntries(entries: JournalEntry[]): void {
         const entriesMap = new Map<string, JournalEntry>();
@@ -128,12 +173,14 @@ export const useJournalStore = create<JournalState & JournalActions>((set, get) 
         // Sort dates ascending once
         dates.sort((a, b) => a.getTime() - b.getTime());
 
-        set({
+        set((state) => ({
             entries: entriesMap,
             dateIndex,
             sortedDates: dates,
             cachedSortedEntries: null,
-        });
+            revision: state.revision + 1,
+            fullInvalidation: true,
+        }));
     },
 
     upsertEntry(entry: JournalEntry): void {
@@ -187,12 +234,20 @@ export const useJournalStore = create<JournalState & JournalActions>((set, get) 
             newSortedDates.splice(idx, 0, entry.date);
         }
 
-        set({
+        // Accumulate changed field keys for granular cache invalidation
+        const changedKeys = new Set(get().pendingChangedFieldKeys);
+        for (const key of Object.keys(entry.frontmatter)) {
+            changedKeys.add(key);
+        }
+
+        set(state => ({
             entries: newEntries,
             dateIndex: newDateIndex,
             sortedDates: newSortedDates,
             cachedSortedEntries: null,
-        });
+            revision: state.revision + 1,
+            pendingChangedFieldKeys: changedKeys,
+        }));
     },
 
     upsertEntries(entries: JournalEntry[]): void {
@@ -243,12 +298,14 @@ export const useJournalStore = create<JournalState & JournalActions>((set, get) 
             newSortedDates = allDates;
         }
 
-        set({
+        set(state => ({
             entries: newEntries,
             dateIndex: newDateIndex,
             sortedDates: newSortedDates,
             cachedSortedEntries: null,
-        });
+            revision: state.revision + 1,
+            fullInvalidation: true,
+        }));
     },
 
     removeEntry(filePath: string): void {
@@ -278,16 +335,18 @@ export const useJournalStore = create<JournalState & JournalActions>((set, get) 
             d => formatDateISO(d) !== entryDateISO
         );
 
-        set({
+        set(state => ({
             entries: newEntries,
             dateIndex: newDateIndex,
             sortedDates: newSortedDates,
             cachedSortedEntries: null,
-        });
+            revision: state.revision + 1,
+            fullInvalidation: true,
+        }));
     },
 
     clear(): void {
-        set({
+        set(state => ({
             entries: new Map(),
             dateIndex: new Map(),
             sortedDates: [],
@@ -296,7 +355,9 @@ export const useJournalStore = create<JournalState & JournalActions>((set, get) 
             loading: false,
             error: null,
             indexingProgress: null,
-        });
+            revision: state.revision + 1,
+            fullInvalidation: true,
+        }));
     },
 
     setDetectedFields(fields: FrontmatterField[]): void {
@@ -313,6 +374,31 @@ export const useJournalStore = create<JournalState & JournalActions>((set, get) 
 
     setIndexingProgress(progress: IndexingProgress | null): void {
         set({ indexingProgress: progress });
+    },
+
+    setSchemaDirty(dirty: boolean): void {
+        set({ schemaDirty: dirty });
+    },
+
+    clearPendingChanges(): void {
+        set({ pendingChangedFieldKeys: new Set<string>(), fullInvalidation: false });
+    },
+
+    reset(): void {
+        set({
+            entries: new Map(),
+            dateIndex: new Map(),
+            sortedDates: [],
+            cachedSortedEntries: null,
+            detectedFields: [],
+            loading: false,
+            error: null,
+            indexingProgress: null,
+            revision: 0,
+            schemaDirty: false,
+            pendingChangedFieldKeys: new Set<string>(),
+            fullInvalidation: false,
+        });
     },
 
     getEntriesInRange(range: DateRange): JournalEntry[] {
@@ -359,5 +445,50 @@ export const useJournalStore = create<JournalState & JournalActions>((set, get) 
 
     getEntriesByMonthDay(monthDay: string): JournalEntry[] {
         return get().dateIndex.get(monthDay) ?? [];
+    },
+
+    async ensureSectionsLoaded(filePath: string): Promise<JournalEntry | null> {
+        const entry = get().entries.get(filePath);
+        if (!entry) return null;
+
+        // Hot-tier entry already has full sections
+        if (Object.keys(entry.sections).length > 0) return entry;
+
+        // Check if a load is already in progress for this file
+        const existing = inFlightSectionLoads.get(filePath);
+        if (existing) return existing;
+
+        // Start a new load
+        const loadPromise = (async (): Promise<JournalEntry> => {
+            try {
+                const app = useAppStore.getState().app;
+                if (!app) return entry;
+
+                const file = app.vault.getFileByPath(filePath);
+                if (!file) {
+                    debugLog('ensureSectionsLoaded: file not found', filePath);
+                    return entry;
+                }
+
+                const content = await app.vault.cachedRead(file);
+                const sections = parseSections(content);
+
+                // Create an updated entry with sections populated
+                const updatedEntry: JournalEntry = {
+                    ...entry,
+                    sections,
+                };
+
+                // Update the store with the loaded sections
+                get().upsertEntry(updatedEntry);
+
+                return updatedEntry;
+            } finally {
+                inFlightSectionLoads.delete(filePath);
+            }
+        })();
+
+        inFlightSectionLoads.set(filePath, loadPromise);
+        return loadPromise;
     },
 }));

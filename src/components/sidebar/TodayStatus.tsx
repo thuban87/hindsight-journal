@@ -6,17 +6,13 @@
  */
 
 import React from 'react';
-import type { App } from 'obsidian';
 import { useJournalEntries, useTodayEntry } from '../../hooks/useJournalEntries';
 import { useJournalStore } from '../../store/journalStore';
+import { useAppStore } from '../../store/appStore';
 import { getCurrentStreak } from '../../services/PulseService';
 
 import { useToday } from '../../hooks/useToday';
 import { EmptyState } from '../shared/EmptyState';
-
-interface TodayStatusProps {
-    app: App;
-}
 
 /**
  * Format the time difference between now and a date as a relative string.
@@ -35,12 +31,14 @@ function formatRelativeTime(date: Date): string {
     return `${diffDays} days ago`;
 }
 
-export function TodayStatus({ app }: TodayStatusProps): React.ReactElement {
+export function TodayStatus(): React.ReactElement | null {
+    const app = useAppStore(s => s.app);
     const todayEntry = useTodayEntry();
     const { detectedFields, loading } = useJournalEntries();
     const allEntries = useJournalStore(state => state.getAllEntriesSorted());
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _today = useToday(); // Subscribe to midnight updates for re-render
+
+    if (!app) return null;
 
     if (loading) {
         return <div className="hindsight-today-status"><p>Loading...</p></div>;

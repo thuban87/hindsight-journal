@@ -6,24 +6,17 @@
  */
 
 import React from 'react';
-import type { App } from 'obsidian';
-import type HindsightPlugin from '../../main';
 import { useUIStore } from '../store/uiStore';
 import { TabSwitcher } from './shared/TabSwitcher';
 import { TodayStatus } from './sidebar/TodayStatus';
 import { EchoesPanel } from './echoes/EchoesPanel';
-
-interface SidebarAppProps {
-    plugin: HindsightPlugin;
-    app: App;
-}
 
 const SIDEBAR_TABS = [
     { id: 'today', label: 'Today' },
     { id: 'echoes', label: 'Echoes' },
 ];
 
-export function SidebarApp({ plugin, app }: SidebarAppProps): React.ReactElement {
+export function SidebarApp(): React.ReactElement {
     const activeTab = useUIStore(state => state.activeSidebarTab);
     const setActiveTab = useUIStore(state => state.setActiveSidebarTab);
 
@@ -35,8 +28,8 @@ export function SidebarApp({ plugin, app }: SidebarAppProps): React.ReactElement
                 onTabChange={(id: string) => setActiveTab(id as 'today' | 'echoes')}
             />
             <div className="hindsight-sidebar-content">
-                {activeTab === 'today' && <TodayStatus app={app} />}
-                {activeTab === 'echoes' && <EchoesPanel app={app} />}
+                {activeTab === 'today' && <TodayStatus />}
+                {activeTab === 'echoes' && <EchoesPanel />}
             </div>
         </div>
     );

@@ -7,10 +7,9 @@
  */
 
 import React from 'react';
-import type { App } from 'obsidian';
-import type HindsightPlugin from '../../main';
 import { useUIStore } from '../store/uiStore';
 import { useJournalStore } from '../store/journalStore';
+import { useAppStore } from '../store/appStore';
 import { TabSwitcher } from './shared/TabSwitcher';
 import { EmptyState } from './shared/EmptyState';
 import { CalendarNav } from './calendar/CalendarNav';
@@ -18,12 +17,8 @@ import { CalendarGrid } from './calendar/CalendarGrid';
 import { TimelineList } from './timeline/TimelineList';
 import { JournalIndex } from './index-table/JournalIndex';
 
-interface MainAppProps {
-    plugin: HindsightPlugin;
-    app: App;
-}
-
-export function MainApp({ plugin, app }: MainAppProps): React.ReactElement {
+export function MainApp(): React.ReactElement | null {
+    const app = useAppStore(s => s.app);
     const activeTab = useUIStore(state => state.activeMainTab);
     const setActiveTab = useUIStore(state => state.setActiveMainTab);
     const calendarMonth = useUIStore(state => state.calendarMonth);
@@ -32,6 +27,8 @@ export function MainApp({ plugin, app }: MainAppProps): React.ReactElement {
 
     const entries = useJournalStore(state => state.entries);
     const detectedFields = useJournalStore(state => state.detectedFields);
+
+    if (!app) return null;
 
     const entryCount = entries.size;
 
@@ -68,14 +65,13 @@ export function MainApp({ plugin, app }: MainAppProps): React.ReactElement {
                             entries={entries}
                             selectedMetric={selectedMetric}
                             onDayClick={handleDayClick}
-                            app={app}
                         />
                     </div>
                 );
             case 'timeline':
-                return <TimelineList app={app} />;
+                return <TimelineList />;
             case 'index':
-                return <JournalIndex app={app} />;
+                return <JournalIndex />;
             default:
                 return <EmptyState message="Unknown tab" />;
         }

@@ -22,6 +22,8 @@ interface UIState {
     echoSectionKey: string | null;
     /** Which frontmatter field to show as the badge on echo cards (default: 'mood') */
     echoMetricKey: string;
+    /** Which section heading to display as excerpt on timeline cards (null = auto-detect) */
+    timelineSectionKey: string | null;
 
     /** Active tab in the main full-page view */
     activeMainTab: 'calendar' | 'timeline' | 'index';
@@ -47,6 +49,8 @@ interface UIState {
     setEchoSectionKey(key: string | null): void;
     /** Set the frontmatter metric key for echo card badges */
     setEchoMetricKey(key: string): void;
+    /** Set the section key for timeline card excerpts */
+    setTimelineSectionKey(key: string | null): void;
     /** Set the active main view tab */
     setActiveMainTab(tab: 'calendar' | 'timeline' | 'index'): void;
     /** Set the calendar month and year */
@@ -65,6 +69,8 @@ interface UIState {
     removeFieldFilter(index: number): void;
     /** Reset all filters to defaults */
     clearAllFilters(): void;
+    /** Reset entire UI state to defaults (called from plugin.onunload()) */
+    reset(): void;
 }
 
 const now = new Date();
@@ -73,6 +79,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     activeSidebarTab: 'today',
     echoSectionKey: null,
     echoMetricKey: 'mood',
+    timelineSectionKey: null,
     activeMainTab: 'calendar',
     calendarMonth: now.getMonth(),
     calendarYear: now.getFullYear(),
@@ -87,6 +94,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
     setEchoSectionKey: (key) => set({ echoSectionKey: key }),
     setEchoMetricKey: (key) => set({ echoMetricKey: key }),
+    setTimelineSectionKey: (key) => set({ timelineSectionKey: key }),
     setActiveMainTab: (tab) => set({ activeMainTab: tab }),
     setCalendarMonth: (month, year) => set({ calendarMonth: month, calendarYear: year }),
     setSelectedMetric: (metric) => set({ selectedMetric: metric }),
@@ -129,4 +137,24 @@ export const useUIStore = create<UIState>((set, get) => ({
             fieldFilters: [],
         },
     }),
+
+    reset: () => {
+        const now = new Date();
+        set({
+            activeSidebarTab: 'today',
+            echoSectionKey: null,
+            echoMetricKey: 'mood',
+            timelineSectionKey: null,
+            activeMainTab: 'calendar',
+            calendarMonth: now.getMonth(),
+            calendarYear: now.getFullYear(),
+            selectedMetric: null,
+            indexSort: { field: 'date', direction: 'desc' },
+            indexFilters: {
+                search: '',
+                dateRange: null,
+                fieldFilters: [],
+            },
+        });
+    },
 }));

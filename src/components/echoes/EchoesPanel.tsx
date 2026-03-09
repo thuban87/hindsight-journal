@@ -7,18 +7,13 @@
  */
 
 import React, { useMemo } from 'react';
-import type { App } from 'obsidian';
 import { useEchoes } from '../../hooks/useEchoes';
 import { useJournalEntries } from '../../hooks/useJournalEntries';
 import { useUIStore } from '../../store/uiStore';
 import { EchoCard } from './EchoCard';
 import { EmptyState } from '../shared/EmptyState';
 
-interface EchoesPanelProps {
-    app: App;
-}
-
-export function EchoesPanel({ app }: EchoesPanelProps): React.ReactElement {
+export function EchoesPanel(): React.ReactElement {
     const { onThisDay, thisWeekLastYear } = useEchoes();
     const { detectedFields } = useJournalEntries();
 
@@ -36,8 +31,17 @@ export function EchoesPanel({ app }: EchoesPanelProps): React.ReactElement {
     const sectionHeadings = useMemo(() => {
         const headings = new Set<string>();
         for (const entry of allEntries) {
-            for (const key of Object.keys(entry.sections)) {
-                headings.add(key);
+            // Hot-tier entries: headings from sections
+            const sectionKeys = Object.keys(entry.sections);
+            if (sectionKeys.length > 0) {
+                for (const key of sectionKeys) {
+                    headings.add(key);
+                }
+            } else if (entry.sectionHeadings) {
+                // Cold-tier entries: headings from sectionHeadings array
+                for (const heading of entry.sectionHeadings) {
+                    headings.add(heading);
+                }
             }
         }
         return Array.from(headings).sort();
@@ -105,7 +109,6 @@ export function EchoesPanel({ app }: EchoesPanelProps): React.ReactElement {
                         <EchoCard
                             key={entry.filePath}
                             entry={entry}
-                            app={app}
                             sectionKey={echoSectionKey}
                             metricKey={echoMetricKey}
                         />
@@ -120,7 +123,6 @@ export function EchoesPanel({ app }: EchoesPanelProps): React.ReactElement {
                         <EchoCard
                             key={entry.filePath}
                             entry={entry}
-                            app={app}
                             sectionKey={echoSectionKey}
                             metricKey={echoMetricKey}
                         />

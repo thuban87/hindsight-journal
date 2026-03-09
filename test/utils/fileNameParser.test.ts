@@ -125,5 +125,17 @@ describe('parseJournalFileName', () => {
         it('returns null for day 00', () => {
             expect(parseJournalFileName('2026-03-00, Thursday.md')).toBeNull();
         });
+
+        it('returns null for conflict file (Conflict)', () => {
+            expect(parseJournalFileName('2026-03-05, Thursday (Conflict).md')).toBeNull();
+        });
+
+        it('returns null for conflict file (conflict) lowercase', () => {
+            expect(parseJournalFileName('2026-03-05, Thursday (conflict).md')).toBeNull();
+        });
+
+        it('returns null for conflict file (CONFLICT) uppercase', () => {
+            expect(parseJournalFileName('2026-03-05, Thursday (CONFLICT).md')).toBeNull();
+        });
     });
 });

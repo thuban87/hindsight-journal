@@ -444,24 +444,391 @@ Files: 12 new, 3 modified
 
 ---
 
+## 2026-03-08 - Phase 5a Session 1: Infrastructure Cleanup + Foundation Utilities
+
+**Focus:** Remove dead eval code (security gate), fix unhandled promises, add ESLint, create debugLog utility, extract commands, and split types into modules. Pure infrastructure — no new user-facing features.
+
+### Completed:
+
+#### Security Gate (Items 1-2)
+- ✅ Deleted `src/views/UPlotEvalView.ts` — contained `innerHTML` usage (automatic plugin review blocker)
+- ✅ Deleted `src/views/ChartJsEvalView.ts` — temporary eval code
+- ✅ Removed `HINDSIGHT_UPLOT_EVAL_VIEW_TYPE` and `CHARTJS_EVAL_VIEW_TYPE` from `constants.ts`
+- ✅ Removed all eval view imports, registrations, and commands from `main.ts`
+- ✅ `npm uninstall uplot` — removed from dependencies
+
+#### Unhandled Promises (Item 0)
+- ✅ Fixed 2 `addEventListener('blur', async ...)` handlers in `settings.ts` — wrapped with `void` IIFE
+- ✅ Fixed 3 async file watcher handlers in `JournalIndexService.ts` — `setTimeout(async ...)`, `vault.on('create', async ...)`, `vault.on('rename', async ...)` — wrapped with `void` IIFE + `try/catch`
+
+#### Debug Cleanup (Items 3, 6)
+- ✅ Removed `debug-index` command from `main.ts`
+- ✅ Created `src/utils/debugLog.ts` — settings-gated debug logger reading from `settingsStore`
+- ✅ Added `debugMode: boolean` to `HindsightSettings` + `DEFAULT_SETTINGS`
+- ✅ Added "Advanced" section to settings tab with debug mode toggle
+- ✅ Replaced all 4 `console.debug` calls — only `debugLog.ts` itself calls `console.debug`
+
+#### ESLint (Item 17)
+- ✅ Installed ESLint v10 + `@typescript-eslint/eslint-plugin` + `@typescript-eslint/parser`
+- ✅ Created `eslint.config.mjs` (flat config) with: `no-floating-promises`, `no-explicit-any`, `no-console` (allow warn/error)
+- ✅ Updated `build` script to run lint first: `npm run lint && npm run css:build && ...`
+- ✅ Fixed 4 pre-existing lint errors: 3 floating `revealLeaf()` promises in `main.ts`, 1 floating `reconfigure()` in `settings.ts`
+- ✅ Removed unused eslint-disable directive in `TodayStatus.tsx`
+
+#### Command Extraction (Item 4)
+- ✅ Created `src/commands.ts` with `registerCommands(plugin)` — contains `open-sidebar` and `open-main` commands
+- ✅ Zero `addCommand()` calls remain in `main.ts`
+
+#### Types Split (Item 10)
+- ✅ Created `src/types/settings.ts` — `HindsightSettings`, `DEFAULT_SETTINGS`
+- ✅ Created `src/types/journal.ts` — `JournalEntry`, `ParsedSection`
+- ✅ Created `src/types/metrics.ts` — `FrontmatterField`, `MetricDataPoint`, `DateRange`
+- ✅ Created `src/types/insights.ts` — empty placeholder for Phase 5c
+- ✅ Created `src/types/index.ts` — barrel re-exports
+- ✅ Deleted `src/types.ts` — all imports resolve via barrel automatically
+
+### Files Changed:
+
+**New Files (7):**
+- `eslint.config.mjs`
+- `src/commands.ts`
+- `src/utils/debugLog.ts`
+- `src/types/settings.ts`
+- `src/types/journal.ts`
+- `src/types/metrics.ts`
+- `src/types/insights.ts`
+- `src/types/index.ts`
+
+**Modified Files (7):**
+- `main.ts` — Removed eval views/imports/commands/debug-index, added `registerCommands()` + `debugLog`, fixed floating promises
+- `package.json` — Added lint script, updated build to lint-first, removed uplot dep
+- `package-lock.json` — ESLint + typescript-eslint deps added, uplot removed
+- `src/constants.ts` — Removed eval view type constants
+- `src/settings.ts` — Fixed async blur handlers, added Advanced section with debugMode toggle
+- `src/services/JournalIndexService.ts` — Wrapped async file watcher handlers in void IIFE + try/catch
+- `src/components/sidebar/TodayStatus.tsx` — Removed unused eslint-disable directive
+
+**Deleted Files (3):**
+- `src/types.ts` — Replaced by `src/types/` modules
+- `src/views/UPlotEvalView.ts` — Security blocker (innerHTML)
+- `src/views/ChartJsEvalView.ts` — Temporary eval code
+
+### Testing Notes:
+- ✅ `npm run lint` passes — zero errors, zero warnings
+- ✅ `npm run build` passes — lint + CSS + TypeScript + esbuild
+- ✅ All 175 unit tests pass across 11 test files (1.80s)
+- ✅ `npm run deploy:test` successful
+- ✅ Brad verified in Obsidian: plugin loads, sidebar/main view work, no eval commands in palette, debugMode toggle present
+- ✅ All exit gate greps return zero results (innerHTML, console.debug, eval remnants, addCommand in main.ts)
+
+### Blockers/Issues:
+- None
+
+### Design Notes:
+- **debugLog signature:** Plan specified `debugLog(plugin, ...args)` but we used `debugLog(...args)` reading from `settingsStore` instead. This avoids prop-drilling the plugin instance through utility functions and is consistent with the existing pattern of services reading from stores. Brad approved.
+- **ESLint v10 flat config:** Installed ESLint v10 which uses flat config (`eslint.config.mjs`) instead of the legacy `.eslintrc.json` format.
+- **Types barrel resolution:** TypeScript resolves `from '../types'` to `../types/index.ts` automatically when the directory contains an `index.ts`, so no import path changes were needed across the 25+ files that import from types.
+
+---
+
 ## Next Session Prompt
 
 ```
-Phase 4 + 4.5 complete. Timeline feed and sortable index table are deployed and tested.
-175 total tests passing across 11 test files.
+Phase 5a Session 2 complete. Store + service infrastructure done:
+- appStore created, all 9 components refactored (no more app prop-drilling)
+- All 4 stores have reset() actions with proper onunload() sequencing
+- journalStore has revision counter, schemaDirty, pendingChangedFieldKeys
+- JournalIndexService refactored: processWithYielding, debounced detectFields,
+  indexing lock, bulk event settling, conflict file filter
+- CalendarCell inline style remediated to CSS variable pattern
+- 202 tests passing, all lint/build gates clean
 
-Continue with Phase 5: Chart Engine + Correlation Discovery
-- Chart.js wrapper component for time-series line charts
-- React SVG Sparkline for inline mini-charts
-- MetricsEngine for rolling averages, trends, Pearson correlation
-- Correlation Discovery cards
-- Interactive scatter plot
-- Time Machine date slider
-- Trend Alerts (heuristic, no AI)
+Continue with Phase 5a Session 3 — remaining items:
+- Item 11: Inline style remediation audit (grep for remaining style={{ )
+  NOTE: CalendarCell is already done. Check for others.
+- Item 12 WIRING: The revision counter state was added to journalStore this
+  session. Session 3 needs to wire the cross-store subscription in storeWiring.ts:
+  journalStore.revision -> metricsCacheStore.markStale() [debounced 2s].
+  The state is ready, the subscription is not.
+- Any remaining Phase 5a items from the plan not covered by Sessions 1-2
 
 Key files to reference:
-- docs/development/Implementation Plan.md — Phase 5 details (line 1862)
-- src/utils/filterUtils.ts — Pattern for pure testable utility extraction
-- src/store/uiStore.ts — May need new state for chart selections
+- docs/development/Implementation Plan.md — Phase 5a (line 2555+)
+- src/store/journalStore.ts — Has revision, schemaDirty, pendingChangedFieldKeys
+- src/store/appStore.ts — Global app/plugin access
+- src/services/JournalIndexService.ts — Refactored with all new infrastructure
+- src/utils/yieldUtils.ts — processWithYielding utility
+```
+
+## Git Commit Message
+
+```
+refactor(phase-5a): infrastructure cleanup and foundation utilities - session 1
+
+Security Gate:
+- Delete UPlotEvalView.ts and ChartJsEvalView.ts (innerHTML blocker)
+- Remove eval view constants, imports, registrations, and commands
+- Uninstall uplot dependency
+
+Promise Handling:
+- Wrap async blur handlers in settings.ts with void IIFE
+- Wrap async file watcher handlers in JournalIndexService.ts with
+  void IIFE + try/catch (metadata change, create, rename)
+- Fix 3 floating revealLeaf() promises in main.ts
+- Fix floating reconfigure() promise in settings.ts
+
+Debug Infrastructure:
+- Create src/utils/debugLog.ts — settings-gated debug logger
+- Add debugMode setting to HindsightSettings + Advanced settings section
+- Remove debug-index command and all console.debug calls
+
+ESLint:
+- Install ESLint v10 + typescript-eslint
+- Configure no-floating-promises, no-explicit-any, no-console rules
+- Add lint script, update build to lint-first
+
+Code Organization:
+- Extract commands to src/commands.ts with registerCommands()
+- Split src/types.ts into src/types/ modules with barrel re-exports
+  (settings, journal, metrics, insights, index)
+
+All 175 tests passing, all exit gate greps clean
+```
+
+---
+
+## 2026-03-08 - Phase 5a Session 2: Stores, appStore Refactoring, JournalIndexService Infrastructure
+
+**Focus:** Create appStore and HindsightPluginInterface to eliminate app prop-drilling, add store reset actions, add revision counter and schemaDirty to journalStore, refactor JournalIndexService with time-based yielding / debounced detectFields / indexing lock / bulk event settling, remediate CalendarCell inline styles.
+
+### Completed:
+
+#### processWithYielding (Item 5)
+- ✅ Created `src/utils/yieldUtils.ts` — time-based yielding with configurable budget (mobile/desktop), cancellation signals, error recovery, and progress callbacks
+- ✅ Refactored `JournalIndexService.runPass2()` to use `processWithYielding` instead of fixed PARSE_BATCH_SIZE
+
+#### Conflict File Filter (Item 9c)
+- ✅ Updated `src/utils/fileNameParser.ts` — rejects Obsidian Sync conflict files containing `(Conflict)` (case-insensitive)
+
+#### appStore + Prop-Drilling Removal (Item 7)
+- ✅ Created `src/types/plugin.ts` — `HindsightPluginInterface` and `ServiceRegistry` types
+- ✅ Created `src/store/appStore.ts` — global Zustand store for App and plugin singletons
+- ✅ Updated `src/types/index.ts` — barrel re-exports for new types
+- ✅ Refactored 9 components to use `useAppStore` instead of `app: App` prop:
+  - `EchoCard`, `EchoesPanel`, `SidebarApp`, `TodayStatus`
+  - `CalendarCell`, `CalendarGrid`, `MainApp`, `TimelineList`, `JournalIndex`
+- ✅ Updated `HindsightSidebarView.tsx` — removed plugin param from constructor/render
+- ✅ Updated `HindsightMainView.tsx` — removed plugin param from constructor/render
+- ✅ Updated `main.ts` — implements `HindsightPluginInterface`, initializes appStore with reset-then-set for re-enable safety (A17)
+
+#### Store `reset()` Actions (Item 8)
+- ✅ Added `reset()` to `journalStore`, `uiStore`, `settingsStore`, `appStore`
+- ✅ Wired `onunload()` cleanup sequence in `main.ts`: signal teardown → unsubscribe cross-store subs → destroy services → cleanup registry → reset stores (appStore LAST)
+
+#### Debounced detectFields + Schema-Dirty (Item 9)
+- ✅ Added `debouncedDetectFields()` (5s) — all watchers use this instead of direct calls
+- ✅ Added `checkSchemaChange()` — sets `schemaDirty` only when frontmatter keys change, not just values
+- ✅ Added `schemaDirty`, `pendingChangedFieldKeys` (Set), `fullInvalidation`, `setSchemaDirty()`, `clearPendingChanges()` to journalStore
+
+#### Atomic Indexing Lock (Item 9a)
+- ✅ Added `isIndexing` / `needsReindex` to `JournalIndexService`
+- ✅ `initialize()` guards with lock, queues re-index if triggered mid-run
+
+#### Bulk Event Settling (Item 9b)
+- ✅ >10 events in 500ms → pauses individual processing, waits 2s silence → full re-index
+- ✅ All timers cleaned up in `destroy()`
+
+#### Revision Counter + Pending Changes (Item 12 — state only)
+- ✅ Added `revision` counter (increments on every mutation: setEntries, upsertEntry, upsertEntries, removeEntry, clear)
+- ✅ Added `pendingChangedFieldKeys` (accumulates frontmatter keys on upsertEntry)
+- ✅ Added `fullInvalidation` flag (set on bulk operations)
+- ⚠️ **Note for Session 3:** Cross-store subscription wiring (journalStore.revision → metricsCacheStore.markStale) is NOT done. Only the state was added this session.
+
+#### Inline Style Remediation
+- ✅ Migrated `CalendarCell` `style={{backgroundColor}}` to ref-based CSS variable pattern (`--hindsight-cell-bg`) via `useEffect` + `cellRef.current.style.setProperty()`
+- ✅ Added `.hindsight-calendar-cell.has-metric-color` CSS rule to `calendar.css`
+
+### Files Changed:
+
+**New Files (5):**
+- `src/utils/yieldUtils.ts`
+- `src/types/plugin.ts`
+- `src/store/appStore.ts`
+- `test/utils/yieldUtils.test.ts`
+- `test/store/appStore.test.ts`
+
+**Modified Files (14):**
+- `main.ts` — Implements HindsightPluginInterface, appStore init, onunload sequence, view constructors updated
+- `src/services/JournalIndexService.ts` — processWithYielding, debounced detectFields, indexing lock, bulk settle, checkSchemaChange
+- `src/store/journalStore.ts` — revision, schemaDirty, pendingChangedFieldKeys, fullInvalidation, reset(), clearPendingChanges()
+- `src/store/uiStore.ts` — reset() action
+- `src/store/settingsStore.ts` — reset() action
+- `src/types/index.ts` — Added plugin type re-exports
+- `src/components/SidebarApp.tsx` — Removed plugin/app props
+- `src/components/MainApp.tsx` — Removed plugin/app props, uses appStore
+- `src/components/calendar/CalendarCell.tsx` — Uses appStore, CSS variable pattern for bg color
+- `src/components/calendar/CalendarGrid.tsx` — Removed app prop
+- `src/components/echoes/EchoCard.tsx` — Uses appStore
+- `src/components/echoes/EchoesPanel.tsx` — Removed app prop
+- `src/components/sidebar/TodayStatus.tsx` — Uses appStore
+- `src/components/timeline/TimelineList.tsx` — Uses appStore
+- `src/components/index-table/JournalIndex.tsx` — Uses appStore
+- `src/views/HindsightSidebarView.tsx` — Removed plugin param
+- `src/views/HindsightMainView.tsx` — Removed plugin param
+- `src/utils/fileNameParser.ts` — Conflict file filter
+- `src/styles/calendar.css` — has-metric-color CSS variable rule
+- `test/store/journalStore.test.ts` — revision, reset, schemaDirty, pendingChangedFieldKeys tests
+- `test/store/uiStore.test.ts` — reset test
+- `test/utils/fileNameParser.test.ts` — Conflict filter tests
+
+### Testing Notes:
+- ✅ `npm run lint` passes
+- ✅ `npm run build` passes (lint + CSS + TypeScript + esbuild)
+- ✅ All 202 unit tests pass across 13 test files (41 new, zero regressions)
+- ✅ `npm run deploy:test` successful
+- ✅ Brad confirmed in Obsidian: sidebar loads, calendar color-coding works, timeline/index tabs work
+
+### Blockers/Issues:
+- None
+
+### Design Notes:
+- **appStore re-enable safety (A17):** On plugin re-enable, `onload()` calls `appStore.reset()` immediately followed by `appStore.setApp(this.app, this)` with no awaits between, eliminating the window where `app` is null.
+- **CalendarCell inline style fix:** Obsidian review bot flags all `style={{}}` JSX attributes equally, regardless of whether they set CSS custom properties or regular inline styles. Migrated to imperative `ref.current.style.setProperty('--hindsight-cell-bg', bgColor)` paired with a CSS class rule.
+- **runPass2 bulk upsert:** Changed from per-batch `upsertEntries()` to collecting all updated entries then one final `upsertEntries()` call, resulting in a single `revision` increment instead of N increments (important for the upcoming DAG subscription wiring).
+
+---
+
+## 2026-03-08 - Phase 5a Session 3: Store Wiring, Settings Migration, Cold-Tier Display Fixes
+
+**Focus:** Complete remaining Phase 5a infrastructure: storeWiring, FileWatcherService extraction, settings migration, and fix cold-tier section display regressions. Add timeline section selector.
+
+### Completed:
+
+**Infrastructure:**
+- ✅ Created `src/storeWiring.ts` — wireStoreSubscriptions (journalStore.revision → metricsCacheStore.markStale debounced 2s), resetAllStores
+- ✅ Created `src/services/FileWatcherService.ts` — Extracted file watching from JournalIndexService
+- ✅ Created `src/utils/settingsMigration.ts` — migrateSettings (versioned), validateSettings, normalizePathSetting, sanitizeLoadedData (prototype pollution guard with array traversal)
+- ✅ Updated `src/settings.ts` — Added hotTierDays setting, path validation on journalFolder/weeklyReviewFolder using normalizePathSetting + validateVaultRelativePath
+- ✅ Updated `main.ts` — Integrated FileWatcherService, storeWiring, migrateSettings; onunload uses resetAllStores
+
+**Cold-Tier Section Display Fixes:**
+- ✅ `EchoCard.tsx` — Lazy-loads sections via ensureSectionsLoaded for cold-tier entries; skipInstructionPrefix skips template lines
+- ✅ `EchoesPanel.tsx` — Uses entry.sectionHeadings for dropdown on cold-tier entries
+- ✅ `EntryCard.tsx` — Lazy-loads sections (same pattern as EchoCard); getRealContent validates sections have real content
+- ✅ `JournalIndexService.ts` — firstSectionExcerpt uses partial match (.includes) for What Actually Happened (handles emoji-prefixed headings like 🗒️), skips template-only sections
+
+**Timeline Section Selector (new feature):**
+- ✅ `uiStore.ts` — Added timelineSectionKey/setTimelineSectionKey state
+- ✅ `TimelineList.tsx` — Section dropdown (same UX as echoes sidebar), collects headings from hot-tier entries only
+- ✅ `EntryCard.tsx` — Accepts sectionKey prop, uses it in getExcerpt when user selects specific section
+- ✅ `timeline.css` — Styles for section dropdown control
+
+**Tests:**
+- ✅ Created `test/utils/sanitize.test.ts` — sanitizeLoadedData prototype pollution tests
+- ✅ Created `test/utils/vaultUtils.test.ts` — validateVaultRelativePath tests
+
+### Files Changed:
+- `main.ts` — FileWatcherService integration, storeWiring, migrateSettings
+- `src/storeWiring.ts` — [NEW] Cross-store subscriptions + resetAllStores
+- `src/services/FileWatcherService.ts` — [NEW] Extracted file watcher
+- `src/utils/settingsMigration.ts` — [NEW] Settings migration + validation
+- `src/settings.ts` — hotTierDays, path validation
+- `src/store/uiStore.ts` — timelineSectionKey state
+- `src/components/echoes/EchoCard.tsx` — Lazy-load + skipInstructionPrefix + getRealContent
+- `src/components/echoes/EchoesPanel.tsx` — Cold-tier sectionHeadings fallback
+- `src/components/timeline/EntryCard.tsx` — Lazy-load + sectionKey prop + getRealContent
+- `src/components/timeline/TimelineList.tsx` — Section dropdown
+- `src/services/JournalIndexService.ts` — firstSectionExcerpt partial match + skip logic
+- `src/styles/timeline.css` — Section dropdown styles
+- `test/utils/sanitize.test.ts` — [NEW]
+- `test/utils/vaultUtils.test.ts` — [NEW]
+
+### Testing Notes:
+- ✅ `npm run lint` passes
+- ✅ `npm run build` passes (lint + CSS + TypeScript + esbuild)
+- ✅ All 260 unit tests pass across 18 test files (58 new, zero regressions)
+- ✅ `npm run deploy:test` successful
+- ✅ Brad confirmed: echoes sidebar section dropdown works with cold-tier entries, timeline section selector works, section excerpts show actual content instead of template instructions
+
+### Blockers/Issues:
+- **Template format discovery:** Section headings use emoji prefixes (e.g., `🗒️ What Actually Happened`), so exact string matching failed. Fixed with `.includes()` partial matching.
+- **Template instruction lines:** Sections like Dreams contain only template prompts (`> Record immediately upon waking.` + `-`). Fixed with getRealContent that validates sections have real content after stripping instructions.
+- **Cold-tier vs hot-tier heading mismatch:** Older entries had headings without emojis, newer entries have them. Timeline dropdown now only collects from hot-tier entries to avoid duplicates.
+
+### Design Notes:
+- **skipInstructionPrefix:** Scans line-by-line, skips empty lines, punctuation-only separators, and the first 2 short lines (<80 chars). Falls through to original text if nothing substantial remains.
+- **getRealContent:** Validates section has real content (>5 chars after strip, not just punctuation). Used by both EntryCard and EchoCard to skip template-only sections in auto-detect mode.
+- **Timeline section selector:** Mirrors echoes sidebar pattern — dropdown in controls bar, state in uiStore, passed as prop to cards.
+
+---
+
+## Next Session Prompt
+
+```
+Phase 5a Session 3 complete. Core utilities, wiring, and cold-tier display all done:
+- storeWiring.ts created (cross-store subscriptions + resetAllStores)
+- FileWatcherService extracted from JournalIndexService
+- settingsMigration.ts created (migrateSettings, validateSettings, normalizePathSetting)
+- settings.ts updated with hotTierDays setting and path validation
+- main.ts refactored to integrate FileWatcherService, storeWiring, migrateSettings
+- Cold-tier section display fixed: EchoCard lazy-loads via ensureSectionsLoaded,
+  EchoesPanel uses sectionHeadings for dropdown, EntryCard lazy-loads sections
+- Section excerpt logic fixed: partial matching for emoji-prefixed headings,
+  getRealContent skips template-only sections, skipInstructionPrefix skips
+  instruction lines and separators
+- Timeline section selector dropdown added (same pattern as echoes)
+- uiStore gained timelineSectionKey
+- 260 tests passing, all lint/build gates clean
+
+Continue with remaining Phase 5a items or begin Phase 5b.
+The session 3 items from the plan should be marked complete.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 5a (line 2555+)
+- src/storeWiring.ts — Cross-store subscriptions + resetAllStores
+- src/services/FileWatcherService.ts — Extracted file watcher
+- src/utils/settingsMigration.ts — Settings migration + validation
+```
+
+## Git Commit Message
+
+```
+feat(phase-5a): storeWiring, FileWatcherService, settingsMigration, cold-tier section display, timeline section selector - session 3
+
+Store Wiring + Lifecycle:
+- Create src/storeWiring.ts with wireStoreSubscriptions and resetAllStores
+- Wire journalStore.revision -> metricsCacheStore.markStale (debounced 2s)
+- Refactor main.ts onunload to use resetAllStores instead of direct store resets
+
+FileWatcherService:
+- Extract file watching logic from JournalIndexService into FileWatcherService
+- Integrate into main.ts lifecycle
+
+Settings Migration:
+- Create src/utils/settingsMigration.ts with migrateSettings, validateSettings,
+  normalizePathSetting, sanitizeLoadedData (prototype pollution guard)
+- Add hotTierDays setting to settings.ts with path validation on folder inputs
+- Wire migrateSettings into loadSettings in main.ts
+
+Cold-Tier Section Display Fixes:
+- EchoCard: lazy-load sections via ensureSectionsLoaded for cold-tier entries
+- EchoesPanel: use entry.sectionHeadings for dropdown on cold-tier entries
+- EntryCard: lazy-load sections via ensureSectionsLoaded (same pattern as EchoCard)
+- JournalIndexService: firstSectionExcerpt uses partial match for What Actually
+  Happened (emoji-prefixed headings), skips template-only sections
+
+Section Excerpt Intelligence:
+- Add skipInstructionPrefix: skips leading instruction lines, separators, and
+  punctuation-only lines in section content
+- Add getRealContent: validates section has real content after stripping templates
+- Partial match with .includes for What Actually Happened (handles emoji prefixes)
+
+Timeline Section Selector:
+- Add timelineSectionKey/setTimelineSectionKey to uiStore
+- Add section dropdown to TimelineList (same UX as echoes sidebar)
+- EntryCard accepts sectionKey prop for user-selected section excerpts
+- CSS for section dropdown control in timeline.css
+
+Tests: 260 passing (58 new from sanitize.test.ts and vaultUtils.test.ts), zero regressions
 ```
 

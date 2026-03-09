@@ -6,12 +6,12 @@
  * and right-click context menu via Obsidian's Menu class.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useEffect } from 'react';
 import { Menu, Notice } from 'obsidian';
-import type { App } from 'obsidian';
 import type { JournalEntry } from '../../types';
 import { mapValueToColor, mapBooleanToColor } from '../../utils/statsUtils';
 import { useUIStore } from '../../store/uiStore';
+import { useAppStore } from '../../store/appStore';
 
 interface CalendarCellProps {
     date: Date;
@@ -20,7 +20,6 @@ interface CalendarCellProps {
     metricRange: { min: number; max: number } | null;
     isToday: boolean;
     onClick: () => void;
-    app: App;
 }
 
 /**
@@ -53,9 +52,10 @@ export function CalendarCell({
     metricRange,
     isToday,
     onClick,
-    app,
-}: CalendarCellProps): React.ReactElement {
+}: CalendarCellProps): React.ReactElement | null {
+    const app = useAppStore(s => s.app);
     const setActiveMainTab = useUIStore(state => state.setActiveMainTab);
+    const cellRef = useRef<HTMLDivElement>(null);
 
     // Compute background color
     let bgColor: string | undefined;
@@ -76,6 +76,17 @@ export function CalendarCell({
         }
     }
 
+    // Set background color via ref-based style.setProperty (no inline style={{}})
+    useEffect(() => {
+        if (cellRef.current) {
+            if (bgColor) {
+                cellRef.current.style.setProperty('--hindsight-cell-bg', bgColor);
+            } else {
+                cellRef.current.style.removeProperty('--hindsight-cell-bg');
+            }
+        }
+    }, [bgColor]);
+
     const tooltipText = entry
         ? `${formatTooltipDate(date)}${tooltipMetricText ? '\n' + tooltipMetricText : ''}`
         : formatTooltipDate(date);
@@ -85,6 +96,7 @@ export function CalendarCell({
     if (entry) classes.push('has-entry');
     if (isToday) classes.push('is-today');
     if (!entry) classes.push('hindsight-calendar-cell-no-entry');
+    if (bgColor) classes.push('has-metric-color');
 
     // Mobile tap handler — show notice with tooltip info
     const handleTouchEnd = useCallback(
@@ -100,7 +112,7 @@ export function CalendarCell({
     // Right-click context menu via Obsidian's Menu class
     const handleContextMenu = useCallback(
         (e: React.MouseEvent) => {
-            if (!entry) return;
+            if (!entry || !app) return;
             e.preventDefault();
 
             const menu = new Menu();
@@ -126,14 +138,10 @@ export function CalendarCell({
         [entry, app, setActiveMainTab]
     );
 
-    const cellStyle: React.CSSProperties = bgColor
-        ? { backgroundColor: bgColor }
-        : {};
-
     return (
         <div
+            ref={cellRef}
             className={classes.join(' ')}
-            style={cellStyle}
             onClick={entry ? onClick : undefined}
             onContextMenu={handleContextMenu}
             onTouchEnd={handleTouchEnd}

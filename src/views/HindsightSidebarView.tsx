@@ -11,15 +11,12 @@ import React from 'react';
 import { HINDSIGHT_SIDEBAR_VIEW_TYPE } from '../constants';
 import { SidebarApp } from '../components/SidebarApp';
 import { ErrorBoundary } from '../components/shared/ErrorBoundary';
-import type HindsightPlugin from '../../main';
 
 export class HindsightSidebarView extends ItemView {
     private root: Root | null = null;
-    private plugin: HindsightPlugin;
 
-    constructor(leaf: WorkspaceLeaf, plugin: HindsightPlugin) {
+    constructor(leaf: WorkspaceLeaf) {
         super(leaf);
-        this.plugin = plugin;
     }
 
     getViewType(): string {
@@ -41,7 +38,7 @@ export class HindsightSidebarView extends ItemView {
         this.root = createRoot(container as HTMLElement);
         this.root.render(
             <ErrorBoundary fallback="Hindsight sidebar encountered an error.">
-                <SidebarApp plugin={this.plugin} app={this.app} />
+                <SidebarApp />
             </ErrorBoundary>
         );
     }

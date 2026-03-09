@@ -129,4 +129,27 @@ describe('uiStore', () => {
             expect(useUIStore.getState().activeMainTab).toBe('index');
         });
     });
+
+    describe('reset', () => {
+        it('resets all state to defaults', () => {
+            // Modify various state
+            useUIStore.getState().setActiveSidebarTab('echoes');
+            useUIStore.getState().setActiveMainTab('index');
+            useUIStore.getState().setSearchFilter('test');
+            useUIStore.getState().addFieldFilter('mood', '>=', 7);
+
+            // Reset
+            useUIStore.getState().reset();
+
+            const state = useUIStore.getState();
+            expect(state.activeSidebarTab).toBe('today');
+            expect(state.activeMainTab).toBe('calendar');
+            expect(state.indexFilters.search).toBe('');
+            expect(state.indexFilters.fieldFilters).toHaveLength(0);
+            expect(state.indexFilters.dateRange).toBeNull();
+            expect(state.selectedMetric).toBeNull();
+            expect(state.indexSort.field).toBe('date');
+            expect(state.indexSort.direction).toBe('desc');
+        });
+    });
 });

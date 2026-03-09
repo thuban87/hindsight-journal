@@ -2,46 +2,54 @@
  * Journal Index Service
  *
  * The core indexing engine. Recursively scans the journal folder,
- * parses daily notes into JournalEntry objects, and keeps the index
- * alive with file event watching.
+ * parses daily notes into JournalEntry objects via two-pass initialization.
  *
  * Two-pass initialization:
  *   Pass 1 (instant): frontmatter via MetadataCache (zero file I/O)
- *   Pass 2 (background): full content via cachedRead, batched
+ *   Pass 2 (background): full content via cachedRead, time-based yielding
+ *
+ * File watching is handled by FileWatcherService (extracted in Phase 5a).
  */
 
 import { App, TFile, TFolder, normalizePath, Notice } from 'obsidian';
 import type HindsightPlugin from '../../main';
-import type { JournalEntry } from '../types';
+import type { JournalEntry, FrontmatterField } from '../types';
 import { parseJournalFileName } from '../utils/fileNameParser';
-import { formatDateISO } from '../utils/dateUtils';
-import { parseSections, extractImagePaths, countWords } from '../services/SectionParserService';
+import { parseSections, extractImagePaths, countWords, stripMarkdown } from '../services/SectionParserService';
 import { detectFields } from '../services/FrontmatterService';
 import { useJournalStore } from '../store/journalStore';
-
-/** Debounce delay for file change events (ms) */
-const DEBOUNCE_MS = 400;
-/** Batch size for pass 2 background content parsing */
-const PARSE_BATCH_SIZE = 50;
+import { processWithYielding } from '../utils/yieldUtils';
+import { debugLog } from '../utils/debugLog';
 
 export class JournalIndexService {
     private app: App;
     private plugin: HindsightPlugin;
     private journalFolder: string; // normalizePath'd
-    private debounceTimers: Map<string, ReturnType<typeof setTimeout>>;
+
+    // Atomic indexing lock
+    private isIndexing = false;
+    private needsReindex = false;
 
     constructor(app: App, plugin: HindsightPlugin) {
         this.app = app;
         this.plugin = plugin;
         this.journalFolder = normalizePath(plugin.settings.journalFolder);
-        this.debounceTimers = new Map();
     }
 
     /**
      * Two-pass initialization. Delegates to runPass1() and runPass2().
      * Called once on plugin load via workspace.onLayoutReady().
+     * Protected by atomic indexing lock.
      */
     async initialize(): Promise<void> {
+        // Atomic indexing lock: if already indexing, flag for re-run
+        if (this.isIndexing) {
+            this.needsReindex = true;
+            debugLog('initialize() called while already indexing — will re-run');
+            return;
+        }
+
+        this.isIndexing = true;
         const store = useJournalStore.getState();
         store.setLoading(true);
         store.setError(null);
@@ -56,22 +64,23 @@ export class JournalIndexService {
         } finally {
             store.setLoading(false);
             store.setIndexingProgress(null);
+            this.isIndexing = false;
+
+            // Check if a re-index was requested during our run
+            if (this.needsReindex) {
+                this.needsReindex = false;
+                debugLog('Re-index requested during indexing — starting again');
+                await this.initialize();
+            }
         }
     }
 
     /**
      * PASS 1 (instant, no file I/O):
      *   - Validates journalFolder by calling getFolderByPath().
-     *     If the folder doesn't exist, shows a Notice and returns early.
-     *     This implicitly blocks path traversal (../../ won't resolve).
      *   - Recursively scan for .md files matching filename pattern
      *   - For each candidate: metadataCache.getFileCache(file) for frontmatter
-     *   - Extract date from frontmatter `date` field (authoritative), fall back to filename
-     *   - Create JournalEntry with frontmatter populated, sections/wordCount/imagePaths empty
-     *   - Set fullyIndexed = false
-     *   - Uses store.setEntries() (bulk) — sorts sortedDates once
      *   - Calls detectFields() ONCE after all entries are populated
-     *   - Updates store.indexingProgress to { phase: 1, processed: N, total: N }
      */
     private async runPass1(): Promise<void> {
         const store = useJournalStore.getState();
@@ -107,16 +116,10 @@ export class JournalIndexService {
     }
 
     /**
-     * PASS 2 (background, batched):
-     *   - Process files in chunks of PARSE_BATCH_SIZE
-     *   - For each file: vault.cachedRead() → parse sections, word count, image paths
-     *   - Yield to main thread between batches via setTimeout(0)
-     *   - Uses store.upsertEntries() (bulk) per batch — one sort per batch, not per entry
-     *   - Set fullyIndexed = true per entry
-     *   - Compute qualityScore per entry based on detected fields vs filled fields
-     *   - Updates store.indexingProgress as batches complete
-     *   - Calls detectFields() ONE MORE TIME after all batches finish
-     *     (for accurate coverage/ranges with full data)
+     * PASS 2 (background, time-based yielding):
+     *   - For each entry: vault.cachedRead() → parse sections, word count, image paths
+     *   - Implements tiered section storage (hot/cold based on hotTierDays)
+     *   - Bulk upserts at the end (single revision increment)
      */
     private async runPass2(): Promise<void> {
         const store = useJournalStore.getState();
@@ -127,46 +130,50 @@ export class JournalIndexService {
 
         store.setIndexingProgress({ phase: 2, processed: 0, total });
 
-        for (let i = 0; i < total; i += PARSE_BATCH_SIZE) {
-            const batch = entries.slice(i, i + PARSE_BATCH_SIZE);
-            const updatedEntries: JournalEntry[] = [];
+        const updatedEntries: JournalEntry[] = [];
 
-            for (const entry of batch) {
+        await processWithYielding(
+            entries,
+            async (entry) => {
                 const file = this.app.vault.getFileByPath(entry.filePath);
                 if (file && file instanceof TFile) {
                     await this.parseEntryContent(file, entry);
                     updatedEntries.push(entry);
                 }
+            },
+            {
+                onProgress: (processed, _total) => {
+                    useJournalStore.getState().setIndexingProgress({
+                        phase: 2,
+                        processed,
+                        total: _total,
+                    });
+                },
+                onError: (item, err) => {
+                    debugLog('Pass 2 parse error for', item.filePath, err);
+                },
             }
+        );
 
-            // Compute quality scores after content parsing
-            const detectedFields = useJournalStore.getState().detectedFields;
-            for (const entry of updatedEntries) {
-                entry.qualityScore = this.computeQualityScore(entry, detectedFields);
-            }
+        // Compute quality scores after content parsing
+        const detectedFields = useJournalStore.getState().detectedFields;
+        for (const entry of updatedEntries) {
+            entry.qualityScore = this.computeQualityScore(entry, detectedFields);
+        }
 
-            // Bulk upsert this batch
+        // Bulk upsert all updated entries at once (single revision increment)
+        if (updatedEntries.length > 0) {
             useJournalStore.getState().upsertEntries(updatedEntries);
-            useJournalStore.getState().setIndexingProgress({
-                phase: 2,
-                processed: Math.min(i + PARSE_BATCH_SIZE, total),
-                total,
-            });
-
-            // Yield to main thread between batches
-            if (i + PARSE_BATCH_SIZE < total) {
-                await new Promise<void>(resolve => setTimeout(resolve, 0));
-            }
         }
 
         // Re-detect fields with full data for accurate coverage/ranges
         const allEntries = Array.from(useJournalStore.getState().entries.values());
         useJournalStore.getState().setDetectedFields(detectFields(allEntries));
+        useJournalStore.getState().setSchemaDirty(false);
     }
 
     /**
      * Recursively scan a folder for .md files matching the journal filename pattern.
-     * Returns TFile references for all matching files.
      */
     private scanFolder(folder: TFolder): TFile[] {
         const files: TFile[] = [];
@@ -175,7 +182,6 @@ export class JournalIndexService {
             if (child instanceof TFolder) {
                 files.push(...this.scanFolder(child));
             } else if (child instanceof TFile) {
-                // Only process .md files that match the journal filename pattern
                 if (parseJournalFileName(child.name) !== null) {
                     files.push(child);
                 }
@@ -188,7 +194,6 @@ export class JournalIndexService {
     /**
      * Parse frontmatter-only entry (pass 1).
      * Uses metadataCache.getFileCache() — zero file I/O.
-     * Date is sourced from frontmatter `date` field; falls back to filename regex.
      */
     parseEntryFrontmatterOnly(file: TFile): JournalEntry | null {
         const parsed = parseJournalFileName(file.name);
@@ -225,26 +230,96 @@ export class JournalIndexService {
 
     /**
      * Parse full content for an entry (pass 2).
-     * Uses vault.cachedRead() for content.
-     * Uses SectionParserService for sections, word count, and images.
-     * Updates the existing entry in place.
+     * Implements tiered storage: hot-tier (recent) keeps full sections,
+     * cold-tier (old) keeps only headings + excerpt + word counts.
      */
     async parseEntryContent(file: TFile, entry: JournalEntry): Promise<void> {
         const content = await this.app.vault.cachedRead(file);
 
-        entry.sections = parseSections(content);
+        const sections = parseSections(content);
         entry.wordCount = countWords(content);
         entry.imagePaths = extractImagePaths(content);
         entry.mtime = file.stat.mtime;
         entry.fullyIndexed = true;
+
+        // Always populate firstSectionExcerpt for ALL entries.
+        // Prefer "What Actually Happened" (partial match — key may have emoji prefix).
+        // Skip sections whose content is only template instructions.
+        const sectionKeys = Object.keys(sections);
+        let excerptSource = '';
+
+        // First: find "What Actually Happened" by partial match
+        for (const key of sectionKeys) {
+            if (key.includes('What Actually Happened')) {
+                const raw = sections[key];
+                if (raw && raw.trim().length > 0) {
+                    excerptSource = raw;
+                    break;
+                }
+            }
+        }
+
+        // Second: if not found, find first section with real content
+        if (!excerptSource) {
+            for (const key of sectionKeys) {
+                const raw = sections[key];
+                if (raw && raw.trim().length > 0) {
+                    excerptSource = raw;
+                    break;
+                }
+            }
+        }
+
+        if (excerptSource) {
+            // Skip template instruction lines and separators at the start.
+            // Skips ALL leading lines that are short (<80 chars) or just
+            // punctuation/separators until hitting a line with real content.
+            const lines = excerptSource.split('\n');
+            let startIdx = 0;
+            for (let i = 0; i < lines.length; i++) {
+                const trimmed = lines[i].trim();
+                if (trimmed.length === 0) { startIdx = i + 1; continue; }
+                if (trimmed.length < 80 && /^[\s\-–—=_*#>|:;,.!?]+$/.test(trimmed)) {
+                    startIdx = i + 1; continue;
+                }
+                if (i < 2 && trimmed.length < 80) { startIdx = i + 1; continue; }
+                break;
+            }
+            const skipped = startIdx > 0 && startIdx < lines.length
+                ? lines.slice(startIdx).join('\n').trim()
+                : excerptSource;
+            entry.firstSectionExcerpt = stripMarkdown(skipped).substring(0, 200).trim();
+        } else {
+            entry.firstSectionExcerpt = '';
+        }
+
+        // Check entry age against hotTierDays setting
+        const hotTierDays = this.plugin.settings.hotTierDays;
+        const now = Date.now();
+        const entryAge = (now - entry.date.getTime()) / (1000 * 60 * 60 * 24);
+
+        if (entryAge <= hotTierDays) {
+            // Hot tier: keep full sections
+            entry.sections = sections;
+            entry.sectionHeadings = undefined;
+            entry.sectionWordCounts = undefined;
+        } else {
+            // Cold tier: headings + word counts only, no full content
+            entry.sections = {};
+            entry.sectionHeadings = sectionKeys;
+            entry.sectionWordCounts = {};
+            for (const key of sectionKeys) {
+                entry.sectionWordCounts[key] = countWords(sections[key]);
+            }
+        }
     }
 
     /**
      * Compute quality score: percentage of detected fields that are filled.
      */
-    private computeQualityScore(
+    computeQualityScore(
         entry: JournalEntry,
-        detectedFields: { key: string }[]
+        detectedFields: FrontmatterField[]
     ): number {
         if (detectedFields.length === 0) return 100;
 
@@ -261,8 +336,7 @@ export class JournalIndexService {
 
     /**
      * Re-index with a new journal folder.
-     * Called when the user changes the folder in settings (via onBlur).
-     * Clears the store, updates this.journalFolder, and re-runs both passes.
+     * Called when the user changes the folder in settings.
      */
     async reconfigure(newFolder: string): Promise<void> {
         this.journalFolder = normalizePath(newFolder);
@@ -270,127 +344,11 @@ export class JournalIndexService {
         await this.initialize();
     }
 
-    /**
-     * Register file watchers for create/delete/rename events AND metadata changes.
-     * Uses plugin.registerEvent() for automatic cleanup on unload.
-     *
-     * EVENT ARCHITECTURE:
-     *   - metadataCache.on('changed', (file, data, cache) => ...)
-     *     → Used for frontmatter updates. This fires AFTER the cache has been
-     *       updated, avoiding the race condition of vault.on('modify') + getFileCache().
-     *     → Debounced by DEBOUNCE_MS to avoid re-parsing on every keystroke.
-     *     → Checks file.stat.mtime against stored entry.mtime to skip no-ops.
-     *   - vault.on('create', callback)
-     *     → Parses if it matches filename pattern, adds to store.
-     *   - vault.on('delete', callback)
-     *     → Removes from store.
-     *   - vault.on('rename', (file, oldPath) => ...)
-     *     → Removes old path, adds new if it matches pattern.
-     *
-     * All handlers check file instanceof TFile and file.path starts with journalFolder.
-     */
-    registerFileWatchers(): void {
-        const store = useJournalStore;
-
-        // Metadata change handler (debounced)
-        this.plugin.registerEvent(
-            this.app.metadataCache.on('changed', (file) => {
-                if (!(file instanceof TFile)) return;
-                if (!file.path.startsWith(this.journalFolder)) return;
-                if (!parseJournalFileName(file.name)) return;
-
-                // Check mtime to skip no-ops
-                const existing = store.getState().entries.get(file.path);
-                if (existing && existing.mtime === file.stat.mtime) return;
-
-                // Debounce by file path
-                const existingTimer = this.debounceTimers.get(file.path);
-                if (existingTimer) clearTimeout(existingTimer);
-
-                this.debounceTimers.set(
-                    file.path,
-                    setTimeout(async () => {
-                        this.debounceTimers.delete(file.path);
-                        const entry = this.parseEntryFrontmatterOnly(file);
-                        if (entry) {
-                            await this.parseEntryContent(file, entry);
-                            const detectedFields = store.getState().detectedFields;
-                            entry.qualityScore = this.computeQualityScore(entry, detectedFields);
-                            store.getState().upsertEntry(entry);
-
-                            // Re-detect fields
-                            const allEntries = Array.from(store.getState().entries.values());
-                            store.getState().setDetectedFields(detectFields(allEntries));
-                        }
-                    }, DEBOUNCE_MS)
-                );
-            })
-        );
-
-        // New file handler
-        this.plugin.registerEvent(
-            this.app.vault.on('create', async (file) => {
-                if (!(file instanceof TFile)) return;
-                if (!file.path.startsWith(this.journalFolder)) return;
-
-                const entry = this.parseEntryFrontmatterOnly(file);
-                if (entry) {
-                    await this.parseEntryContent(file, entry);
-                    const detectedFields = store.getState().detectedFields;
-                    entry.qualityScore = this.computeQualityScore(entry, detectedFields);
-                    store.getState().upsertEntry(entry);
-
-                    const allEntries = Array.from(store.getState().entries.values());
-                    store.getState().setDetectedFields(detectFields(allEntries));
-                }
-            })
-        );
-
-        // Delete handler
-        this.plugin.registerEvent(
-            this.app.vault.on('delete', (file) => {
-                if (!(file instanceof TFile)) return;
-                if (!file.path.startsWith(this.journalFolder)) return;
-
-                store.getState().removeEntry(file.path);
-
-                const allEntries = Array.from(store.getState().entries.values());
-                store.getState().setDetectedFields(detectFields(allEntries));
-            })
-        );
-
-        // Rename handler
-        this.plugin.registerEvent(
-            this.app.vault.on('rename', async (file, oldPath) => {
-                if (!(file instanceof TFile)) return;
-
-                // Remove old path if it was in our index
-                if (oldPath.startsWith(this.journalFolder)) {
-                    store.getState().removeEntry(oldPath);
-                }
-
-                // Add new path if it matches pattern and is in our folder
-                if (file.path.startsWith(this.journalFolder)) {
-                    const entry = this.parseEntryFrontmatterOnly(file);
-                    if (entry) {
-                        await this.parseEntryContent(file, entry);
-                        const detectedFields = store.getState().detectedFields;
-                        entry.qualityScore = this.computeQualityScore(entry, detectedFields);
-                        store.getState().upsertEntry(entry);
-                    }
-                }
-
-                const allEntries = Array.from(store.getState().entries.values());
-                store.getState().setDetectedFields(detectFields(allEntries));
-            })
-        );
-    }
-
-    /** Clean up debounce timers and any resources (called from plugin.onunload()) */
+    /** Clean up resources (called from plugin.onunload()) */
     destroy(): void {
-        for (const timer of this.debounceTimers.values()) {
-            clearTimeout(timer);
-        }
-        this.debounceTimers.clear();
+        // File watcher cleanup is now handled by FileWatcherService
+        // JournalIndexService only needs to reset its lock state
+        this.isIndexing = false;
+        this.needsReindex = false;
     }
 }

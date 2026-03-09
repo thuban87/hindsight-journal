@@ -12,9 +12,11 @@ import { DEFAULT_SETTINGS } from '../types';
 interface SettingsState {
     settings: HindsightSettings;
     setSettings(settings: HindsightSettings): void;
+    reset(): void;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
     settings: DEFAULT_SETTINGS,
     setSettings: (settings) => set({ settings }),
+    reset: () => set({ settings: DEFAULT_SETTINGS }),
 }));

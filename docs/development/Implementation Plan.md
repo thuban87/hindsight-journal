@@ -2558,9 +2558,9 @@ These rules apply to ALL phases below. They were established during the Phase 5-
 
 ### Pre-Phase Entry Checks (must already be true before starting 5a)
 
-- [ ] You're on the correct git branch
-- [ ] You've reviewed the current `main.ts`, `src/views/`, and `src/constants.ts` to understand the current state
-- [ ] Run the Async Promise Handling Gate grep (see Plan-Wide Rules) — identify any unhandled async patterns
+- [x] You're on the correct git branch
+- [x] You've reviewed the current `main.ts`, `src/views/`, and `src/constants.ts` to understand the current state
+- [x] Run the Async Promise Handling Gate grep (see Plan-Wide Rules) — identify any unhandled async patterns
 
 ### Mandatory First Tasks (items 0-3 below — MUST complete before any other 5a items)
 
