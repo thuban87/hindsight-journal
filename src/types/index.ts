@@ -6,7 +6,7 @@
  */
 
 // Settings
-export type { HindsightSettings } from './settings';
+export type { HindsightSettings, GoalConfig } from './settings';
 export { DEFAULT_SETTINGS } from './settings';
 
 // Journal

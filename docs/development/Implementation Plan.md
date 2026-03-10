@@ -3661,7 +3661,7 @@ export function getConsistencyScores(
 
 ---
 
-## Phase 6b: Goals + Today Tab Enhancements (~1-2 sessions)
+## Phase 6b: Goals + Today Tab Enhancements (~1-2 sessions) [COMPLETED]
 
 **Goal:** Goal tracking with progress rings, morning briefing panel, and gap alerts -- all integrated into the sidebar Today tab as scrollable sections.
 

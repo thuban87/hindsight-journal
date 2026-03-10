@@ -1305,3 +1305,105 @@ Store and wiring:
 8 modified files, 4 new files, 732 insertions
 25 test files, 321 tests passing, lint clean
 ```
+
+---
+
+# Phase 6b: Goals + Today Tab Enhancements
+
+## Session 1: Phase 6b — 2026-03-09
+
+### What Was Done:
+- **Settings v3→v4 migration:** Added `GoalConfig` interface, `goalTargets`, `prioritySectionHeading`, `weekStartDay` to `HindsightSettings` and `DEFAULT_SETTINGS`
+- **Migration chain:** Added `migrateV3ToV4()` with validation for all 3 new fields (goalTargets validates period/target/type, target > 0 defense-in-depth, weekStartDay validates 0|1)
+- **PulseService expanded:** Added `getGoalProgress()` (uses `getEntriesInPeriod()` for period scoping, supports sum/count types) and `getAdherenceRate()` (boolean field completion over N days)
+- **4 new components created:**
+  - `ProgressRing.tsx` — SVG progress ring with clamped rendering (0-1) but actual value display, CSS vars via refs, accessible
+  - `GoalTracker.tsx` — Renders ProgressRings per configured goal, compact mode for sidebar
+  - `MorningBriefing.tsx` — Yesterday metrics, 1-year echo excerpt, priorities from configurable heading, streak, boolean adherence rates
+  - `GapAlerts.tsx` — Entry/field gap nudges (3+ day gaps, field-specific for >50% coverage fields), max 3 alerts
+- **Settings tab expanded:** Goals section (add/edit/remove with field/period/target/type), Week start day dropdown, Morning briefing toggle, Priority section heading input
+- **TodayStatus.tsx rewritten:** 5-section scrollable layout (entry status, goal rings, sparklines, gap alerts, morning briefing)
+- **Styles:** New `goals.css` with progress ring, goal tracker, morning briefing, gap alert, and settings styles
+
+### Files Changed:
+**New files (4):**
+- `src/components/charts/ProgressRing.tsx`
+- `src/components/pulse/GoalTracker.tsx`
+- `src/components/sidebar/MorningBriefing.tsx`
+- `src/components/sidebar/GapAlerts.tsx`
+- `src/styles/goals.css`
+
+**Modified files (9):**
+- `src/types/settings.ts` — GoalConfig interface, 3 new settings
+- `src/types/index.ts` — Barrel export for GoalConfig
+- `src/utils/settingsMigration.ts` — v3→v4 migration, validation, version bump
+- `src/services/PulseService.ts` — getGoalProgress(), getAdherenceRate()
+- `src/settings.ts` — Goals section, week start day, priority heading, morning briefing toggle
+- `src/components/sidebar/TodayStatus.tsx` — 5-section layout with new components
+- `src/styles/index.css` — @import goals.css
+- `styles.css` — Built CSS output
+- `test/utils/settingsMigration.test.ts` — Updated assertions for v4, added Phase 6b field checks
+
+### Testing:
+- ✅ `npm run lint` passes (zero errors)
+- ✅ `npx tsc --noEmit` passes (zero type errors)
+- ✅ `npm run build` passes (lint + CSS + tsc + esbuild)
+- ✅ 25 test files, 321 tests all passing — no regressions
+- ✅ Grep gates clean: innerHTML (chartSetup comment only), style={{ (CalendarCell/EntryCard comments only), console.log (zero results)
+- ✅ Brad manually tested in Obsidian: goals settings, progress rings, morning briefing, gap alerts, week start day, scrollable Today tab
+
+### Bugs/Issues:
+- None discovered during this session
+
+### Next Steps:
+- Phase 6c: Widgets + Themes + Quality Dashboard
+- Phase 6.5: Tests for Phase 6a-6c features
+
+---
+
+## Next Session Prompt
+
+```
+Phase 6b complete. Goals + Today Tab Enhancements deployed and verified:
+- Settings v3→v4: goalTargets, prioritySectionHeading, weekStartDay
+- PulseService expanded with getGoalProgress() and getAdherenceRate()
+- 4 new components: ProgressRing, GoalTracker, MorningBriefing, GapAlerts
+- TodayStatus rewritten with 5-section scrollable layout
+- 25 test files, 321 tests, lint clean
+
+Continue with Phase 6c: Widgets + Themes + Quality Dashboard.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 6c (after line 3797)
+- src/components/pulse/ — GoalTracker
+- src/components/sidebar/ — MorningBriefing, GapAlerts, TodayStatus
+- src/types/settings.ts — Settings interface (now v4)
+```
+
+## Git Commit Message
+
+```
+feat(phase-6b): goal tracking, morning briefing, and gap alerts for Today tab
+
+Settings v3 to v4 migration:
+- GoalConfig interface with period, target, type
+- goalTargets, prioritySectionHeading, weekStartDay settings
+- Full validation and migration chain
+
+PulseService expanded with 2 functions:
+- getGoalProgress: period-scoped sum/count with target comparison
+- getAdherenceRate: boolean field completion over N days
+
+New components:
+- ProgressRing: SVG progress ring with clamped rendering, CSS var refs
+- GoalTracker: renders progress rings per goal, compact sidebar mode
+- MorningBriefing: yesterday metrics, echo excerpt, priorities, streak, adherence
+- GapAlerts: entry/field gap nudges for high-coverage fields, max 3 alerts
+
+Settings tab: Goals section with add/edit/remove, week start day dropdown,
+morning briefing toggle, priority section heading input
+TodayStatus: 5-section scrollable layout integrating all new components
+
+9 modified files, 5 new files, 629 insertions
+25 test files, 321 tests passing, lint clean
+```

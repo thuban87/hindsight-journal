@@ -14,7 +14,7 @@ import { validateVaultRelativePath } from './vaultUtils';
 import { debugLog } from './debugLog';
 
 /** Current settings schema version */
-const CURRENT_MAX_VERSION = 3;
+const CURRENT_MAX_VERSION = 4;
 
 /**
  * Normalize a path-type setting value.
@@ -137,6 +137,44 @@ export function validateSettings(settings: unknown): HindsightSettings {
         result.fieldPolarity = cleaned;
     }
 
+    // goalTargets: Record<string, GoalConfig>
+    if (typeof s['goalTargets'] === 'object' && s['goalTargets'] !== null && !Array.isArray(s['goalTargets'])) {
+        const raw = s['goalTargets'] as Record<string, unknown>;
+        const validPeriods = ['weekly', 'monthly'];
+        const validTypes = ['sum', 'count'];
+        const cleaned: Record<string, { period: 'weekly' | 'monthly'; target: number; type: 'sum' | 'count' }> = {};
+        for (const [key, val] of Object.entries(raw)) {
+            if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+                const goal = val as Record<string, unknown>;
+                const period = goal['period'];
+                const target = goal['target'];
+                const type = goal['type'];
+                if (
+                    typeof period === 'string' && validPeriods.includes(period) &&
+                    typeof target === 'number' && target > 0 &&
+                    typeof type === 'string' && validTypes.includes(type)
+                ) {
+                    cleaned[key] = {
+                        period: period as 'weekly' | 'monthly',
+                        target,
+                        type: type as 'sum' | 'count',
+                    };
+                }
+            }
+        }
+        result.goalTargets = cleaned;
+    }
+
+    // prioritySectionHeading: string
+    if (typeof s['prioritySectionHeading'] === 'string' && s['prioritySectionHeading'].trim() !== '') {
+        result.prioritySectionHeading = s['prioritySectionHeading'].trim();
+    }
+
+    // weekStartDay: 0 | 1
+    if (s['weekStartDay'] === 0 || s['weekStartDay'] === 1) {
+        result.weekStartDay = s['weekStartDay'];
+    }
+
     return result;
 }
 
@@ -184,6 +222,9 @@ export function migrateSettings(loaded: Record<string, unknown> | null): Hindsig
     }
     if (version < 3) {
         migrated = migrateV2ToV3(migrated);
+    }
+    if (version < 4) {
+        migrated = migrateV3ToV4(migrated);
     }
 
     // 4. Validate all fields
@@ -258,6 +299,35 @@ function migrateV2ToV3(data: Record<string, unknown>): Record<string, unknown> {
     // Add fieldPolarity with empty default if missing
     if (typeof result['fieldPolarity'] !== 'object' || result['fieldPolarity'] === null || Array.isArray(result['fieldPolarity'])) {
         result['fieldPolarity'] = DEFAULT_SETTINGS.fieldPolarity;
+    }
+
+    return result;
+}
+
+/**
+ * Migration: v3 → v4
+ * - Adds goalTargets for goal tracking
+ * - Adds prioritySectionHeading for morning briefing priorities
+ * - Adds weekStartDay for locale-aware weekly computations
+ */
+function migrateV3ToV4(data: Record<string, unknown>): Record<string, unknown> {
+    const result = { ...data };
+
+    result['settingsVersion'] = 4;
+
+    // Add goalTargets with empty default if missing
+    if (typeof result['goalTargets'] !== 'object' || result['goalTargets'] === null || Array.isArray(result['goalTargets'])) {
+        result['goalTargets'] = {};
+    }
+
+    // Add prioritySectionHeading with default if missing
+    if (typeof result['prioritySectionHeading'] !== 'string' || result['prioritySectionHeading'].trim() === '') {
+        result['prioritySectionHeading'] = DEFAULT_SETTINGS.prioritySectionHeading;
+    }
+
+    // Add weekStartDay with default (Sunday) if missing
+    if (result['weekStartDay'] !== 0 && result['weekStartDay'] !== 1) {
+        result['weekStartDay'] = 0;
     }
 
     return result;

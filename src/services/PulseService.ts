@@ -3,11 +3,12 @@
  *
  * Writing streak calculations and analytics. Pure functions — no Obsidian API dependency.
  * Expanded in Phase 6a with heatmap data, habit streaks, personal bests, and consistency scores.
+ * Expanded in Phase 6b with goal progress tracking and adherence rate.
  */
 
 import type { JournalEntry, FrontmatterField, PersonalBest } from '../types';
 import { formatDateISO, startOfDay } from '../utils/dateUtils';
-import { getWeekBounds, getMonthBounds } from '../utils/periodUtils';
+import { getWeekBounds, getMonthBounds, getEntriesInPeriod } from '../utils/periodUtils';
 
 /**
  * Calculate the current writing streak (consecutive days with entries ending today).
@@ -441,4 +442,101 @@ export function getConsistencyScores(
         thisMonth: { count: monthCount, total: monthTotal },
         allTime: { count: allTimeCount, total: allTimeTotal },
     };
+}
+
+/**
+ * Compute goal progress for a field in the current period.
+ * type='sum': sums all values in the period (e.g., studying_hours_done)
+ * type='count': counts entries where boolean field is true (e.g., workout)
+ *
+ * @param entries - All journal entries
+ * @param fieldKey - Frontmatter field key to track
+ * @param period - 'weekly' or 'monthly'
+ * @param type - 'sum' for cumulative, 'count' for boolean occurrences
+ * @param target - The user's configured target value
+ * @param referenceDate - The date to compute progress around
+ * @param weekStartDay - 0 for Sunday, 1 for Monday (default 0)
+ * @returns { current, target, progress } where progress is 0-1+ (can exceed 1)
+ */
+export function getGoalProgress(
+    entries: JournalEntry[],
+    fieldKey: string,
+    period: 'weekly' | 'monthly',
+    type: 'sum' | 'count',
+    target: number,
+    referenceDate: Date,
+    weekStartDay: 0 | 1 = 0
+): { current: number; target: number; progress: number } {
+    // Defense-in-depth: prevent division by zero
+    if (target <= 0) {
+        return { current: 0, target: 1, progress: 0 };
+    }
+
+    const periodKey = period === 'weekly' ? 'week' as const : 'month' as const;
+    const periodEntries = getEntriesInPeriod(entries, periodKey, referenceDate, weekStartDay);
+
+    let current = 0;
+    if (type === 'sum') {
+        for (const entry of periodEntries) {
+            const val = entry.frontmatter[fieldKey];
+            if (typeof val === 'number') {
+                current += val;
+            }
+        }
+    } else {
+        // type === 'count': count entries where boolean field is true
+        for (const entry of periodEntries) {
+            const val = entry.frontmatter[fieldKey];
+            if (val === true) {
+                current++;
+            }
+        }
+    }
+
+    return {
+        current,
+        target,
+        progress: current / target,
+    };
+}
+
+/**
+ * Compute boolean field adherence rate for a period.
+ * Returns { completed, total, rate } where rate is 0-1.
+ *
+ * @param entries - All journal entries
+ * @param fieldKey - Boolean frontmatter field key
+ * @param daysBack - Number of days to look back
+ * @param referenceDate - The reference date (usually today)
+ * @returns completed count, total entries in period, and rate (0-1)
+ */
+export function getAdherenceRate(
+    entries: JournalEntry[],
+    fieldKey: string,
+    daysBack: number,
+    referenceDate: Date
+): { completed: number; total: number; rate: number } {
+    const refStart = startOfDay(referenceDate);
+    const cutoff = new Date(refStart);
+    cutoff.setDate(cutoff.getDate() - daysBack + 1);
+    const cutoffTime = cutoff.getTime();
+    const refTime = refStart.getTime();
+
+    // Filter entries within the lookback window
+    const periodEntries = entries.filter(e => {
+        const t = startOfDay(e.date).getTime();
+        return t >= cutoffTime && t <= refTime;
+    });
+
+    let completed = 0;
+    for (const entry of periodEntries) {
+        if (entry.frontmatter[fieldKey] === true) {
+            completed++;
+        }
+    }
+
+    const total = periodEntries.length;
+    const rate = total > 0 ? completed / total : 0;
+
+    return { completed, total, rate };
 }

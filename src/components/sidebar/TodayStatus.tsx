@@ -2,19 +2,25 @@
  * Today Status
  *
  * Shows whether today's journal entry exists and
- * displays key stats: filled fields, word count, writing streak.
+ * displays key stats: filled fields, writing streak, sparklines.
+ * Phase 6b: expanded with goal progress, gap alerts, and morning briefing
+ * as scrollable sections.
  */
 
 import React from 'react';
 import { useJournalEntries, useTodayEntry } from '../../hooks/useJournalEntries';
 import { useJournalStore } from '../../store/journalStore';
 import { useAppStore } from '../../store/appStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { getCurrentStreak } from '../../services/PulseService';
 import { getFieldTimeSeries } from '../../services/FrontmatterService';
 
 import { useToday } from '../../hooks/useToday';
 import { EmptyState } from '../shared/EmptyState';
 import { SparklineRow } from './SparklineRow';
+import { GoalTracker } from '../pulse/GoalTracker';
+import { GapAlerts } from './GapAlerts';
+import { MorningBriefing } from './MorningBriefing';
 
 /**
  * Format the time difference between now and a date as a relative string.
@@ -38,7 +44,8 @@ export function TodayStatus(): React.ReactElement | null {
     const todayEntry = useTodayEntry();
     const { detectedFields, loading } = useJournalEntries();
     const allEntries = useJournalStore(state => state.getAllEntriesSorted());
-    const _today = useToday(); // Subscribe to midnight updates for re-render
+    const today = useToday(); // Subscribe to midnight updates for re-render
+    const settings = useSettingsStore(s => s.settings);
 
     if (!app) return null;
 
@@ -47,6 +54,8 @@ export function TodayStatus(): React.ReactElement | null {
     }
 
     const streak = getCurrentStreak(allEntries);
+    const goalKeys = Object.keys(settings.goalTargets);
+    const hasGoals = goalKeys.length > 0;
 
     if (!todayEntry) {
         return (
@@ -63,6 +72,22 @@ export function TodayStatus(): React.ReactElement | null {
                 {allEntries.length === 0 && (
                     <EmptyState message="No journal entries found. Start journaling!" />
                 )}
+
+                {/* Section 2: Goal progress (even without today's entry) */}
+                {hasGoals && (
+                    <GoalTracker
+                        entries={allEntries}
+                        goals={settings.goalTargets}
+                        referenceDate={today}
+                        compact
+                    />
+                )}
+
+                {/* Section 4: Gap alerts */}
+                <GapAlerts entries={allEntries} fields={detectedFields} referenceDate={today} />
+
+                {/* Section 5: Morning briefing */}
+                <MorningBriefing entries={allEntries} fields={detectedFields} referenceDate={today} />
             </div>
         );
     }
@@ -80,6 +105,7 @@ export function TodayStatus(): React.ReactElement | null {
 
     return (
         <div className="hindsight-today-status">
+            {/* Section 1: Entry status (existing) */}
             <div className="hindsight-today-header">
                 <span className="hindsight-today-indicator hindsight-today-indicator-exists">✓</span>
                 <span>Today's entry</span>
@@ -113,7 +139,17 @@ export function TodayStatus(): React.ReactElement | null {
                 Open today's note
             </button>
 
-            {/* Sparklines for numeric fields */}
+            {/* Section 2: Goal progress rings (compact) */}
+            {hasGoals && (
+                <GoalTracker
+                    entries={allEntries}
+                    goals={settings.goalTargets}
+                    referenceDate={today}
+                    compact
+                />
+            )}
+
+            {/* Section 3: Sparklines for numeric fields */}
             {numericFields.length > 0 && (
                 <div className="hindsight-today-sparklines">
                     {numericFields.map(field => {
@@ -134,6 +170,12 @@ export function TodayStatus(): React.ReactElement | null {
                     })}
                 </div>
             )}
+
+            {/* Section 4: Gap alerts */}
+            <GapAlerts entries={allEntries} fields={detectedFields} referenceDate={today} />
+
+            {/* Section 5: Morning briefing */}
+            <MorningBriefing entries={allEntries} fields={detectedFields} referenceDate={today} />
         </div>
     );
 }
