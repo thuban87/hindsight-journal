@@ -1,0 +1,161 @@
+/* ============================================================
+ * Enhanced Echoes Styles
+ *
+ * Styles for ActionableEcho, MetricComparisonCard, CopingLookup,
+ * MilestoneCard, and period selector in the EchoesPanel.
+ * ============================================================ */
+
+/* ---- Milestones ---- */
+
+.hindsight-echoes-milestones {
+    margin-bottom: 16px;
+}
+
+.hindsight-milestone {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    border-left: 3px solid var(--interactive-accent);
+    background: var(--background-secondary);
+    font-size: 0.9em;
+}
+
+.hindsight-milestone-icon {
+    font-size: 1.1em;
+}
+
+.hindsight-milestone-title {
+    color: var(--text-normal);
+    font-weight: 500;
+}
+
+/* ---- Actionable Echo ---- */
+
+.hindsight-actionable-echo {
+    margin-bottom: 16px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--background-primary);
+}
+
+.hindsight-actionable-echo .hindsight-echo-card {
+    border: none;
+    border-radius: 0;
+    margin: 0;
+}
+
+.hindsight-actionable-echo-comparisons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+}
+
+.hindsight-actionable-echo-encouragement {
+    width: 100%;
+    text-align: center;
+    font-size: 0.82em;
+    color: var(--text-success);
+    padding-top: 4px;
+}
+
+/* ---- Metric Comparison ---- */
+
+.hindsight-metric-comparison {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    background: var(--background-primary);
+}
+
+.hindsight-metric-comparison--improved {
+    color: var(--text-success);
+}
+
+.hindsight-metric-comparison--declined {
+    color: var(--text-error);
+}
+
+.hindsight-metric-comparison--neutral {
+    color: var(--text-muted);
+}
+
+.hindsight-metric-comparison-arrow {
+    font-weight: 600;
+}
+
+.hindsight-metric-comparison-field {
+    font-weight: 500;
+}
+
+.hindsight-metric-comparison-values {
+    color: var(--text-muted);
+}
+
+.hindsight-metric-comparison-change {
+    font-size: 0.9em;
+}
+
+/* ---- Coping Lookup ---- */
+
+.hindsight-coping-lookup {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.hindsight-coping-lookup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.hindsight-coping-lookup-header .hindsight-echoes-heading {
+    margin: 0;
+}
+
+.hindsight-coping-lookup-results {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.hindsight-coping-lookup-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 16px;
+    background: var(--background-secondary);
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    font-size: 0.82em;
+    min-height: 44px;
+}
+
+.hindsight-coping-lookup-chip:hover {
+    border-color: var(--interactive-accent);
+    background: var(--background-primary);
+}
+
+.hindsight-coping-lookup-chip-date {
+    color: var(--text-muted);
+}
+
+.hindsight-coping-lookup-chip-value {
+    font-weight: 500;
+    color: var(--text-normal);
+}

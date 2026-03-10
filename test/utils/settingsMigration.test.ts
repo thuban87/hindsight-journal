@@ -105,7 +105,7 @@ describe('migrateSettings', () => {
             // No settingsVersion field
         };
         const result = migrateSettings(v0);
-        expect(result.settingsVersion).toBe(5);
+        expect(result.settingsVersion).toBe(6);
         expect(result.journalFolder).toBe('Journal');
         // Should also have chart settings from v2 migration
         expect(result.selectedChartFields).toEqual([]);
@@ -118,6 +118,8 @@ describe('migrateSettings', () => {
         expect(Array.isArray(result.widgets)).toBe(true);
         expect(result.widgets.length).toBe(7);
         expect(result.calendarColorTheme).toBe('default');
+        // Should have Phase 7 settings from v6 migration
+        expect(result.savedFilters).toEqual([]);
     });
 
     it('preserves existing valid settings during migration', () => {
@@ -182,7 +184,7 @@ describe('migrateSettings', () => {
         };
         const result = migrateSettings(minimal);
         expect(result.hotTierDays).toBe(DEFAULT_SETTINGS.hotTierDays);
-        expect(result.settingsVersion).toBe(5);
+        expect(result.settingsVersion).toBe(6);
         expect(result.selectedChartFields).toEqual([]);
         expect(result.rollingWindow).toBe(7);
         expect(result.thumbnailsEnabled).toBe(DEFAULT_SETTINGS.thumbnailsEnabled);
@@ -191,5 +193,7 @@ describe('migrateSettings', () => {
         // Phase 6c fields
         expect(Array.isArray(result.widgets)).toBe(true);
         expect(result.calendarColorTheme).toBe('default');
+        // Phase 7 fields
+        expect(result.savedFilters).toEqual([]);
     });
 });

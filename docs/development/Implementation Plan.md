@@ -4061,7 +4061,7 @@ All tests pass. Approximately 40-50 new tests.
 
 ---
 
-## Phase 7: Actionable Echoes + Lens (~2 sessions)
+## Phase 7: Actionable Echoes + Lens (~2 sessions) ✅ COMPLETE
 
 **Depends on:** Phase 5b (field polarity, `getPolarityColor()`, `MetricComparison` type). Phase 7's `ActionableEcho` and `CopingLookup` use polarity-aware metric comparison and directional coloring.
 
@@ -4278,7 +4278,7 @@ Add to the Echoes tab:
 
 ---
 
-## Phase 7.5: Echoes & Lens Tests
+## Phase 7.5: Echoes & Lens Tests ✅ COMPLETED 2026-03-10
 
 ### Performance Acceptance Criteria
 | Operation | Dataset | Desktop Target | Mobile Target |

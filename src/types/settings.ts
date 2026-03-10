@@ -8,6 +8,21 @@ export interface GoalConfig {
     type: 'sum' | 'count';
 }
 
+/** A single filter row within a saved Lens filter (discriminated union) */
+export type LensFilterRow =
+    | { type: 'field'; fieldKey: string; operator: '>=' | '<=' | '=' | '!='; value: string | number }
+    | { type: 'dateRange'; startDate: string; endDate: string }
+    | { type: 'tag'; tag: string }
+    | { type: 'wordCount'; min?: number; max?: number }
+    | { type: 'qualityScore'; min?: number; max?: number }
+    | { type: 'hasImages'; enabled: boolean };
+
+/** Complete filter configuration for a saved Lens filter */
+export interface FilterConfig {
+    searchQuery: string;
+    filters: LensFilterRow[];
+}
+
 /** Plugin settings */
 export interface HindsightSettings {
     /** Path to the journal folder (scanned recursively) */
@@ -46,6 +61,8 @@ export interface HindsightSettings {
     widgets: { id: string; visible: boolean }[];
     /** Calendar color palette theme */
     calendarColorTheme: 'default' | 'monochrome' | 'warm' | 'cool' | 'colorblind';
+    /** Saved filter configurations for Lens (persists across reloads) */
+    savedFilters: { name: string; config: FilterConfig }[];
 }
 
 export const DEFAULT_SETTINGS: HindsightSettings = {
@@ -75,4 +92,5 @@ export const DEFAULT_SETTINGS: HindsightSettings = {
         { id: 'consistency', visible: true },
     ],
     calendarColorTheme: 'default',
+    savedFilters: [],
 };
