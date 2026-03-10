@@ -11,6 +11,7 @@
 import React, { useCallback, useRef, useEffect, useState } from 'react';
 import type { FrontmatterField } from '../../types';
 import { useUIStore } from '../../store/uiStore';
+import { isNumericField } from '../../services/FrontmatterService';
 
 interface IndexFiltersProps {
     detectedFields: FrontmatterField[];
@@ -48,7 +49,7 @@ export function IndexFilters({ detectedFields }: IndexFiltersProps): React.React
         setSearchInput(indexFilters.search);
     }, [indexFilters.search]);
 
-    const numericFields = detectedFields.filter(f => f.type === 'number');
+    const numericFields = detectedFields.filter(f => isNumericField(f));
 
     // New field filter form state
     const [newFilterField, setNewFilterField] = useState(numericFields[0]?.key ?? '');

@@ -119,7 +119,7 @@ export class HindsightSettingTab extends PluginSettingTab {
 
         // Field configuration section
         const detectedFields = useJournalStore.getState().detectedFields;
-        const numericFields = detectedFields.filter(f => f.type === 'number');
+        const numericFields = detectedFields.filter(f => f.type === 'number' || f.type === 'numeric-text');
 
         if (numericFields.length > 0) {
             new Setting(containerEl)
@@ -223,7 +223,7 @@ export class HindsightSettingTab extends PluginSettingTab {
         containerEl: HTMLElement,
         detectedFields: { key: string; type: string; coverage: number }[]
     ): void {
-        const goalFields = detectedFields.filter(f => f.type === 'number' || f.type === 'boolean');
+        const goalFields = detectedFields.filter(f => f.type === 'number' || f.type === 'numeric-text' || f.type === 'boolean');
         if (goalFields.length === 0) return;
 
         new Setting(containerEl)

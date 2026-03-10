@@ -13,6 +13,7 @@ import { useChartUiStore } from '../../store/chartUiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { findCorrelations, findConditionalInsights } from '../../services/MetricsEngine';
 import { EmptyState } from '../shared/EmptyState';
+import { isNumericField } from '../../services/FrontmatterService';
 
 interface CorrelationCardsProps {
     /** Callback when user clicks a correlation card to view scatter plot */
@@ -38,7 +39,7 @@ export function CorrelationCards({ onSelectFields }: CorrelationCardsProps): Rea
 
     const entriesArray = useMemo(() => Array.from(entries.values()), [entries]);
     const numericCount = useMemo(
-        () => detectedFields.filter(f => f.type === 'number').length,
+        () => detectedFields.filter(f => isNumericField(f)).length,
         [detectedFields]
     );
     const limit = Platform.isMobile ? 10 : 20;

@@ -10,6 +10,7 @@ import { Platform } from 'obsidian';
 import type { JournalEntry, FrontmatterField, MetricDataPoint, CorrelationResult, ConditionalInsight } from '../types';
 import { getTimeSeries } from './ChartDataService';
 import { getWeekBounds } from '../utils/periodUtils';
+import { isNumericField, getNumericValue } from './FrontmatterService';
 
 /**
  * Compute Pearson correlation coefficient between two numeric field series.
@@ -82,10 +83,10 @@ export function conditionalAverage(
     const falseValues: number[] = [];
 
     for (const entry of entries) {
-        const numVal = entry.frontmatter[numericField];
+        const numVal = getNumericValue(entry.frontmatter[numericField]);
         const boolVal = entry.frontmatter[booleanField];
 
-        if (typeof numVal !== 'number' || numVal === null || numVal === undefined) continue;
+        if (numVal === null) continue;
         if (boolVal === undefined || boolVal === null) continue;
 
         if (boolVal === true) {
@@ -131,7 +132,7 @@ function selectTopFields(
     selectedChartFields: string[],
     limit: number
 ): FrontmatterField[] {
-    const numericFields = fields.filter(f => f.type === 'number');
+    const numericFields = fields.filter(f => isNumericField(f));
     if (numericFields.length <= limit) return numericFields;
 
     // Pre-compute variance for ranking
@@ -182,7 +183,7 @@ export async function findCorrelations(
     signal?: { cancelled: boolean }
 ): Promise<{ results: CorrelationResult[]; totalFields: number; analyzedFields: number }> {
     const limit = Platform.isMobile ? 10 : 20;
-    const numericFields = fields.filter(f => f.type === 'number');
+    const numericFields = fields.filter(f => isNumericField(f));
     const topFields = selectTopFields(fields, entries, selectedChartFields, limit);
 
     // Pre-compute all time series ONCE
@@ -255,7 +256,7 @@ export function findConditionalInsights(
     fields: FrontmatterField[]
 ): ConditionalInsight[] {
     const numericFields = fields
-        .filter(f => f.type === 'number')
+        .filter(f => isNumericField(f))
         .sort((a, b) => b.coverage - a.coverage)
         .slice(0, 20);
 
@@ -302,7 +303,7 @@ export function weeklyComparison(
     lastWeekRef.setDate(lastWeekRef.getDate() - 7);
     const lastWeekBounds = getWeekBounds(lastWeekRef, weekStartDay);
 
-    const numericFields = fields.filter(f => f.type === 'number');
+    const numericFields = fields.filter(f => isNumericField(f));
     const results: { field: string; thisWeek: number; lastWeek: number; change: number; percentChange: number }[] = [];
 
     for (const field of numericFields) {
@@ -310,8 +311,8 @@ export function weeklyComparison(
         const lastWeekValues: number[] = [];
 
         for (const entry of entries) {
-            const val = entry.frontmatter[field.key];
-            if (typeof val !== 'number') continue;
+            const val = getNumericValue(entry.frontmatter[field.key]);
+            if (val === null) continue;
 
             const entryTime = entry.date.getTime();
             if (entryTime >= thisWeekBounds.start.getTime() && entryTime <= thisWeekBounds.end.getTime()) {

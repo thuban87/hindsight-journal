@@ -15,6 +15,7 @@ import { getOnThisDay } from '../../services/EchoesService';
 import { getCurrentStreak, getAdherenceRate } from '../../services/PulseService';
 import { startOfDay } from '../../utils/dateUtils';
 import { stripMarkdown } from '../../services/SectionParserService';
+import { isNumericField, getNumericValue } from '../../services/FrontmatterService';
 
 interface MorningBriefingProps {
     entries: JournalEntry[];
@@ -43,12 +44,12 @@ export function MorningBriefing({
     );
 
     // Yesterday's key metrics
-    const numericFields = fields.filter(f => f.type === 'number');
+    const numericFields = fields.filter(f => isNumericField(f));
     const yesterdayMetrics: string[] = [];
     if (yesterdayEntry) {
         for (const field of numericFields.slice(0, 4)) {
-            const val = yesterdayEntry.frontmatter[field.key];
-            if (typeof val === 'number') {
+            const val = getNumericValue(yesterdayEntry.frontmatter[field.key]);
+            if (val !== null) {
                 yesterdayMetrics.push(`${field.key} ${val}`);
             }
         }

@@ -1407,3 +1407,130 @@ TodayStatus: 5-section scrollable layout integrating all new components
 9 modified files, 5 new files, 629 insertions
 25 test files, 321 tests passing, lint clean
 ```
+
+---
+
+## 2026-03-09 - Phase 6i: Numeric-Text Field Type (Interjected)
+
+**Focus:** Extend the plugin to detect and handle frontmatter text fields that contain numeric values, treating them equivalently to native number fields across all analytics, charts, and UI features.
+
+### Completed:
+
+**Type System:**
+- ✅ Added `'numeric-text'` to the `FrontmatterField.type` union in `src/types/metrics.ts`
+
+**Shared Helpers (FrontmatterService.ts):**
+- ✅ `isNumericField(field)` — returns true for both `'number'` and `'numeric-text'` types
+- ✅ `getNumericValue(raw)` — coerces native numbers and numeric strings to `number | null`
+
+**Detection Logic (FrontmatterService.ts):**
+- ✅ Updated `inferFieldType()` to detect numeric-text using an 80% threshold heuristic
+- ✅ Fixed mixed-type detection: handles fields with native numbers in older entries (`anxiety: 6`) and quoted strings in newer entries (`anxiety: "3"`)
+- ✅ Updated `detectFields()` to compute min/max ranges for numeric-text fields
+
+**Service Updates (3 services):**
+- ✅ `MetricsEngine.ts` — 6 filter sites + value coercion in conditionalAverage, weeklyComparison
+- ✅ `TrendAlertEngine.ts` — 6 filter sites + value coercion in consecutive change, anomaly, pattern recall
+- ✅ `PulseService.ts` — 5 filter sites + value coercion in heatmap, personal bests, goal progress
+
+**Component Updates (12 components):**
+- ✅ `MetricSelector.tsx` — metric dropdown includes numeric-text fields
+- ✅ `ChartsPanel.tsx` — chart field selector includes numeric-text
+- ✅ `ScatterPlot.tsx` — scatter axis selectors include numeric-text
+- ✅ `CorrelationCards.tsx` — correlation count includes numeric-text
+- ✅ `PulsePanel.tsx` — heatmap field selector includes numeric-text
+- ✅ `StatsCards.tsx` — average calculation uses getNumericValue
+- ✅ `TodayStatus.tsx` — sparkline fields include numeric-text
+- ✅ `MorningBriefing.tsx` — yesterday metrics use getNumericValue
+- ✅ `GapAlerts.tsx` — gap detection includes numeric-text
+- ✅ `IndexFilters.tsx` — filter dropdowns include numeric-text
+- ✅ `JournalIndex.tsx` — table columns include numeric-text
+- ✅ `EntryCard.tsx` — badge display uses getNumericValue for polarity coloring
+
+**Settings (settings.ts):**
+- ✅ Polarity config dropdown includes numeric-text fields
+- ✅ Goal config dropdown includes numeric-text fields
+
+**Tests (FrontmatterService.test.ts):**
+- ✅ 21 new tests: numeric-text detection (7), isNumericField (4), getNumericValue (7), range computation (1), time series coercion (1), mixed-type detection (1)
+
+### Files Changed:
+| File | Change |
+|------|--------|
+| `src/types/metrics.ts` | Added `'numeric-text'` to type union |
+| `src/services/FrontmatterService.ts` | Helpers + detection logic (45 lines added) |
+| `src/services/MetricsEngine.ts` | Filter + coercion updates |
+| `src/services/TrendAlertEngine.ts` | Filter + coercion updates |
+| `src/services/PulseService.ts` | Filter + coercion updates |
+| `src/components/charts/ChartsPanel.tsx` | isNumericField filter |
+| `src/components/charts/ScatterPlot.tsx` | isNumericField filter |
+| `src/components/charts/CorrelationCards.tsx` | isNumericField filter |
+| `src/components/shared/MetricSelector.tsx` | isNumericField filter |
+| `src/components/pulse/PulsePanel.tsx` | isNumericField filter |
+| `src/components/pulse/StatsCards.tsx` | isNumericField + getNumericValue |
+| `src/components/sidebar/TodayStatus.tsx` | isNumericField filter |
+| `src/components/sidebar/MorningBriefing.tsx` | isNumericField + getNumericValue |
+| `src/components/sidebar/GapAlerts.tsx` | isNumericField filter |
+| `src/components/index-table/IndexFilters.tsx` | isNumericField filter |
+| `src/components/index-table/JournalIndex.tsx` | isNumericField filter |
+| `src/components/timeline/EntryCard.tsx` | isNumericField + getNumericValue for badges |
+| `src/settings.ts` | Expanded type checks for polarity + goals |
+| `test/services/FrontmatterService.test.ts` | 21 new tests (135 lines added) |
+
+### Testing Notes:
+- ✅ 342 tests passing across 25 test files
+- ✅ `npm run lint` clean
+- ✅ `npm run build` clean (lint + CSS + tsc + esbuild)
+- ✅ Brad manually verified in Obsidian: numeric-text fields appearing in charts, pulse, badges, settings
+
+### Bugs/Issues:
+- **Root cause bug found and fixed:** The initial implementation required ALL values to be strings before checking numeric-text. In Brad's vault, fields like `anxiety` had native numbers in 2023-2024 entries (`anxiety: 6`) but quoted strings in 2026 entries (`anxiety: "3"`). The mixed case fell through to `'string'`. Fixed by checking if ≥80% of ALL values (native numbers + string numbers combined) are parseable as finite numbers.
+
+### Next Steps:
+- Phase 6c: Widgets + Themes + Quality Dashboard
+- Phase 6.5: Tests for Phase 6a-6c features
+
+---
+
+## Next Session Prompt
+
+```
+Phase 6i complete (interjected). Numeric-text field support deployed and verified:
+- New type 'numeric-text' in FrontmatterField type union
+- Shared helpers: isNumericField(), getNumericValue()
+- inferFieldType detects text fields where >=80% of values parse as numbers
+  (handles mixed native-number + string-number across entry generations)
+- All 18 consumer files updated (3 services, 12 components, settings.ts)
+- 342 tests, 25 test files, lint clean
+
+Continue with Phase 6c: Widgets + Themes + Quality Dashboard.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 6c (after line 3797)
+- src/services/FrontmatterService.ts — isNumericField, getNumericValue helpers
+- src/types/metrics.ts — FrontmatterField type union
+```
+
+## Git Commit Message
+
+```
+feat(phase-6i): numeric-text field type for text frontmatter with numeric values
+
+New type and helpers:
+- Added numeric-text to FrontmatterField type union
+- isNumericField(field) returns true for number or numeric-text types
+- getNumericValue(raw) coerces native numbers and numeric strings to number or null
+- inferFieldType detects numeric-text when >=80% of values parse as finite numbers
+- Handles mixed native-number + string-number across entry generations
+
+Updated 15 consumer files:
+- MetricsEngine: 6 filter sites + value coercion
+- TrendAlertEngine: 6 filter sites + value coercion
+- PulseService: 5 filter sites + value coercion
+- 12 UI components: filter swaps + badge coercion in EntryCard
+- settings.ts: polarity and goal config include numeric-text
+
+Tests: 21 new tests for detection, helpers, range computation, mixed types
+19 files changed, 246 insertions, 53 deletions
+25 test files, 342 tests passing, lint clean
+```

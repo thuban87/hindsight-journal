@@ -8,6 +8,7 @@
 
 import React from 'react';
 import type { FrontmatterField } from '../../types';
+import { isNumericField } from '../../services/FrontmatterService';
 
 interface MetricSelectorProps {
     fields: FrontmatterField[];
@@ -18,7 +19,7 @@ interface MetricSelectorProps {
 export function MetricSelector({ fields, selected, onChange }: MetricSelectorProps): React.ReactElement {
     // Filter to only numeric and boolean fields (only these can be color-mapped)
     const colorableFields = fields.filter(
-        f => f.type === 'number' || f.type === 'boolean'
+        f => isNumericField(f) || f.type === 'boolean'
     );
 
     const handleChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {

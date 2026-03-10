@@ -13,7 +13,7 @@ import { useJournalStore } from '../../store/journalStore';
 import { useAppStore } from '../../store/appStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { getCurrentStreak } from '../../services/PulseService';
-import { getFieldTimeSeries } from '../../services/FrontmatterService';
+import { getFieldTimeSeries, isNumericField } from '../../services/FrontmatterService';
 
 import { useToday } from '../../hooks/useToday';
 import { EmptyState } from '../shared/EmptyState';
@@ -101,7 +101,7 @@ export function TodayStatus(): React.ReactElement | null {
     ).length;
 
     // Numeric fields for sparklines
-    const numericFields = detectedFields.filter(f => f.type === 'number');
+    const numericFields = detectedFields.filter(f => isNumericField(f));
 
     return (
         <div className="hindsight-today-status">

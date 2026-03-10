@@ -15,6 +15,7 @@ import { pearsonCorrelation } from '../../services/MetricsEngine';
 import { getTimeSeries } from '../../services/ChartDataService';
 import { EmptyState } from '../shared/EmptyState';
 import { Notice } from 'obsidian';
+import { isNumericField } from '../../services/FrontmatterService';
 
 // Ensure scatter controller is registered
 Chart.register(ScatterController, PointElement, LinearScale);
@@ -34,7 +35,7 @@ export function ScatterPlot({ initialFieldX, initialFieldY }: ScatterPlotProps):
     const [chartError, setChartError] = useState(false);
 
     const numericFields = useMemo(
-        () => detectedFields.filter(f => f.type === 'number'),
+        () => detectedFields.filter(f => isNumericField(f)),
         [detectedFields]
     );
     const booleanFields = useMemo(

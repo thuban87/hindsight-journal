@@ -11,6 +11,7 @@ import type { JournalEntry, FrontmatterField } from '../../types';
 import { getCurrentStreak } from '../../services/PulseService';
 import { getWeekBounds } from '../../utils/periodUtils';
 import { formatDateISO, startOfDay } from '../../utils/dateUtils';
+import { isNumericField, getNumericValue } from '../../services/FrontmatterService';
 
 interface StatsCardsProps {
     entries: JournalEntry[];
@@ -27,14 +28,14 @@ export function StatsCards({ entries, fields }: StatsCardsProps): React.ReactEle
     const streak = React.useMemo(() => getCurrentStreak(entryArray), [entryArray]);
 
     // Average of first numeric field
-    const firstNumeric = fields.find(f => f.type === 'number');
+    const firstNumeric = fields.find(f => isNumericField(f));
     const avgValue = React.useMemo(() => {
         if (!firstNumeric) return null;
         let sum = 0;
         let count = 0;
         for (const entry of entryArray) {
-            const val = entry.frontmatter[firstNumeric.key];
-            if (typeof val === 'number') {
+            const val = getNumericValue(entry.frontmatter[firstNumeric.key]);
+            if (val !== null) {
                 sum += val;
                 count++;
             }

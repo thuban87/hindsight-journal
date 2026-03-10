@@ -8,6 +8,7 @@
 
 import type { JournalEntry, FrontmatterField, TrendAlert, AlertSeverity } from '../types';
 import { formatDateISO } from '../utils/dateUtils';
+import { isNumericField, getNumericValue } from './FrontmatterService';
 
 /** Maximum alerts to return from generateAlerts */
 const MAX_ALERTS = 5;
@@ -28,7 +29,7 @@ export function detectConsecutiveChange(
 ): TrendAlert | null {
     // Get entries with this field, sorted by date descending (most recent first)
     const withField = entries
-        .filter(e => typeof e.frontmatter[fieldKey] === 'number')
+        .filter(e => getNumericValue(e.frontmatter[fieldKey]) !== null)
         .sort((a, b) => b.date.getTime() - a.date.getTime());
 
     if (withField.length < 4) return null; // Need at least 4 values to detect 3 consecutive changes
@@ -38,8 +39,8 @@ export function detectConsecutiveChange(
     let streakLength = 0;
 
     for (let i = 0; i < withField.length - 1; i++) {
-        const current = withField[i].frontmatter[fieldKey] as number;
-        const previous = withField[i + 1].frontmatter[fieldKey] as number;
+        const current = getNumericValue(withField[i].frontmatter[fieldKey]) as number;
+        const previous = getNumericValue(withField[i + 1].frontmatter[fieldKey]) as number;
 
         if (current > previous) {
             if (direction === 'increase' || direction === null) {
@@ -104,8 +105,8 @@ export function detectAnomaly(
     );
 
     if (!todayEntry) return null;
-    const todayValue = todayEntry.frontmatter[fieldKey];
-    if (typeof todayValue !== 'number') return null;
+    const todayValue = getNumericValue(todayEntry.frontmatter[fieldKey]);
+    if (todayValue === null) return null;
 
     // Get 30-day window (excluding today)
     const thirtyDaysAgo = new Date(referenceDate);
@@ -114,8 +115,8 @@ export function detectAnomaly(
     const recentValues: number[] = [];
     for (const entry of entries) {
         if (entry === todayEntry) continue;
-        const val = entry.frontmatter[fieldKey];
-        if (typeof val !== 'number') continue;
+        const val = getNumericValue(entry.frontmatter[fieldKey]);
+        if (val === null) continue;
         if (entry.date >= thirtyDaysAgo && entry.date < referenceDate) {
             recentValues.push(val);
         }
@@ -209,7 +210,7 @@ export function patternRecall(
 
     // Get entries with this field, sorted by date ascending
     const sorted = entries
-        .filter(e => typeof e.frontmatter[fieldKey] === 'number')
+        .filter(e => getNumericValue(e.frontmatter[fieldKey]) !== null)
         .sort((a, b) => a.date.getTime() - b.date.getTime());
 
     if (sorted.length < currentStreakLength + 5) return null;
@@ -225,8 +226,8 @@ export function patternRecall(
         // Check for a decrease streak of at least currentStreakLength
         let isDecreaseStreak = true;
         for (let j = 0; j < currentStreakLength; j++) {
-            const curr = sorted[i + j + 1].frontmatter[fieldKey] as number;
-            const prev = sorted[i + j].frontmatter[fieldKey] as number;
+            const curr = getNumericValue(sorted[i + j + 1].frontmatter[fieldKey]) as number;
+            const prev = getNumericValue(sorted[i + j].frontmatter[fieldKey]) as number;
             if (curr >= prev) {
                 isDecreaseStreak = false;
                 break;
@@ -244,6 +245,9 @@ export function patternRecall(
             const val = sorted[j].frontmatter[fieldKey];
             if (typeof val === 'number') {
                 recoveryValues.push(val);
+            } else {
+                const numVal = getNumericValue(val);
+                if (numVal !== null) recoveryValues.push(numVal);
             }
         }
 
@@ -287,7 +291,7 @@ export function generateAlerts(
     const alerts: TrendAlert[] = [];
     const seenIds = new Set<string>();
 
-    const numericFields = fields.filter(f => f.type === 'number');
+    const numericFields = fields.filter(f => isNumericField(f));
 
     for (const field of numericFields) {
         const fieldPolarity = polarity[field.key] ?? 'neutral';

@@ -9,6 +9,7 @@
 import React from 'react';
 import type { JournalEntry, FrontmatterField } from '../../types';
 import { startOfDay, formatDateISO } from '../../utils/dateUtils';
+import { isNumericField } from '../../services/FrontmatterService';
 
 interface GapAlertsProps {
     entries: JournalEntry[];
@@ -56,7 +57,7 @@ export function GapAlerts({
     }
 
     // 2. Field-specific gaps for high-coverage numeric fields
-    const numericFields = fields.filter(f => f.type === 'number' && f.coverage > 0.5);
+    const numericFields = fields.filter(f => isNumericField(f) && f.coverage > 0.5);
     for (const field of numericFields) {
         let missing = 0;
         for (const dateStr of last7Dates) {

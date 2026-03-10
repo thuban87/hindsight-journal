@@ -15,6 +15,7 @@ import { useAppStore } from '../../store/appStore';
 import { applyFilters, applySorting } from '../../utils/filterUtils';
 import { IndexFilters } from './IndexFilters';
 import { EmptyState } from '../shared/EmptyState';
+import { isNumericField } from '../../services/FrontmatterService';
 
 /** Format date for table display */
 function formatTableDate(date: Date): string {
@@ -37,7 +38,7 @@ export function JournalIndex(): React.ReactElement | null {
 
     /** Dynamic columns — numeric and boolean fields only */
     const dynamicColumns = useMemo(() => {
-        return detectedFields.filter((f: FrontmatterField) => f.type === 'number' || f.type === 'boolean');
+        return detectedFields.filter((f: FrontmatterField) => isNumericField(f) || f.type === 'boolean');
     }, [detectedFields]);
 
     /** Apply filters */

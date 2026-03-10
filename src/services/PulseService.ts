@@ -9,6 +9,7 @@
 import type { JournalEntry, FrontmatterField, PersonalBest } from '../types';
 import { formatDateISO, startOfDay } from '../utils/dateUtils';
 import { getWeekBounds, getMonthBounds, getEntriesInPeriod } from '../utils/periodUtils';
+import { isNumericField, getNumericValue } from './FrontmatterService';
 
 /**
  * Calculate the current writing streak (consecutive days with entries ending today).
@@ -110,7 +111,8 @@ export function getHeatmapData(
     for (const entry of entries) {
         const iso = formatDateISO(startOfDay(entry.date));
         const raw = entry.frontmatter[fieldKey];
-        const value = typeof raw === 'number' ? raw
+        const numVal = getNumericValue(raw);
+        const value = numVal !== null ? numVal
             : (raw === true ? 1 : (raw === false ? 0 : null));
         dateValueMap.set(iso, value);
     }
@@ -217,7 +219,7 @@ export function getPersonalBests(
     if (entries.length === 0) return [];
 
     // Filter to numeric fields only
-    let numericFields = fields.filter(f => f.type === 'number');
+    let numericFields = fields.filter(f => isNumericField(f));
     if (numericFields.length === 0) return [];
 
     // If >10 numeric fields, limit to top 5 by coverage
@@ -236,8 +238,8 @@ export function getPersonalBests(
     for (const field of numericFields) {
         const values: { date: Date; value: number }[] = [];
         for (const entry of sorted) {
-            const val = entry.frontmatter[field.key];
-            if (typeof val === 'number') {
+            const val = getNumericValue(entry.frontmatter[field.key]);
+            if (val !== null) {
                 values.push({ date: entry.date, value: val });
             }
         }
@@ -323,8 +325,8 @@ export function getPersonalBests(
     for (const field of numericFields) {
         const values: { date: Date; value: number }[] = [];
         for (const entry of sorted) {
-            const val = entry.frontmatter[field.key];
-            if (typeof val === 'number') {
+            const val = getNumericValue(entry.frontmatter[field.key]);
+            if (val !== null) {
                 values.push({ date: entry.date, value: val });
             }
         }
@@ -478,8 +480,8 @@ export function getGoalProgress(
     let current = 0;
     if (type === 'sum') {
         for (const entry of periodEntries) {
-            const val = entry.frontmatter[fieldKey];
-            if (typeof val === 'number') {
+            const val = getNumericValue(entry.frontmatter[fieldKey]);
+            if (val !== null) {
                 current += val;
             }
         }

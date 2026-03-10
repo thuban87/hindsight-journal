@@ -3,7 +3,7 @@ export interface FrontmatterField {
     /** Field key as it appears in frontmatter */
     key: string;
     /** Inferred type */
-    type: 'number' | 'boolean' | 'string' | 'date' | 'string[]';
+    type: 'number' | 'boolean' | 'string' | 'date' | 'string[]' | 'numeric-text';
     /** How many entries have a non-empty value for this field */
     coverage: number;
     /** Total entries scanned */

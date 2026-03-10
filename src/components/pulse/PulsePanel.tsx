@@ -16,6 +16,7 @@ import { ConsistencyScore } from './ConsistencyScore';
 import { Heatmap } from '../charts/Heatmap';
 import { HabitStreaksGrid } from '../charts/HabitStreaksGrid';
 import { EmptyState } from '../shared/EmptyState';
+import { isNumericField } from '../../services/FrontmatterService';
 
 interface CollapsibleSectionProps {
     title: string;
@@ -60,13 +61,13 @@ export function PulsePanel(): React.ReactElement {
 
     // Fields eligible for heatmap display (numeric + boolean)
     const heatmapFields = React.useMemo(
-        () => detectedFields.filter(f => f.type === 'number' || f.type === 'boolean'),
+        () => detectedFields.filter(f => isNumericField(f) || f.type === 'boolean'),
         [detectedFields]
     );
 
     // Selected heatmap field — default to first numeric, then first boolean
     const [selectedHeatmapField, setSelectedHeatmapField] = React.useState(() => {
-        const firstNumeric = heatmapFields.find(f => f.type === 'number');
+        const firstNumeric = heatmapFields.find(f => isNumericField(f));
         return firstNumeric?.key ?? heatmapFields[0]?.key ?? '';
     });
 

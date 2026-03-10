@@ -16,6 +16,7 @@ import { CorrelationCards } from './CorrelationCards';
 import { ScatterPlot } from './ScatterPlot';
 import { TrendAlertsPanel } from '../insights/TrendAlertsPanel';
 import { EmptyState } from '../shared/EmptyState';
+import { isNumericField } from '../../services/FrontmatterService';
 
 /** Date range preset options */
 const DATE_PRESETS = [
@@ -48,7 +49,7 @@ export function ChartsPanel(): React.ReactElement | null {
     const [scatterFieldY, setScatterFieldY] = useState<string | undefined>();
 
     // Filter to numeric fields only
-    const numericFields = detectedFields.filter(f => f.type === 'number');
+    const numericFields = detectedFields.filter(f => isNumericField(f));
 
     // Persist chart field selections to settings
     const handleFieldToggle = useCallback((fieldKey: string) => {

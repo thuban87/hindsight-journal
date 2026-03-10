@@ -3,8 +3,10 @@ import {
     detectFields,
     inferFieldType,
     getFieldTimeSeries,
+    isNumericField,
+    getNumericValue,
 } from '../../src/services/FrontmatterService';
-import type { JournalEntry } from '../../src/types';
+import type { JournalEntry, FrontmatterField } from '../../src/types';
 
 /** Helper to create a minimal JournalEntry for testing */
 function makeEntry(
@@ -156,5 +158,136 @@ describe('getFieldTimeSeries', () => {
         const series = getFieldTimeSeries(entries, 'status');
         expect(series[0].value).toBeNull();
         expect(series[1].value).toBeNull();
+    });
+
+    it('coerces numeric strings via Number() for time series', () => {
+        const numericTextEntries = [
+            makeEntry({ filePath: 'a.md', date: new Date(2026, 2, 1), frontmatter: { productivity: '7' } }),
+            makeEntry({ filePath: 'b.md', date: new Date(2026, 2, 2), frontmatter: { productivity: '3.5' } }),
+        ];
+        const series = getFieldTimeSeries(numericTextEntries, 'productivity');
+        expect(series[0].value).toBe(7);
+        expect(series[1].value).toBe(3.5);
+    });
+});
+
+describe('inferFieldType — numeric-text', () => {
+    it('infers numeric-text when all string values are numeric', () => {
+        expect(inferFieldType(['1', '2', '3', '7.5'])).toBe('numeric-text');
+    });
+
+    it('infers numeric-text when ≥80% string values are numeric', () => {
+        // 4 out of 5 = 80% → should be numeric-text
+        expect(inferFieldType(['1', '2', '3', '4', 'N/A'])).toBe('numeric-text');
+    });
+
+    it('falls back to string when <80% string values are numeric', () => {
+        // 3 out of 5 = 60% → should be string
+        expect(inferFieldType(['1', '2', '3', 'hello', 'world'])).toBe('string');
+    });
+
+    it('returns number (not numeric-text) for native JS numbers', () => {
+        expect(inferFieldType([1, 2, 3])).toBe('number');
+    });
+
+    it('returns string for mixed types (numbers + non-numeric strings)', () => {
+        // Mix of native numbers and non-numeric strings → string
+        expect(inferFieldType([1, 'hello', 3])).toBe('string');
+    });
+
+    it('returns numeric-text for mixed native numbers and numeric strings', () => {
+        // This is the real-world case: older entries have `anxiety: 6` (number)
+        // and newer entries have `anxiety: "3"` (quoted string)
+        expect(inferFieldType([6, '3', 7, '5', '4'])).toBe('numeric-text');
+    });
+
+    it('handles negative and decimal numeric strings', () => {
+        expect(inferFieldType(['-3.5', '0', '7.2', '100'])).toBe('numeric-text');
+    });
+
+    it('returns string when all strings are empty after filtering', () => {
+        expect(inferFieldType(['', '', null, undefined])).toBe('string');
+    });
+});
+
+describe('isNumericField', () => {
+    it('returns true for number type', () => {
+        const field: FrontmatterField = { key: 'mood', type: 'number', coverage: 10, total: 10 };
+        expect(isNumericField(field)).toBe(true);
+    });
+
+    it('returns true for numeric-text type', () => {
+        const field: FrontmatterField = { key: 'productivity', type: 'numeric-text', coverage: 10, total: 10 };
+        expect(isNumericField(field)).toBe(true);
+    });
+
+    it('returns false for boolean type', () => {
+        const field: FrontmatterField = { key: 'workout', type: 'boolean', coverage: 10, total: 10 };
+        expect(isNumericField(field)).toBe(false);
+    });
+
+    it('returns false for string type', () => {
+        const field: FrontmatterField = { key: 'notes', type: 'string', coverage: 10, total: 10 };
+        expect(isNumericField(field)).toBe(false);
+    });
+});
+
+describe('getNumericValue', () => {
+    it('returns number for native numbers', () => {
+        expect(getNumericValue(7)).toBe(7);
+        expect(getNumericValue(3.5)).toBe(3.5);
+        expect(getNumericValue(0)).toBe(0);
+        expect(getNumericValue(-1)).toBe(-1);
+    });
+
+    it('returns number for numeric strings', () => {
+        expect(getNumericValue('7')).toBe(7);
+        expect(getNumericValue('3.5')).toBe(3.5);
+        expect(getNumericValue('0')).toBe(0);
+        expect(getNumericValue('-1')).toBe(-1);
+    });
+
+    it('returns null for non-numeric strings', () => {
+        expect(getNumericValue('hello')).toBeNull();
+        expect(getNumericValue('N/A')).toBeNull();
+        expect(getNumericValue('')).toBeNull();
+    });
+
+    it('returns null for null/undefined', () => {
+        expect(getNumericValue(null)).toBeNull();
+        expect(getNumericValue(undefined)).toBeNull();
+    });
+
+    it('returns null for NaN', () => {
+        expect(getNumericValue(NaN)).toBeNull();
+    });
+
+    it('returns null for Infinity strings', () => {
+        expect(getNumericValue('Infinity')).toBeNull();
+        expect(getNumericValue('-Infinity')).toBeNull();
+    });
+
+    it('returns null for non-string/non-number types', () => {
+        expect(getNumericValue(true)).toBeNull();
+        expect(getNumericValue(false)).toBeNull();
+        expect(getNumericValue([])).toBeNull();
+        expect(getNumericValue({})).toBeNull();
+    });
+});
+
+describe('detectFields — numeric-text range', () => {
+    it('computes min/max range for numeric-text fields', () => {
+        const entries = [
+            makeEntry({ filePath: 'a.md', date: new Date(2026, 2, 1), frontmatter: { productivity: '3' } }),
+            makeEntry({ filePath: 'b.md', date: new Date(2026, 2, 2), frontmatter: { productivity: '9' } }),
+            makeEntry({ filePath: 'c.md', date: new Date(2026, 2, 3), frontmatter: { productivity: '5' } }),
+        ];
+
+        const fields = detectFields(entries);
+        const prodField = fields.find(f => f.key === 'productivity');
+
+        expect(prodField?.type).toBe('numeric-text');
+        expect(prodField?.range?.min).toBe(3);
+        expect(prodField?.range?.max).toBe(9);
     });
 });
