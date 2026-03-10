@@ -8,6 +8,24 @@
 import { create } from 'zustand';
 import type { DateRange } from '../types';
 
+/** Type-safe tab group → sub-tab mapping */
+type TabGroupMap = {
+    journal: 'calendar' | 'timeline' | 'index';
+    insights: 'charts' | 'pulse' | 'digest';
+    explore: 'lens' | 'threads' | 'gallery';
+};
+type TabGroup = keyof TabGroupMap;
+type SubTab = TabGroupMap[TabGroup];
+
+/** First sub-tab for each group (used when switching groups) */
+const FIRST_TAB: Record<TabGroup, SubTab> = {
+    journal: 'calendar',
+    insights: 'charts',
+    explore: 'lens',
+};
+
+export type { TabGroup, SubTab, TabGroupMap };
+
 /** A single field filter for the index table */
 interface FieldFilter {
     field: string;
@@ -24,9 +42,13 @@ interface UIState {
     echoMetricKey: string;
     /** Which section heading to display as excerpt on timeline cards (null = auto-detect) */
     timelineSectionKey: string | null;
+    /** Target date to scroll to in timeline (set when 'View in timeline' is clicked from calendar) */
+    timelineScrollToDate: Date | null;
 
-    /** Active tab in the main full-page view */
-    activeMainTab: 'calendar' | 'timeline' | 'index';
+    /** Active group in the main full-page view */
+    activeGroup: TabGroup;
+    /** Active sub-tab within the current group */
+    activeSubTab: SubTab;
     /** Currently displayed calendar month (0-11) */
     calendarMonth: number;
     /** Currently displayed calendar year */
@@ -51,8 +73,12 @@ interface UIState {
     setEchoMetricKey(key: string): void;
     /** Set the section key for timeline card excerpts */
     setTimelineSectionKey(key: string | null): void;
-    /** Set the active main view tab */
-    setActiveMainTab(tab: 'calendar' | 'timeline' | 'index'): void;
+    /** Set the active group (resets sub-tab to first tab of new group) */
+    setActiveGroup(group: TabGroup): void;
+    /** Set the active sub-tab within current group */
+    setActiveSubTab(tab: SubTab): void;
+    /** Set the target date to scroll to in timeline */
+    setTimelineScrollToDate(date: Date | null): void;
     /** Set the calendar month and year */
     setCalendarMonth(month: number, year: number): void;
     /** Set the selected metric for calendar color-coding */
@@ -80,7 +106,9 @@ export const useUIStore = create<UIState>((set, get) => ({
     echoSectionKey: null,
     echoMetricKey: 'mood',
     timelineSectionKey: null,
-    activeMainTab: 'calendar',
+    timelineScrollToDate: null,
+    activeGroup: 'journal' as TabGroup,
+    activeSubTab: 'calendar' as SubTab,
     calendarMonth: now.getMonth(),
     calendarYear: now.getFullYear(),
     selectedMetric: null,
@@ -95,7 +123,9 @@ export const useUIStore = create<UIState>((set, get) => ({
     setEchoSectionKey: (key) => set({ echoSectionKey: key }),
     setEchoMetricKey: (key) => set({ echoMetricKey: key }),
     setTimelineSectionKey: (key) => set({ timelineSectionKey: key }),
-    setActiveMainTab: (tab) => set({ activeMainTab: tab }),
+    setActiveGroup: (group) => set({ activeGroup: group, activeSubTab: FIRST_TAB[group] }),
+    setActiveSubTab: (tab) => set({ activeSubTab: tab }),
+    setTimelineScrollToDate: (date) => set({ timelineScrollToDate: date }),
     setCalendarMonth: (month, year) => set({ calendarMonth: month, calendarYear: year }),
     setSelectedMetric: (metric) => set({ selectedMetric: metric }),
 
@@ -145,7 +175,9 @@ export const useUIStore = create<UIState>((set, get) => ({
             echoSectionKey: null,
             echoMetricKey: 'mood',
             timelineSectionKey: null,
-            activeMainTab: 'calendar',
+            timelineScrollToDate: null,
+            activeGroup: 'journal' as TabGroup,
+            activeSubTab: 'calendar' as SubTab,
             calendarMonth: now.getMonth(),
             calendarYear: now.getFullYear(),
             selectedMetric: null,

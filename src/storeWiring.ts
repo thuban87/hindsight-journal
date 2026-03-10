@@ -18,6 +18,7 @@ import { useMetricsCacheStore } from './store/metricsCacheStore';
 import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
 import { useAppStore } from './store/appStore';
+import { useChartUiStore } from './store/chartUiStore';
 import { debugLog } from './utils/debugLog';
 
 /** Debounce delay for revision → markStale subscription (ms) */
@@ -79,6 +80,21 @@ export function wireStoreSubscriptions(_plugin: HindsightPluginInterface): (() =
         }
     });
 
+    // Subscription #5: settingsStore.fieldPolarity → metricsCacheStore.invalidateCache([]) [immediate, full]
+    // When polarity changes, all polarity-dependent computed data (trend alerts, badge colors) is stale.
+    let lastFieldPolarity = useSettingsStore.getState().settings.fieldPolarity;
+
+    const unsubPolarity = useSettingsStore.subscribe((state) => {
+        const currentPolarity = state.settings.fieldPolarity;
+        if (currentPolarity !== lastFieldPolarity) {
+            lastFieldPolarity = currentPolarity;
+            debugLog('Store event: settingsStore.fieldPolarity changed → full cache invalidation');
+            useMetricsCacheStore.getState().invalidateCache([]);
+        }
+    });
+
+    unsubscribers.push(unsubPolarity);
+
     return unsubscribers;
 }
 
@@ -95,6 +111,7 @@ export function resetAllStores(): void {
     useJournalStore.getState().reset();
     useSettingsStore.getState().reset();
     useMetricsCacheStore.getState().reset();
+    useChartUiStore.getState().reset();
     useUIStore.getState().reset();
     useAppStore.getState().reset(); // LAST — components may still access app during teardown
 }

@@ -9,11 +9,13 @@
  * via ensureSectionsLoaded() on mount — same pattern as EchoCard.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import type { JournalEntry, FrontmatterField } from '../../types';
 import { stripMarkdown } from '../../services/SectionParserService';
 import { useAppStore } from '../../store/appStore';
 import { useJournalStore } from '../../store/journalStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { getPolarityColor } from '../../utils/statsUtils';
 
 interface EntryCardProps {
     entry: JournalEntry;
@@ -123,8 +125,29 @@ function getExcerpt(entry: JournalEntry, sectionKey: string | null): string {
     return excerpt.length > 150 ? excerpt.slice(0, 150) + '…' : excerpt;
 }
 
+/**
+ * Badge with optional polarity-based background color.
+ * Uses ref-based CSS variable to avoid inline style={{}} (per inline style policy).
+ */
+function BadgeSpan({ color, children }: { color?: string; children: React.ReactNode }): React.ReactElement {
+    const ref = useRef<HTMLSpanElement>(null);
+    useEffect(() => {
+        if (ref.current && color) {
+            ref.current.style.setProperty('--hindsight-badge-bg', color);
+        } else if (ref.current) {
+            ref.current.style.removeProperty('--hindsight-badge-bg');
+        }
+    }, [color]);
+    return (
+        <span ref={ref} className={`hindsight-entry-card-badge${color ? ' has-polarity-color' : ''}`}>
+            {children}
+        </span>
+    );
+}
+
 export function EntryCard({ entry, detectedFields, sectionKey, onClick }: EntryCardProps): React.ReactElement {
     const isUnloading = useAppStore(s => s.isUnloading);
+    const fieldPolarity = useSettingsStore(s => s.settings.fieldPolarity);
 
     // Track the loaded version of the entry (may have lazy-loaded sections)
     const [loadedEntry, setLoadedEntry] = useState<JournalEntry>(entry);
@@ -160,6 +183,7 @@ export function EntryCard({ entry, detectedFields, sectionKey, onClick }: EntryC
     return (
         <div
             className="hindsight-entry-card"
+            data-entry-date={entry.date.getTime()}
             onClick={onClick}
             role="button"
             tabIndex={0}
@@ -173,11 +197,19 @@ export function EntryCard({ entry, detectedFields, sectionKey, onClick }: EntryC
             <div className="hindsight-entry-card-date">{formatEntryDate(entry)}</div>
 
             <div className="hindsight-entry-card-badges">
-                {badgeFields.map(f => (
-                    <span key={f.key} className="hindsight-entry-card-badge">
-                        {f.key}: {String(entry.frontmatter[f.key])}
-                    </span>
-                ))}
+                {badgeFields.map(f => {
+                    const val = entry.frontmatter[f.key];
+                    let badgeColor: string | undefined;
+                    if (f.type === 'number' && typeof val === 'number') {
+                        const polarity = fieldPolarity[f.key] ?? 'neutral';
+                        badgeColor = getPolarityColor(val, f.range?.min ?? 0, f.range?.max ?? 10, polarity);
+                    }
+                    return (
+                        <BadgeSpan key={f.key} color={badgeColor}>
+                            {f.key}: {String(val)}
+                        </BadgeSpan>
+                    );
+                })}
                 <span className="hindsight-entry-card-badge">
                     quality: {entry.qualityScore}%
                 </span>

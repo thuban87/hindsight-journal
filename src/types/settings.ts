@@ -20,6 +20,12 @@ export interface HindsightSettings {
     settingsVersion: number;
     /** Entries older than this many days use cold-tier storage (headings + excerpt only) */
     hotTierDays: number;
+    /** Which frontmatter fields are selected for charting (persisted preference) */
+    selectedChartFields: string[];
+    /** Rolling average window size in days (persisted preference) */
+    rollingWindow: number;
+    /** Per-field polarity setting: determines badge coloring and trend alert tone */
+    fieldPolarity: Record<string, 'higher-is-better' | 'lower-is-better' | 'neutral'>;
 }
 
 export const DEFAULT_SETTINGS: HindsightSettings = {
@@ -31,6 +37,9 @@ export const DEFAULT_SETTINGS: HindsightSettings = {
     productivitySections: [],
     excludedSections: ['Meds'],
     debugMode: false,
-    settingsVersion: 1,
+    settingsVersion: 2,
     hotTierDays: 90,
+    selectedChartFields: [],
+    rollingWindow: 7,
+    fieldPolarity: {},
 };

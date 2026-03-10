@@ -3,6 +3,7 @@ import type HindsightPlugin from '../main';
 import { FolderSuggest } from './ui/FolderSuggest';
 import { normalizePathSetting } from './utils/settingsMigration';
 import { validateVaultRelativePath } from './utils/vaultUtils';
+import { useJournalStore } from './store/journalStore';
 
 export class HindsightSettingTab extends PluginSettingTab {
     plugin: HindsightPlugin;
@@ -90,6 +91,44 @@ export class HindsightSettingTab extends PluginSettingTab {
                     this.plugin.settings.enableSidebar = value;
                     await this.plugin.saveSettings();
                 }));
+
+        // Field configuration section
+        const detectedFields = useJournalStore.getState().detectedFields;
+        const numericFields = detectedFields.filter(f => f.type === 'number');
+
+        if (numericFields.length > 0) {
+            new Setting(containerEl)
+                .setHeading()
+                .setName('Field configuration');
+
+            for (const field of numericFields) {
+                new Setting(containerEl)
+                    .setName(field.key)
+                    .setDesc(`Set polarity for ${field.key} (affects badge colors and trend alert tone).`)
+                    .addDropdown(dropdown => {
+                        dropdown
+                            .addOption('neutral', 'Neutral')
+                            .addOption('higher-is-better', 'Higher is better')
+                            .addOption('lower-is-better', 'Lower is better')
+                            .setValue(this.plugin.settings.fieldPolarity[field.key] ?? 'neutral')
+                            .onChange(async (value) => {
+                                const polarity = value as 'higher-is-better' | 'lower-is-better' | 'neutral';
+                                if (polarity === 'neutral') {
+                                    // Remove from settings (neutral is default)
+                                    const updated = { ...this.plugin.settings.fieldPolarity };
+                                    delete updated[field.key];
+                                    this.plugin.settings.fieldPolarity = updated;
+                                } else {
+                                    this.plugin.settings.fieldPolarity = {
+                                        ...this.plugin.settings.fieldPolarity,
+                                        [field.key]: polarity,
+                                    };
+                                }
+                                await this.plugin.saveSettings();
+                            });
+                    });
+            }
+        }
 
         new Setting(containerEl)
             .setHeading()

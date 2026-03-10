@@ -3021,7 +3021,7 @@ setActiveSubTab(tab: SubTab): void;
 
 ---
 
-## Phase 5c: Correlation Discovery + Trend Alerts + Field Polarity (~1-2 sessions)
+## Phase 5c: Correlation Discovery + Trend Alerts + Field Polarity (~1-2 sessions) ✅ COMPLETED 2026-03-09
 
 **Goal:** Build the MetricsEngine for cross-field analysis, the TrendAlertEngine for proactive user-agnostic insights, field polarity settings, and polarity-aware color-coded badges across all components.
 
@@ -3333,7 +3333,7 @@ Add to the Charts panel (from Phase 5b):
 
 ---
 
-## Phase 5.5: Chart & Metrics Tests
+## Phase 5.5: Chart & Metrics Tests ✅ COMPLETED 2026-03-09
 
 **PREREQUISITE:** Brad confirms Phases 5a, 5b, and 5c work correctly in Obsidian.
 

@@ -832,3 +832,354 @@ Timeline Section Selector:
 Tests: 260 passing (58 new from sanitize.test.ts and vaultUtils.test.ts), zero regressions
 ```
 
+---
+
+## 2026-03-09 - Phase 5b: Chart Engine + Tab Groups + Sparklines
+
+**Focus:** Install Chart.js integration, build the chart data pipeline, create charting and sparkline components, restructure the main view with two-tier tab group navigation.
+
+### Completed:
+
+#### Chart Engine & Data Pipeline
+- ✅ Verified `src/utils/chartSetup.ts` (from Phase 5a) — tree-shaken Chart.js registration, Tooltip plugin excluded (innerHTML policy)
+- ✅ Created `src/services/ChartDataService.ts` — `getTimeSeries`, `rollingAverage`, `trendLine`, `buildChartDataset`, `buildMultiMetricDataset` (dual Y-axis support)
+- ✅ Created `src/store/chartUiStore.ts` — Selected fields, date range, rolling window, dismissed alerts, reset
+- ✅ Expanded `src/store/metricsCacheStore.ts` — Full caching for time series and rolling averages, granular invalidation, stale flag
+- ✅ Created `src/hooks/useMetrics.ts` — `useMetrics()` config hook, `useChartData()` cache-miss computation in useEffect
+
+#### Chart Components
+- ✅ Created `src/components/charts/Sparkline.tsx` — SVG sparkline with null gap handling, ARIA attributes
+- ✅ Created `src/components/sidebar/SparklineRow.tsx` — Field label + value + sparkline row for sidebar
+- ✅ Created `src/components/charts/MetricChart.tsx` — Chart.js line chart wrapper with canvas null guard, theme reactivity (css-change), disabled tooltip (React popover), click handler for excerpts, multi-metric dual Y-axis, error handling, ARIA
+- ✅ Created `src/components/charts/ChartsPanel.tsx` — Charts sub-tab with field selection, date range presets, custom date pickers, rolling average/trend line toggles
+
+#### Tab Group Navigation
+- ✅ Created `src/components/shared/TabGroup.tsx` — Two-tier tab component with ARIA tablist/tab/tabpanel roles
+- ✅ Updated `src/store/uiStore.ts` — Replaced flat `activeMainTab` with type-safe `TabGroup`/`SubTab` mapping, `setActiveGroup` resets sub-tab
+- ✅ Restructured `src/components/MainApp.tsx` — Two-tier TabGroup (Journal→Calendar|Timeline|Index, Insights→Charts|Pulse|Digest, Explore→Lens|Threads|Gallery) with CalendarContent inline composition
+
+#### Sidebar Sparklines
+- ✅ Updated `src/components/sidebar/TodayStatus.tsx` — Added sparkline rows for all numeric fields below existing stats
+
+#### Lifecycle & Store Wiring
+- ✅ Updated `main.ts` — `chartSetup` side-effect import, `chartUiStore` initialization from persisted settings
+- ✅ Updated `src/storeWiring.ts` — Added `chartUiStore.reset()` to `resetAllStores`
+- ✅ Updated `src/utils/settingsMigration.ts` — v1→v2 migration for `selectedChartFields` and `rollingWindow`
+- ✅ Updated `src/types/settings.ts` — Added `selectedChartFields: string[]`, `rollingWindow: number` to settings
+
+#### Bug Fixes (post-testing)
+- ✅ Fixed CalendarCell "View in timeline" — Added `timelineScrollToDate` to uiStore; CalendarCell sets target date, TimelineList scrolls to entry with pulse highlight animation
+- ✅ Fixed chart date range filtering — `MetricChart` now reactively subscribes to `chartDateRange` and filters at render time; cache stores full data
+- ✅ Fixed preset active detection — ChartsPanel matches current range to nearest preset within ±2 days
+- ✅ Added custom date pickers to ChartsPanel — HTML date inputs for custom range selection
+- ✅ Fixed CalendarCell and uiStore test references to old `activeMainTab` API
+- ✅ Fixed settingsMigration tests for settingsVersion 2
+
+### Files Changed (15 files):
+
+| File | Change | Description |
+|------|--------|-------------|
+| `main.ts` | Modified | chartSetup import, chartUiStore init from settings |
+| `src/components/MainApp.tsx` | Rewritten | Two-tier TabGroup routing, CalendarContent composition |
+| `src/components/calendar/CalendarCell.tsx` | Modified | setActiveSubTab + timelineScrollToDate |
+| `src/components/charts/ChartsPanel.tsx` | New | Charts sub-tab controls and MetricChart rendering |
+| `src/components/charts/MetricChart.tsx` | New | Chart.js wrapper with theme reactivity, date range filter |
+| `src/components/shared/TabGroup.tsx` | New | Two-tier tab navigation component |
+| `src/components/sidebar/SparklineRow.tsx` | New | Sidebar sparkline row |
+| `src/components/sidebar/TodayStatus.tsx` | Modified | Added sparkline rows for numeric fields |
+| `src/components/timeline/EntryCard.tsx` | Modified | Added data-entry-date attribute |
+| `src/components/timeline/TimelineList.tsx` | Modified | Scroll-to-date effect with highlight |
+| `src/services/ChartDataService.ts` | New | Chart data transformations |
+| `src/store/chartUiStore.ts` | New | Chart UI state management |
+| `src/store/metricsCacheStore.ts` | Expanded | Full cache with granular invalidation |
+| `src/store/uiStore.ts` | Modified | TabGroup/SubTab types, timelineScrollToDate |
+| `src/storeWiring.ts` | Modified | chartUiStore reset |
+| `src/styles/charts.css` | New | All chart, sparkline, tab, popover, highlight styles |
+| `src/hooks/useMetrics.ts` | New | useMetrics, useChartData hooks |
+| `src/utils/settingsMigration.ts` | Modified | v1→v2 migration |
+| `src/types/settings.ts` | Modified | selectedChartFields, rollingWindow |
+| `test/store/uiStore.test.ts` | Modified | Updated for TabGroup API |
+| `test/utils/settingsMigration.test.ts` | Modified | Updated expectations for v2 |
+
+### Testing Notes:
+- All 18 test files passing (260 tests), zero regressions
+- Lint + CSS build + tsc + esbuild all clean
+- Bundle size: 377.9 KB (Chart.js tree-shaking effective)
+- Grep gates pass: innerHTML (comment only), style={{ (VirtualList spacers + comment)
+- Manually verified in Obsidian: tab groups, charts, sparklines, date range, timeline scroll-to-date
+
+### Blockers/Issues:
+- None discovered
+
+### Next Steps:
+- Phase 5c: Trend Alerts + Correlation Engine
+- The Insights → Pulse and Digest sub-tabs are stubs ready for future phases
+- The Explore → Lens, Threads, Gallery sub-tabs are stubs ready for future phases
+
+## Next Session Prompt
+
+```
+Continue with Phase 5.5: Chart & Metrics Tests, followed by Phase 6a: Pulse + Heatmap + Personal Bests.
+
+Key context:
+- Phase 5c is complete. MetricsEngine, TrendAlertEngine, ScatterPlot, CorrelationCards,
+  TrendAlertsPanel, field polarity, polarity-aware badges all working.
+- Settings migration is at v3 (fieldPolarity added).
+- metricsCacheStore is fully wired with correlation/alert caching.
+- storeWiring has subscription #5 (fieldPolarity → full cache invalidation).
+- ChartsPanel has 3 collapsible sections: Correlations, Scatter Plot, Trend Alerts.
+- 18 test files passing, bundle under 400 KB.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 5.5 and Phase 6a sections
+- src/services/MetricsEngine.ts — Pearson correlation, conditional averages, weekly comparison
+- src/services/TrendAlertEngine.ts — Consecutive change, anomaly, gap, pattern recall alerts
+- src/store/metricsCacheStore.ts — Full caching for correlations, alerts, conditional insights
+- src/components/charts/ChartsPanel.tsx — Collapsible sections with correlation/scatter/alerts
+```
+
+## Git Commit Message
+
+```
+feat(phase-5c): correlation discovery, trend alerts, field polarity
+
+MetricsEngine:
+- Create MetricsEngine.ts with pearsonCorrelation, conditionalAverage,
+  findCorrelations (20-field cap with ranking), findConditionalInsights,
+  weeklyComparison (hub-and-spoke via periodUtils)
+- All functions are pure/stateless per architecture rules
+
+TrendAlertEngine:
+- Create TrendAlertEngine.ts with detectConsecutiveChange (3-day streaks),
+  detectAnomaly (2-sigma), detectFieldGap (3+ days missing), patternRecall
+- generateAlerts aggregates and caps at 5, sorted by severity
+- Polarity-aware alert tone (positive vs warning based on fieldPolarity)
+
+UI Components:
+- Create ScatterPlot.tsx with Chart.js scatter, field dropdowns, optional
+  boolean color-coding, regression line, Pearson r display, click-to-open
+- Create CorrelationCards.tsx with debounced cache-miss computation,
+  stale-result guard via generation token, click-to-scatter-plot
+- Create TrendAlertCard.tsx with severity-coded left border, dismiss button
+- Create TrendAlertsPanel.tsx with aria-live count, session dismissal
+- Create insights.css with polished card styles, collapsible section headers
+
+ChartsPanel Integration:
+- Add collapsible Correlations, Scatter Plot, Trend Alerts sections
+- Click correlation card pre-selects scatter plot fields and opens section
+
+Badge Polarity:
+- Add getPolarityColor to statsUtils for polarity-aware coloring
+- Update CalendarCell, EntryCard (with BadgeSpan component), EchoCard
+  to use polarity-aware badge backgrounds via ref-based CSS variables
+
+Settings:
+- Add fieldPolarity to HindsightSettings with v2-to-v3 migration
+- Add Field configuration section to settings tab with polarity dropdowns
+- Wire subscription #5 in storeWiring (fieldPolarity change invalidates cache)
+
+Store Updates:
+- metricsCacheStore: proper Phase 5c types, setters, cachedConditionalInsights
+- chartUiStore: add analyzeAllFields session toggle
+
+Tests: 18 test files passing, updated settingsMigration tests for v3
+```
+
+---
+
+## 2026-03-09 - Phase 5c: Correlation Discovery + Trend Alerts + Field Polarity
+
+**Focus:** Build MetricsEngine for cross-field analysis, TrendAlertEngine for proactive insights, field polarity settings, and polarity-aware badges across all components.
+
+### Completed:
+
+**Types & Settings Foundation:**
+- ✅ Added types to `src/types/insights.ts` (AlertSeverity, TrendAlert, CorrelationResult, ConditionalInsight)
+- ✅ Added `fieldPolarity` to `HindsightSettings` and `DEFAULT_SETTINGS`
+- ✅ Updated barrel export in `src/types/index.ts`
+- ✅ Settings migration v2→v3 (`migrateV2ToV3`, validation, version bump to `CURRENT_MAX_VERSION = 3`)
+
+**New Services:**
+- ✅ Created `src/services/MetricsEngine.ts` — pearsonCorrelation, conditionalAverage, findCorrelations (20-field cap with ranking), findConditionalInsights, weeklyComparison
+- ✅ Created `src/services/TrendAlertEngine.ts` — detectConsecutiveChange, detectAnomaly, detectFieldGap, patternRecall, generateAlerts
+
+**Utility Updates:**
+- ✅ Added `getPolarityColor()` to `src/utils/statsUtils.ts` for polarity-aware badge/cell coloring
+
+**Store Updates:**
+- ✅ Updated `metricsCacheStore` with proper Phase 5c types, field name fixes, new setters, `cachedConditionalInsights`
+- ✅ Updated `chartUiStore` with `analyzeAllFields` session toggle
+- ✅ Added subscription #5 in `storeWiring.ts` (fieldPolarity → full cache invalidation)
+
+**New UI Components:**
+- ✅ Created `ScatterPlot.tsx` — Chart.js scatter, field dropdowns, boolean color-coding, regression line, click-to-open, theme reactivity
+- ✅ Created `CorrelationCards.tsx` — debounced cache-miss computation, generation token guard, click-to-scatter-plot
+- ✅ Created `TrendAlertCard.tsx` — severity-coded border, view entry link, dismiss button
+- ✅ Created `TrendAlertsPanel.tsx` — cache reader, dismissal, aria-live count
+
+**Existing Component Updates:**
+- ✅ Updated `CalendarCell.tsx` — uses `getPolarityColor` with settings-driven polarity
+- ✅ Updated `EntryCard.tsx` — added `BadgeSpan` with ref-based CSS variable polarity coloring
+- ✅ Updated `EchoCard.tsx` — added ref-based metric badge polarity coloring
+- ✅ Updated `ChartsPanel.tsx` — collapsible Correlations, Scatter Plot, Trend Alerts sections
+- ✅ Updated `MainApp.tsx` — Pulse stub → Phase 6a
+
+**Settings Tab:**
+- ✅ Added Field configuration section with polarity dropdowns for all detected numeric fields
+
+**Styles:**
+- ✅ Created `insights.css` with polished correlation card styles (colored left border, hover lift, shadow), collapsible section headers (uppercase pill-shaped, accent arrow, reveal animation), trend alert cards, badge polarity support
+
+### Files Changed:
+
+| File | Status | Description |
+|------|--------|-------------|
+| `src/types/insights.ts` | Modified | AlertSeverity, TrendAlert, CorrelationResult, ConditionalInsight types |
+| `src/types/settings.ts` | Modified | Added fieldPolarity to HindsightSettings |
+| `src/types/index.ts` | Modified | Barrel export for insight types |
+| `src/utils/settingsMigration.ts` | Modified | v2→v3 migration, fieldPolarity validation |
+| `src/utils/statsUtils.ts` | Modified | Added getPolarityColor |
+| `src/services/MetricsEngine.ts` | New | Correlation and statistical analysis service |
+| `src/services/TrendAlertEngine.ts` | New | Trend alert detection service |
+| `src/store/metricsCacheStore.ts` | Modified | Phase 5c types, setters, conditional insights |
+| `src/store/chartUiStore.ts` | Modified | analyzeAllFields toggle |
+| `src/storeWiring.ts` | Modified | Subscription #5 (fieldPolarity → cache invalidation) |
+| `src/components/charts/ChartsPanel.tsx` | Modified | Collapsible sections for correlations, scatter, alerts |
+| `src/components/charts/ScatterPlot.tsx` | New | Interactive scatter plot component |
+| `src/components/charts/CorrelationCards.tsx` | New | Auto-generated correlation insight cards |
+| `src/components/insights/TrendAlertCard.tsx` | New | Individual trend alert card |
+| `src/components/insights/TrendAlertsPanel.tsx` | New | Trend alerts container with dismissal |
+| `src/components/calendar/CalendarCell.tsx` | Modified | Polarity-aware cell coloring |
+| `src/components/timeline/EntryCard.tsx` | Modified | BadgeSpan with polarity coloring |
+| `src/components/echoes/EchoCard.tsx` | Modified | Polarity-aware metric badge |
+| `src/components/MainApp.tsx` | Modified | Pulse stub → Phase 6a |
+| `src/settings.ts` | Modified | Field configuration section with polarity dropdowns |
+| `src/styles/insights.css` | New | All insight component styles |
+| `src/styles/index.css` | Modified | Import insights.css |
+| `test/utils/settingsMigration.test.ts` | Modified | Updated version assertions for v3 |
+
+### Testing Notes:
+- All 18 test files passing, zero regressions
+- Lint + CSS build + tsc + esbuild all clean
+- Grep gates pass: no innerHTML usage, no style={{}}, no console.log
+- Manually verified in Obsidian: correlation cards display, scatter plot with field selection, trend alerts with dismissal, polarity badge colors, field configuration in settings
+- CSS fix applied for button height clipping in Obsidian (height: auto + min-height: unset on correlation card buttons)
+
+### Blockers/Issues:
+- Obsidian base button styles clip content height — fixed by explicitly setting `height: auto` and `min-height: unset` on `.hindsight-correlation-card`
+
+### Next Steps:
+- Phase 5.5: Chart and Metrics Tests
+- Phase 6a: Pulse + Heatmap + Personal Bests
+
+---
+
+## 2026-03-09 - Phase 5.5: Chart & Metrics Tests
+
+**Focus:** Write comprehensive unit tests for ChartDataService, MetricsEngine, TrendAlertEngine, store lifecycle, command IDs, tiered sections, and cache invalidation.
+
+### Completed:
+
+#### Gap Analysis
+- ✅ Analyzed existing test coverage — 5 of 10 planned test files already existed with sufficient coverage:
+  - `yieldUtils.test.ts` (7 tests, all plan items covered)
+  - `settingsMigration.test.ts` (13 tests, all plan items covered)
+  - `fileNameParser.test.ts` (conflict file tests already present)
+  - `vaultUtils.test.ts` (9 tests, covers planned `pathValidation.test.ts`)
+  - `periodUtils.test.ts` (14 tests, all plan items covered)
+
+#### New Test Files (7 files, 62 new tests)
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `test/services/ChartDataService.test.ts` | 11 | getTimeSeries (date-value pairs, null values, date range), rollingAverage (smoothing, nulls, oversized window), trendLine (positive/negative/flat slope), buildChartDataset, buildMultiMetricDataset |
+| `test/services/MetricsEngine.test.ts` | 12 | pearsonCorrelation (perfect positive/negative/near-zero/null handling/insufficient data), conditionalAverage (correct averages/insufficient sample), findCorrelations (sorted, no self-correlation), findConditionalInsights, weeklyComparison (change calculation, missing data) |
+| `test/services/TrendAlertEngine.test.ts` | 16 | detectConsecutiveChange (3-day/2-day/polarity variants), detectAnomaly (2-sigma/normal), detectFieldGap (high/low coverage), patternRecall (found/not found), generateAlerts (combined/capped/sorted), getPolarityColor (higher/lower/neutral) |
+| `test/commands.test.ts` | 2 | Command IDs do not contain plugin manifest ID (Obsidian auto-prefixes), dynamically checks ALL registered commands |
+| `test/store/storeLifecycle.test.ts` | 7 | journalStore.clear (Maps empty, sortedDates empty, revision increments), revision increments on all mutations, settingsStore/uiStore/appStore/metricsCacheStore/chartUiStore reset |
+| `test/store/tieredSections.test.ts` | 7 | Hot tier full sections, cold tier empty sections with headings/excerpt, ensureSectionsLoaded (lazy-load, hot entry pass-through, missing file, concurrent dedup same path, concurrent independent paths) |
+| `test/integration/cache-invalidation.test.ts` | 6 | Entry upsert increments revision, revision triggers markStale (via storeWiring debounce), invalidateCache (specific fields, full clear), stale flag reset, fresh data after invalidation |
+
+#### Bug Fix
+- ✅ Fixed `commands.test.ts` — manifest.json path was `../../manifest.json` (resolved to `obsidian-plugins/manifest.json`), corrected to `../manifest.json` (resolves to `hindsight-journal/manifest.json`)
+
+### Files Changed:
+
+**New Files (7):**
+- `test/services/ChartDataService.test.ts`
+- `test/services/MetricsEngine.test.ts`
+- `test/services/TrendAlertEngine.test.ts`
+- `test/commands.test.ts`
+- `test/store/storeLifecycle.test.ts`
+- `test/store/tieredSections.test.ts`
+- `test/integration/cache-invalidation.test.ts`
+
+### Testing Notes:
+- ✅ All 25 test files passing (321 tests total, 62 new)
+- ✅ `npm run lint` passes — zero errors, zero warnings
+- ✅ No regressions from Phase 1-5c tests
+- ✅ Test duration: 3.04s
+
+### Blockers/Issues:
+- **commands.test.ts path bug:** The `path.resolve(__dirname, '../../manifest.json')` in `commands.test.ts` went one directory too far up from `test/` to `obsidian-plugins/` instead of stopping at `hindsight-journal/`. Fixed by changing to `../manifest.json`.
+
+### Design Notes:
+- **Consolidated storeLifecycle.test.ts:** The plan explicitly requested a single file verifying all stores reset correctly with Map `.size === 0` checks, even though individual store tests already had some coverage. This provides a single verification point for the complete cleanup sequence.
+- **tieredSections.test.ts mocking:** Uses appStore mock with a fake vault to test `ensureSectionsLoaded()` lazy-loading. The concurrent dedup test verifies that multiple callers for the same path share a single promise.
+- **getPolarityColor in TrendAlertEngine tests:** The plan lists these tests under TrendAlertEngine.test.ts even though the function lives in statsUtils.ts. Tests import from statsUtils and are placed per the plan.
+
+---
+
+## Next Session Prompt
+
+```
+Phase 5.5 complete. All chart and metrics tests written and passing:
+- 25 test files, 321 tests total, zero failures
+- Lint gate passes with zero errors
+- Full coverage of ChartDataService, MetricsEngine, TrendAlertEngine,
+  store lifecycle, command IDs, tiered sections, and cache invalidation
+
+Continue with Phase 6a: Pulse Dashboard + Heatmap + Personal Bests.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 6a (line 3499+)
+- src/services/PulseService.ts — Existing streak/consistency functions to expand
+- src/store/metricsCacheStore.ts — Cache for personal bests
+- src/components/charts/ — Existing chart components for patterns
+```
+
+## Git Commit Message
+
+```
+test(phase-5.5): chart and metrics test suite
+
+ChartDataService Tests (11):
+- getTimeSeries: date-value extraction, null values, date range filtering
+- rollingAverage: 7-day smoothing, null handling, oversized window
+- trendLine: positive/negative/flat slope detection
+- buildChartDataset and buildMultiMetricDataset structure validation
+
+MetricsEngine Tests (12):
+- pearsonCorrelation: perfect positive/negative/near-zero/null/insufficient
+- conditionalAverage: correct group averages, insufficient sample guard
+- findCorrelations: sorted by r, no self-correlation
+- findConditionalInsights and weeklyComparison with missing data
+
+TrendAlertEngine Tests (16):
+- detectConsecutiveChange: 3-day threshold, polarity-aware severity
+- detectAnomaly: 2-sigma detection, normal value rejection
+- detectFieldGap: coverage-gated alerts
+- patternRecall, generateAlerts (combined/capped/sorted)
+- getPolarityColor: higher-is-better/lower-is-better/neutral
+
+Store and Integration Tests (22):
+- storeLifecycle: all 6 stores reset correctly with Map size checks
+- tieredSections: hot/cold tier, lazy-load, concurrent dedup
+- cache-invalidation: revision wiring, granular invalidation
+- commands: no plugin ID in command IDs
+
+Fix commands.test.ts manifest path from ../../ to ../
+
+25 test files, 321 tests passing, lint clean
+```
+

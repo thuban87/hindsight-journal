@@ -9,9 +9,10 @@
 import React, { useCallback, useRef, useEffect } from 'react';
 import { Menu, Notice } from 'obsidian';
 import type { JournalEntry } from '../../types';
-import { mapValueToColor, mapBooleanToColor } from '../../utils/statsUtils';
+import { getPolarityColor, mapBooleanToColor } from '../../utils/statsUtils';
 import { useUIStore } from '../../store/uiStore';
 import { useAppStore } from '../../store/appStore';
+import { useSettingsStore } from '../../store/settingsStore';
 
 interface CalendarCellProps {
     date: Date;
@@ -54,7 +55,9 @@ export function CalendarCell({
     onClick,
 }: CalendarCellProps): React.ReactElement | null {
     const app = useAppStore(s => s.app);
-    const setActiveMainTab = useUIStore(state => state.setActiveMainTab);
+    const setActiveSubTab = useUIStore(state => state.setActiveSubTab);
+    const setTimelineScrollToDate = useUIStore(state => state.setTimelineScrollToDate);
+    const fieldPolarity = useSettingsStore(s => s.settings.fieldPolarity);
     const cellRef = useRef<HTMLDivElement>(null);
 
     // Compute background color
@@ -67,11 +70,12 @@ export function CalendarCell({
             bgColor = mapBooleanToColor(value);
             tooltipMetricText = `${selectedMetric}: ${value ? 'yes' : 'no'}`;
         } else if (typeof value === 'number' && metricRange) {
-            bgColor = mapValueToColor(value, metricRange.min, metricRange.max);
+            const polarity = fieldPolarity[selectedMetric] ?? 'neutral';
+            bgColor = getPolarityColor(value, metricRange.min, metricRange.max, polarity);
             tooltipMetricText = `${selectedMetric}: ${value}`;
         } else {
             // Null/missing value
-            bgColor = mapValueToColor(null, 0, 1);
+            bgColor = getPolarityColor(null, 0, 1, 'neutral');
             tooltipMetricText = `${selectedMetric}: —`;
         }
     }
@@ -129,13 +133,14 @@ export function CalendarCell({
                 item.setTitle('View in timeline')
                     .setIcon('list')
                     .onClick(() => {
-                        setActiveMainTab('timeline');
+                        setTimelineScrollToDate(date);
+                        setActiveSubTab('timeline');
                     });
             });
 
             menu.showAtMouseEvent(e.nativeEvent);
         },
-        [entry, app, setActiveMainTab]
+        [entry, app, setActiveSubTab, setTimelineScrollToDate, date]
     );
 
     return (

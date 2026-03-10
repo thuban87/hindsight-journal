@@ -31,3 +31,6 @@ build-output.txt
 tsc-output.txt
 deploy-output.txt
 diff-output.txt
+
+#Test Coverage
+coverage/

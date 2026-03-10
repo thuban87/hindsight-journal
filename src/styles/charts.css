@@ -1,0 +1,334 @@
+/* Charts & Sparklines */
+
+/* Chart container */
+.hindsight-chart-container {
+    display: flex;
+    flex-direction: column;
+    min-height: var(--hindsight-chart-height, 300px);
+    padding: var(--size-4-3);
+    position: relative;
+}
+
+.hindsight-chart-container canvas {
+    width: 100% !important;
+    height: var(--hindsight-chart-height, 300px) !important;
+}
+
+.hindsight-chart-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-error);
+}
+
+.hindsight-chart-empty {
+    color: var(--text-muted);
+    text-align: center;
+    padding: var(--size-4-8);
+}
+
+/* Chart controls */
+.hindsight-chart-controls {
+    display: flex;
+    flex-direction: row;
+    gap: var(--size-4-3);
+    flex-wrap: wrap;
+    padding-bottom: var(--size-4-3);
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: var(--size-4-3);
+    align-items: flex-start;
+}
+
+.hindsight-chart-control-label {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: block;
+    margin-bottom: var(--size-2-1);
+}
+
+/* Field selector */
+.hindsight-chart-field-selector {
+    flex: 1;
+    min-width: 120px;
+}
+
+.hindsight-chart-field-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--size-2-1);
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.hindsight-chart-field-option {
+    display: flex;
+    align-items: center;
+    gap: var(--size-2-1);
+    cursor: pointer;
+    padding: var(--size-2-1) var(--size-2-2);
+    border-radius: var(--radius-s);
+    font-size: 0.85em;
+    min-height: 28px;
+}
+
+.hindsight-chart-field-option:hover {
+    background: var(--background-modifier-hover);
+}
+
+.hindsight-chart-field-option input[type="checkbox"] {
+    margin: 0;
+}
+
+/* Date range buttons */
+.hindsight-chart-range-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--size-2-1);
+    align-items: flex-end;
+}
+
+.hindsight-chart-range-btn {
+    padding: var(--size-2-1) var(--size-2-3);
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 0.8em;
+    min-height: 28px;
+    transition: background 0.15s ease;
+}
+
+.hindsight-chart-range-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.hindsight-chart-range-btn-active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+/* Toggle groups */
+.hindsight-chart-toggle-group {
+    display: flex;
+    align-items: center;
+    gap: var(--size-2-2);
+}
+
+.hindsight-chart-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--size-2-1);
+    cursor: pointer;
+    font-size: 0.85em;
+    min-height: 28px;
+}
+
+.hindsight-chart-toggle input[type="checkbox"] {
+    margin: 0;
+}
+
+.hindsight-chart-window-select {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    padding: var(--size-2-1);
+    font-size: 0.8em;
+}
+
+/* Charts panel */
+.hindsight-charts-panel {
+    padding: var(--size-4-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-4-2);
+}
+
+.hindsight-chart-empty-state {
+    color: var(--text-muted);
+    text-align: center;
+    padding: var(--size-4-8);
+}
+
+/* Sparkline */
+.hindsight-sparkline {
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+/* Sparkline row (sidebar) */
+.hindsight-sparkline-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--size-2-2);
+    padding: var(--size-2-1) 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.hindsight-sparkline-row:last-child {
+    border-bottom: none;
+}
+
+.hindsight-sparkline-label {
+    flex: 1;
+    font-size: 0.85em;
+    color: var(--text-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hindsight-sparkline-value {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--text-normal);
+    min-width: 2em;
+    text-align: right;
+}
+
+/* Chart popover (excerpt on data point click) */
+.hindsight-chart-popover {
+    position: absolute;
+    left: var(--hindsight-popover-x, 0);
+    top: var(--hindsight-popover-y, 0);
+    transform: translate(-50%, calc(-100% - 8px));
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    padding: var(--size-4-2);
+    max-width: 250px;
+    font-size: 0.8em;
+    color: var(--text-normal);
+    box-shadow: var(--shadow-s);
+    z-index: 10;
+    pointer-events: none;
+    animation: hindsight-popover-in 0.15s ease;
+}
+
+@keyframes hindsight-popover-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, calc(-100% - 16px));
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, calc(-100% - 8px));
+    }
+}
+
+/* Tab Group - two tier navigation */
+.hindsight-tab-group-container {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* Top bar: group switcher */
+.hindsight-tab-group-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding: 0 var(--size-4-2);
+}
+
+.hindsight-tab-group {
+    padding: var(--size-4-2) var(--size-4-4);
+    min-height: 44px;
+    min-width: 44px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.95em;
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.hindsight-tab-group:hover {
+    color: var(--text-normal);
+}
+
+.hindsight-tab-group-active {
+    color: var(--text-normal);
+    border-bottom-color: var(--interactive-accent);
+}
+
+/* Secondary bar: sub-tabs */
+.hindsight-tab-sub-bar {
+    display: flex;
+    gap: 0;
+    padding: 0 var(--size-4-2);
+}
+
+.hindsight-tab-sub {
+    padding: var(--size-2-2) var(--size-4-3);
+    min-height: 44px;
+    min-width: 44px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 400;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.hindsight-tab-sub:hover {
+    color: var(--text-normal);
+}
+
+.hindsight-tab-sub-active {
+    color: var(--interactive-accent);
+    border-bottom-color: var(--interactive-accent);
+}
+
+/* Entry highlight (scroll-to-date from calendar) */
+.hindsight-entry-highlight {
+    animation: hindsight-entry-pulse 2s ease-out;
+}
+
+@keyframes hindsight-entry-pulse {
+    0% {
+        box-shadow: 0 0 0 0 var(--interactive-accent);
+    }
+
+    30% {
+        box-shadow: 0 0 0 4px var(--interactive-accent);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 transparent;
+    }
+}
+
+/* Date picker row */
+.hindsight-chart-date-pickers {
+    display: flex;
+    gap: var(--size-2-2);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.hindsight-chart-date-picker {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    padding: var(--size-2-1);
+    font-size: 0.8em;
+    min-height: 28px;
+}
+
+.hindsight-chart-date-separator {
+    color: var(--text-muted);
+    font-size: 0.8em;
+}

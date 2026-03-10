@@ -55,3 +55,51 @@ export function mapBooleanToColor(value: boolean | null): string {
     }
     return 'var(--text-error)';
 }
+
+/**
+ * Get badge color for a field value based on polarity setting.
+ * - 'higher-is-better': high=green, low=red (default HSL gradient)
+ * - 'lower-is-better': high=red, low=green (inverted gradient)
+ * - 'neutral': consistent blue (no directional meaning)
+ *
+ * @param value - The numeric value to color
+ * @param min - Minimum expected value
+ * @param max - Maximum expected value
+ * @param polarity - Field polarity setting
+ * @returns CSS color string
+ */
+export function getPolarityColor(
+    value: number | null,
+    min: number,
+    max: number,
+    polarity: 'higher-is-better' | 'lower-is-better' | 'neutral'
+): string {
+    if (value === null || value === undefined) {
+        return 'var(--background-modifier-border)';
+    }
+
+    if (polarity === 'neutral') {
+        return 'hsl(210, 60%, 50%)'; // Consistent blue
+    }
+
+    // Avoid division by zero
+    if (min === max) {
+        return 'hsl(60, 70%, 45%)'; // mid color (yellow)
+    }
+
+    // Clamp value to [min, max]
+    const clamped = Math.max(min, Math.min(max, value));
+
+    // Normalize to 0-1
+    const ratio = (clamped - min) / (max - min);
+
+    if (polarity === 'higher-is-better') {
+        // 0 (red) → 120 (green)
+        const hue = Math.round(ratio * 120);
+        return `hsl(${hue}, 70%, 45%)`;
+    } else {
+        // 'lower-is-better': invert — 120 (green) → 0 (red)
+        const hue = Math.round((1 - ratio) * 120);
+        return `hsl(${hue}, 70%, 45%)`;
+    }
+}

@@ -10,11 +10,13 @@
  * as a placeholder until full sections are available.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import type { JournalEntry } from '../../types';
 import { stripMarkdown } from '../../services/SectionParserService';
 import { useAppStore } from '../../store/appStore';
 import { useJournalStore } from '../../store/journalStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { getPolarityColor } from '../../utils/statsUtils';
 
 interface EchoCardProps {
     entry: JournalEntry;
@@ -125,6 +127,9 @@ function formatMetricValue(value: unknown): string {
 export function EchoCard({ entry, sectionKey, metricKey }: EchoCardProps): React.ReactElement | null {
     const app = useAppStore(s => s.app);
     const isUnloading = useAppStore(s => s.isUnloading);
+    const detectedFields = useJournalStore(s => s.detectedFields);
+    const fieldPolarity = useSettingsStore(s => s.settings.fieldPolarity);
+    const metricBadgeRef = useRef<HTMLSpanElement>(null);
 
     // Track whether we've attempted to load sections for this cold-tier entry
     const [loadedEntry, setLoadedEntry] = useState<JournalEntry>(entry);
@@ -165,6 +170,24 @@ export function EchoCard({ entry, sectionKey, metricKey }: EchoCardProps): React
     const metricValue = entry.frontmatter[metricKey];
     const displayValue = formatMetricValue(metricValue);
 
+    // Apply polarity color to metric badge via ref
+    useEffect(() => {
+        if (!metricBadgeRef.current) return;
+        if (typeof metricValue === 'number') {
+            const polarity = fieldPolarity[metricKey] ?? 'neutral';
+            const field = detectedFields.find(f => f.key === metricKey);
+            const color = getPolarityColor(
+                metricValue,
+                field?.range?.min ?? 0,
+                field?.range?.max ?? 10,
+                polarity
+            );
+            metricBadgeRef.current.style.setProperty('--hindsight-badge-bg', color);
+        } else {
+            metricBadgeRef.current.style.removeProperty('--hindsight-badge-bg');
+        }
+    }, [metricValue, metricKey, fieldPolarity, detectedFields]);
+
     return (
         <div
             className="hindsight-echo-card"
@@ -183,7 +206,10 @@ export function EchoCard({ entry, sectionKey, metricKey }: EchoCardProps): React
             <div className="hindsight-echo-card-header">
                 <span className="hindsight-echo-date">{formatEchoDate(entry.date)}</span>
                 {displayValue && (
-                    <span className="hindsight-echo-metric-badge">
+                    <span
+                        ref={metricBadgeRef}
+                        className={`hindsight-echo-metric-badge${typeof metricValue === 'number' ? ' has-polarity-color' : ''}`}
+                    >
                         {metricKey}: {displayValue}
                     </span>
                 )}
