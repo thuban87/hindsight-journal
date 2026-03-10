@@ -1072,3 +1072,114 @@ Tests: 18 test files passing, updated settingsMigration tests for v3
 - Phase 5.5: Chart and Metrics Tests
 - Phase 6a: Pulse + Heatmap + Personal Bests
 
+---
+
+## 2026-03-09 - Phase 5.5: Chart & Metrics Tests
+
+**Focus:** Write comprehensive unit tests for ChartDataService, MetricsEngine, TrendAlertEngine, store lifecycle, command IDs, tiered sections, and cache invalidation.
+
+### Completed:
+
+#### Gap Analysis
+- ✅ Analyzed existing test coverage — 5 of 10 planned test files already existed with sufficient coverage:
+  - `yieldUtils.test.ts` (7 tests, all plan items covered)
+  - `settingsMigration.test.ts` (13 tests, all plan items covered)
+  - `fileNameParser.test.ts` (conflict file tests already present)
+  - `vaultUtils.test.ts` (9 tests, covers planned `pathValidation.test.ts`)
+  - `periodUtils.test.ts` (14 tests, all plan items covered)
+
+#### New Test Files (7 files, 62 new tests)
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `test/services/ChartDataService.test.ts` | 11 | getTimeSeries (date-value pairs, null values, date range), rollingAverage (smoothing, nulls, oversized window), trendLine (positive/negative/flat slope), buildChartDataset, buildMultiMetricDataset |
+| `test/services/MetricsEngine.test.ts` | 12 | pearsonCorrelation (perfect positive/negative/near-zero/null handling/insufficient data), conditionalAverage (correct averages/insufficient sample), findCorrelations (sorted, no self-correlation), findConditionalInsights, weeklyComparison (change calculation, missing data) |
+| `test/services/TrendAlertEngine.test.ts` | 16 | detectConsecutiveChange (3-day/2-day/polarity variants), detectAnomaly (2-sigma/normal), detectFieldGap (high/low coverage), patternRecall (found/not found), generateAlerts (combined/capped/sorted), getPolarityColor (higher/lower/neutral) |
+| `test/commands.test.ts` | 2 | Command IDs do not contain plugin manifest ID (Obsidian auto-prefixes), dynamically checks ALL registered commands |
+| `test/store/storeLifecycle.test.ts` | 7 | journalStore.clear (Maps empty, sortedDates empty, revision increments), revision increments on all mutations, settingsStore/uiStore/appStore/metricsCacheStore/chartUiStore reset |
+| `test/store/tieredSections.test.ts` | 7 | Hot tier full sections, cold tier empty sections with headings/excerpt, ensureSectionsLoaded (lazy-load, hot entry pass-through, missing file, concurrent dedup same path, concurrent independent paths) |
+| `test/integration/cache-invalidation.test.ts` | 6 | Entry upsert increments revision, revision triggers markStale (via storeWiring debounce), invalidateCache (specific fields, full clear), stale flag reset, fresh data after invalidation |
+
+#### Bug Fix
+- ✅ Fixed `commands.test.ts` — manifest.json path was `../../manifest.json` (resolved to `obsidian-plugins/manifest.json`), corrected to `../manifest.json` (resolves to `hindsight-journal/manifest.json`)
+
+### Files Changed:
+
+**New Files (7):**
+- `test/services/ChartDataService.test.ts`
+- `test/services/MetricsEngine.test.ts`
+- `test/services/TrendAlertEngine.test.ts`
+- `test/commands.test.ts`
+- `test/store/storeLifecycle.test.ts`
+- `test/store/tieredSections.test.ts`
+- `test/integration/cache-invalidation.test.ts`
+
+### Testing Notes:
+- ✅ All 25 test files passing (321 tests total, 62 new)
+- ✅ `npm run lint` passes — zero errors, zero warnings
+- ✅ No regressions from Phase 1-5c tests
+- ✅ Test duration: 3.04s
+
+### Blockers/Issues:
+- **commands.test.ts path bug:** The `path.resolve(__dirname, '../../manifest.json')` in `commands.test.ts` went one directory too far up from `test/` to `obsidian-plugins/` instead of stopping at `hindsight-journal/`. Fixed by changing to `../manifest.json`.
+
+### Design Notes:
+- **Consolidated storeLifecycle.test.ts:** The plan explicitly requested a single file verifying all stores reset correctly with Map `.size === 0` checks, even though individual store tests already had some coverage. This provides a single verification point for the complete cleanup sequence.
+- **tieredSections.test.ts mocking:** Uses appStore mock with a fake vault to test `ensureSectionsLoaded()` lazy-loading. The concurrent dedup test verifies that multiple callers for the same path share a single promise.
+- **getPolarityColor in TrendAlertEngine tests:** The plan lists these tests under TrendAlertEngine.test.ts even though the function lives in statsUtils.ts. Tests import from statsUtils and are placed per the plan.
+
+---
+
+## Next Session Prompt
+
+```
+Phase 5.5 complete. All chart and metrics tests written and passing:
+- 25 test files, 321 tests total, zero failures
+- Lint gate passes with zero errors
+- Full coverage of ChartDataService, MetricsEngine, TrendAlertEngine,
+  store lifecycle, command IDs, tiered sections, and cache invalidation
+
+Continue with Phase 6a: Pulse Dashboard + Heatmap + Personal Bests.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 6a (line 3499+)
+- src/services/PulseService.ts — Existing streak/consistency functions to expand
+- src/store/metricsCacheStore.ts — Cache for personal bests
+- src/components/charts/ — Existing chart components for patterns
+```
+
+## Git Commit Message
+
+```
+test(phase-5.5): chart and metrics test suite
+
+ChartDataService Tests (11):
+- getTimeSeries: date-value extraction, null values, date range filtering
+- rollingAverage: 7-day smoothing, null handling, oversized window
+- trendLine: positive/negative/flat slope detection
+- buildChartDataset and buildMultiMetricDataset structure validation
+
+MetricsEngine Tests (12):
+- pearsonCorrelation: perfect positive/negative/near-zero/null/insufficient
+- conditionalAverage: correct group averages, insufficient sample guard
+- findCorrelations: sorted by r, no self-correlation
+- findConditionalInsights and weeklyComparison with missing data
+
+TrendAlertEngine Tests (16):
+- detectConsecutiveChange: 3-day threshold, polarity-aware severity
+- detectAnomaly: 2-sigma detection, normal value rejection
+- detectFieldGap: coverage-gated alerts
+- patternRecall, generateAlerts (combined/capped/sorted)
+- getPolarityColor: higher-is-better/lower-is-better/neutral
+
+Store and Integration Tests (22):
+- storeLifecycle: all 6 stores reset correctly with Map size checks
+- tieredSections: hot/cold tier, lazy-load, concurrent dedup
+- cache-invalidation: revision wiring, granular invalidation
+- commands: no plugin ID in command IDs
+
+Fix commands.test.ts manifest path from ../../ to ../
+
+25 test files, 321 tests passing, lint clean
+```
+
