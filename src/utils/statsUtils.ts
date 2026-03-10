@@ -3,31 +3,39 @@
  *
  * Color-mapping functions for visualizing metric values.
  * Used by CalendarCell and other metric-aware components.
+ * Supports optional calendar color themes.
  */
 
+import { COLOR_THEMES } from './colorThemes';
+
 /**
- * Map a numeric value to a color on a red-yellow-green gradient.
- * Returns a CSS color string.
- * Uses HSL interpolation: 0 (red, hsl 0) → 60 (yellow) → 120 (green).
+ * Map a numeric value to a color on a gradient.
+ * Uses the specified theme or defaults to red-yellow-green HSL interpolation.
  * Null values return a neutral color.
  *
  * @param value - The numeric value to map
- * @param min - Minimum expected value (maps to red)
- * @param max - Maximum expected value (maps to green)
+ * @param min - Minimum expected value (maps to low end)
+ * @param max - Maximum expected value (maps to high end)
+ * @param theme - Optional color theme name
  * @returns CSS color string (hsl or var reference)
  */
 export function mapValueToColor(
     value: number | null,
     min: number,
-    max: number
+    max: number,
+    theme?: string
 ): string {
+    const themeObj = theme ? COLOR_THEMES[theme] : undefined;
+
     if (value === null || value === undefined) {
-        return 'var(--background-modifier-border)';
+        return themeObj
+            ? `var(${themeObj.emptyColorVar})`
+            : 'var(--background-modifier-border)';
     }
 
     // Avoid division by zero when min equals max
     if (min === max) {
-        return 'hsl(60, 70%, 45%)'; // mid color (yellow)
+        return themeObj ? themeObj.mapValue(0.5) : 'hsl(60, 70%, 45%)';
     }
 
     // Clamp value to [min, max]
@@ -36,9 +44,12 @@ export function mapValueToColor(
     // Normalize to 0-1
     const ratio = (clamped - min) / (max - min);
 
-    // Interpolate hue: 0 (red) → 120 (green)
-    const hue = Math.round(ratio * 120);
+    if (themeObj) {
+        return themeObj.mapValue(ratio);
+    }
 
+    // Default: interpolate hue: 0 (red) → 120 (green)
+    const hue = Math.round(ratio * 120);
     return `hsl(${hue}, 70%, 45%)`;
 }
 
@@ -62,20 +73,28 @@ export function mapBooleanToColor(value: boolean | null): string {
  * - 'lower-is-better': high=red, low=green (inverted gradient)
  * - 'neutral': consistent blue (no directional meaning)
  *
+ * Supports optional calendar color theme for themed views.
+ *
  * @param value - The numeric value to color
  * @param min - Minimum expected value
  * @param max - Maximum expected value
  * @param polarity - Field polarity setting
+ * @param theme - Optional color theme name
  * @returns CSS color string
  */
 export function getPolarityColor(
     value: number | null,
     min: number,
     max: number,
-    polarity: 'higher-is-better' | 'lower-is-better' | 'neutral'
+    polarity: 'higher-is-better' | 'lower-is-better' | 'neutral',
+    theme?: string
 ): string {
+    const themeObj = theme ? COLOR_THEMES[theme] : undefined;
+
     if (value === null || value === undefined) {
-        return 'var(--background-modifier-border)';
+        return themeObj
+            ? `var(${themeObj.emptyColorVar})`
+            : 'var(--background-modifier-border)';
     }
 
     if (polarity === 'neutral') {
@@ -84,7 +103,7 @@ export function getPolarityColor(
 
     // Avoid division by zero
     if (min === max) {
-        return 'hsl(60, 70%, 45%)'; // mid color (yellow)
+        return themeObj ? themeObj.mapValue(0.5) : 'hsl(60, 70%, 45%)';
     }
 
     // Clamp value to [min, max]
@@ -93,13 +112,15 @@ export function getPolarityColor(
     // Normalize to 0-1
     const ratio = (clamped - min) / (max - min);
 
-    if (polarity === 'higher-is-better') {
-        // 0 (red) → 120 (green)
-        const hue = Math.round(ratio * 120);
-        return `hsl(${hue}, 70%, 45%)`;
-    } else {
-        // 'lower-is-better': invert — 120 (green) → 0 (red)
-        const hue = Math.round((1 - ratio) * 120);
-        return `hsl(${hue}, 70%, 45%)`;
+    // For lower-is-better, invert the ratio
+    const effectiveRatio = polarity === 'lower-is-better' ? 1 - ratio : ratio;
+
+    if (themeObj) {
+        return themeObj.mapValue(effectiveRatio);
     }
+
+    // Default: 0 (red) → 120 (green)
+    const hue = Math.round(effectiveRatio * 120);
+    return `hsl(${hue}, 70%, 45%)`;
 }
+

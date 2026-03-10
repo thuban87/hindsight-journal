@@ -19,6 +19,7 @@ import { parseSections, extractImagePaths, countWords, stripMarkdown } from '../
 import { detectFields } from '../services/FrontmatterService';
 import { useJournalStore } from '../store/journalStore';
 import { processWithYielding } from '../utils/yieldUtils';
+import { parseTaskCompletion } from '../utils/taskParser';
 import { debugLog } from '../utils/debugLog';
 
 export class JournalIndexService {
@@ -225,6 +226,8 @@ export class JournalIndexService {
             mtime: file.stat.mtime,
             fullyIndexed: false,
             qualityScore: 0,
+            tasksCompleted: 0,
+            tasksTotal: 0,
         };
     }
 
@@ -312,6 +315,15 @@ export class JournalIndexService {
                 entry.sectionWordCounts[key] = countWords(sections[key]);
             }
         }
+
+        // Compute task counts from sections (uses full sections before cold-tier eviction)
+        const taskResults = parseTaskCompletion(
+            sections,
+            this.plugin.settings.productivitySections,
+            this.plugin.settings.excludedSections
+        );
+        entry.tasksCompleted = taskResults.reduce((sum, t) => sum + t.completed, 0);
+        entry.tasksTotal = taskResults.reduce((sum, t) => sum + t.total, 0);
     }
 
     /**

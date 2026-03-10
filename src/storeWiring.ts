@@ -65,6 +65,7 @@ export function wireStoreSubscriptions(_plugin: HindsightPluginInterface): (() =
                     debugLog('Cache invalidated: fields', changedKeys);
                 } else {
                     cacheStore.markStale();
+                    cacheStore.markPersonalBestsStale();
                     debugLog('Cache marked stale');
                 }
             }, REVISION_DEBOUNCE_MS);

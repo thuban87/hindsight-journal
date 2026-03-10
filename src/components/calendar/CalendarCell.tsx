@@ -58,6 +58,7 @@ export function CalendarCell({
     const setActiveSubTab = useUIStore(state => state.setActiveSubTab);
     const setTimelineScrollToDate = useUIStore(state => state.setTimelineScrollToDate);
     const fieldPolarity = useSettingsStore(s => s.settings.fieldPolarity);
+    const calendarColorTheme = useSettingsStore(s => s.settings.calendarColorTheme);
     const cellRef = useRef<HTMLDivElement>(null);
 
     // Compute background color
@@ -71,11 +72,11 @@ export function CalendarCell({
             tooltipMetricText = `${selectedMetric}: ${value ? 'yes' : 'no'}`;
         } else if (typeof value === 'number' && metricRange) {
             const polarity = fieldPolarity[selectedMetric] ?? 'neutral';
-            bgColor = getPolarityColor(value, metricRange.min, metricRange.max, polarity);
+            bgColor = getPolarityColor(value, metricRange.min, metricRange.max, polarity, calendarColorTheme);
             tooltipMetricText = `${selectedMetric}: ${value}`;
         } else {
             // Null/missing value
-            bgColor = getPolarityColor(null, 0, 1, 'neutral');
+            bgColor = getPolarityColor(null, 0, 1, 'neutral', calendarColorTheme);
             tooltipMetricText = `${selectedMetric}: —`;
         }
     }

@@ -105,11 +105,19 @@ describe('migrateSettings', () => {
             // No settingsVersion field
         };
         const result = migrateSettings(v0);
-        expect(result.settingsVersion).toBe(3);
+        expect(result.settingsVersion).toBe(5);
         expect(result.journalFolder).toBe('Journal');
         // Should also have chart settings from v2 migration
         expect(result.selectedChartFields).toEqual([]);
         expect(result.rollingWindow).toBe(7);
+        // Should have Phase 6b settings from v4 migration
+        expect(result.goalTargets).toEqual({});
+        expect(result.prioritySectionHeading).toBe("Tomorrow's Top 3");
+        expect(result.weekStartDay === 0 || result.weekStartDay === 1).toBe(true);
+        // Should have Phase 6c settings from v5 migration
+        expect(Array.isArray(result.widgets)).toBe(true);
+        expect(result.widgets.length).toBe(7);
+        expect(result.calendarColorTheme).toBe('default');
     });
 
     it('preserves existing valid settings during migration', () => {
@@ -174,9 +182,14 @@ describe('migrateSettings', () => {
         };
         const result = migrateSettings(minimal);
         expect(result.hotTierDays).toBe(DEFAULT_SETTINGS.hotTierDays);
-        expect(result.settingsVersion).toBe(3);
+        expect(result.settingsVersion).toBe(5);
         expect(result.selectedChartFields).toEqual([]);
         expect(result.rollingWindow).toBe(7);
         expect(result.thumbnailsEnabled).toBe(DEFAULT_SETTINGS.thumbnailsEnabled);
+        expect(result.goalTargets).toEqual({});
+        expect(result.prioritySectionHeading).toBe(DEFAULT_SETTINGS.prioritySectionHeading);
+        // Phase 6c fields
+        expect(Array.isArray(result.widgets)).toBe(true);
+        expect(result.calendarColorTheme).toBe('default');
     });
 });

@@ -47,3 +47,12 @@ export interface ConditionalInsight {
     sampleSizeTrue: number;
     sampleSizeFalse: number;
 }
+
+/** A personal best record for a specific field and period */
+export interface PersonalBest {
+    type: 'best-week' | 'most-consistent-month' | 'best-trend';
+    field: string;
+    title: string;
+    value: number;
+    period: string;
+}

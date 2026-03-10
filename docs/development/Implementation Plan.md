@@ -3498,6 +3498,7 @@ All tests pass. Approximately 70-80 new tests.
 
 ## Phase 6a: Pulse Dashboard + Heatmap + Personal Bests (~1-2 sessions) Use fixed trend window sizes: `[7, 14, 30]` days. Use `processWithYielding()` for the outer field loop. If >10 numeric fields detected, limit to top 5 by data coverage to keep mobile computation under 200ms.
 
+**STATUS: ✅ COMPLETED (2026-03-09)**
 
 **Goal:** Build the core Pulse analytics dashboard with a GitHub-style heatmap, habit streak tracking, personal bests, and consistency scoring. This is the "at a glance, how am I doing?" view.
 
@@ -3660,7 +3661,7 @@ export function getConsistencyScores(
 
 ---
 
-## Phase 6b: Goals + Today Tab Enhancements (~1-2 sessions)
+## Phase 6b: Goals + Today Tab Enhancements (~1-2 sessions) [COMPLETED]
 
 **Goal:** Goal tracking with progress rings, morning briefing panel, and gap alerts -- all integrated into the sidebar Today tab as scrollable sections.
 
@@ -3793,7 +3794,30 @@ Expand the Today tab to be a scrollable container with sections:
 
 ---
 
-## Phase 6c: Widgets + Themes + Quality Dashboard (~1-2 sessions)
+## Phase 6i: Numeric-Text Field Type (Interjected) ✅ COMPLETED 2026-03-09
+
+**Goal:** Detect and handle frontmatter text fields that contain numeric values, treating them equivalently to native number fields across all analytics, charts, and UI features. Handles the real-world case where YAML format changed over time — older entries use `anxiety: 6` (native number) while newer entries use `anxiety: "3"` (quoted string).
+
+### Changes Made
+
+- Added `'numeric-text'` to `FrontmatterField.type` union
+- Created `isNumericField(field)` and `getNumericValue(raw)` shared helpers in `FrontmatterService.ts`
+- Updated `inferFieldType()` with 80% threshold heuristic that counts both native numbers and parseable numeric strings
+- Updated `detectFields()` to compute min/max ranges for numeric-text fields
+- Replaced 23+ `f.type === 'number'` filter sites across 3 services and 12 components with `isNumericField(f)`
+- Updated badge display in `EntryCard.tsx` to use `getNumericValue()` for polarity coloring
+- Updated `settings.ts` polarity and goal field filters to include numeric-text
+- Added 21 new tests covering detection, helpers, range computation, and mixed-type scenarios
+
+### Verification
+- ✅ 342 tests passing across 25 test files
+- ✅ `npm run lint` clean
+- ✅ `npm run build` clean
+- ✅ Brad manually verified in Obsidian
+
+---
+
+## Phase 6c: Widgets + Themes + Quality Dashboard ✅ COMPLETED 2026-03-10
 
 **Goal:** Customizable sidebar widgets, calendar color palette themes (including color-blind accessible), entry quality dashboard, and task/habit volatility tracking.
 
@@ -3985,7 +4009,7 @@ Update `mapValueToColor()` and `mapBooleanToColor()` in `statsUtils.ts` to accep
 
 ---
 
-## Phase 6.5: Pulse & Dashboard Tests
+## Phase 6.5: Pulse & Dashboard Tests ✅ COMPLETED 2026-03-10
 
 **PREREQUISITE:** Brad confirms Phase 6a, 6b, and 6c work correctly in Obsidian.
 

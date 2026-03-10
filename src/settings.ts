@@ -4,6 +4,7 @@ import { FolderSuggest } from './ui/FolderSuggest';
 import { normalizePathSetting } from './utils/settingsMigration';
 import { validateVaultRelativePath } from './utils/vaultUtils';
 import { useJournalStore } from './store/journalStore';
+import type { GoalConfig } from './types';
 
 export class HindsightSettingTab extends PluginSettingTab {
     plugin: HindsightPlugin;
@@ -92,9 +93,33 @@ export class HindsightSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        new Setting(containerEl)
+            .setName('Week start day')
+            .setDesc('Controls all weekly aggregations (goal progress, weekly review, consistency scores).')
+            .addDropdown(dropdown => {
+                dropdown
+                    .addOption('0', 'Sunday')
+                    .addOption('1', 'Monday')
+                    .setValue(String(this.plugin.settings.weekStartDay))
+                    .onChange(async (value) => {
+                        this.plugin.settings.weekStartDay = (value === '1' ? 1 : 0);
+                        await this.plugin.saveSettings();
+                    });
+            });
+
+        new Setting(containerEl)
+            .setName('Morning briefing')
+            .setDesc('Show the morning briefing section in the sidebar Today tab.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.morningBriefingEnabled)
+                .onChange(async (value) => {
+                    this.plugin.settings.morningBriefingEnabled = value;
+                    await this.plugin.saveSettings();
+                }));
+
         // Field configuration section
         const detectedFields = useJournalStore.getState().detectedFields;
-        const numericFields = detectedFields.filter(f => f.type === 'number');
+        const numericFields = detectedFields.filter(f => f.type === 'number' || f.type === 'numeric-text');
 
         if (numericFields.length > 0) {
             new Setting(containerEl)
@@ -130,9 +155,107 @@ export class HindsightSettingTab extends PluginSettingTab {
             }
         }
 
+        // Goals section
+        this.renderGoalsSection(containerEl, detectedFields);
+
+        // Calendar theme
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Calendar');
+
+        new Setting(containerEl)
+            .setName('Color theme')
+            .setDesc('Color palette for the calendar heatmap and metric cells.')
+            .addDropdown(dropdown => {
+                dropdown
+                    .addOption('default', 'Default (red-green)')
+                    .addOption('monochrome', 'Monochrome')
+                    .addOption('warm', 'Warm')
+                    .addOption('cool', 'Cool')
+                    .addOption('colorblind', 'Color-blind safe')
+                    .setValue(this.plugin.settings.calendarColorTheme)
+                    .onChange(async (value) => {
+                        this.plugin.settings.calendarColorTheme = value as typeof this.plugin.settings.calendarColorTheme;
+                        await this.plugin.saveSettings();
+                    });
+            });
+
+        // Productivity tracking
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Productivity');
+
+        // Get detected section headings for multi-select
+        const allEntries = Array.from(useJournalStore.getState().entries.values());
+        const sectionHeadings = new Set<string>();
+        for (const entry of allEntries) {
+            if (entry.sections) {
+                for (const heading of Object.keys(entry.sections)) {
+                    sectionHeadings.add(heading);
+                }
+            }
+            if (entry.sectionHeadings) {
+                for (const heading of entry.sectionHeadings) {
+                    sectionHeadings.add(heading);
+                }
+            }
+        }
+        const sortedHeadings = Array.from(sectionHeadings).sort();
+
+        if (sortedHeadings.length > 0) {
+            new Setting(containerEl)
+                .setName('Productivity sections')
+                .setDesc('Only count checkboxes in these sections. Leave empty to count all sections.')
+                .addText(text => {
+                    text.setPlaceholder('e.g., Tasks, Goals')
+                        .setValue(this.plugin.settings.productivitySections.join(', '));
+                    text.inputEl.addEventListener('blur', () => {
+                        void (async () => {
+                            const raw = text.inputEl.value;
+                            const sections = raw.split(',').map(s => s.trim()).filter(s => s !== '');
+                            this.plugin.settings.productivitySections = sections;
+                            await this.plugin.saveSettings();
+                        })();
+                    });
+                });
+
+            new Setting(containerEl)
+                .setName('Excluded sections')
+                .setDesc('Never count checkboxes in these sections (overrides the whitelist above).')
+                .addText(text => {
+                    text.setPlaceholder('e.g., Meds, Shopping')
+                        .setValue(this.plugin.settings.excludedSections.join(', '));
+                    text.inputEl.addEventListener('blur', () => {
+                        void (async () => {
+                            const raw = text.inputEl.value;
+                            const sections = raw.split(',').map(s => s.trim()).filter(s => s !== '');
+                            this.plugin.settings.excludedSections = sections;
+                            await this.plugin.saveSettings();
+                        })();
+                    });
+                });
+        }
+
         new Setting(containerEl)
             .setHeading()
             .setName('Advanced');
+
+        new Setting(containerEl)
+            .setName('Priority section heading')
+            .setDesc('Section heading in yesterday\'s entry to extract priorities for the morning briefing.')
+            .addText(text => {
+                text.setPlaceholder("e.g., Tomorrow's Top 3")
+                    .setValue(this.plugin.settings.prioritySectionHeading);
+                text.inputEl.addEventListener('blur', () => {
+                    void (async () => {
+                        const val = text.inputEl.value.trim();
+                        if (val && val !== this.plugin.settings.prioritySectionHeading) {
+                            this.plugin.settings.prioritySectionHeading = val;
+                            await this.plugin.saveSettings();
+                        }
+                    })();
+                });
+            });
 
         new Setting(containerEl)
             .setName('Hot tier days')
@@ -169,5 +292,143 @@ export class HindsightSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
     }
-}
 
+    /**
+     * Render the Goals configuration section.
+     * Shows existing goals with edit/remove, and an "Add goal" button.
+     */
+    private renderGoalsSection(
+        containerEl: HTMLElement,
+        detectedFields: { key: string; type: string; coverage: number }[]
+    ): void {
+        const goalFields = detectedFields.filter(f => f.type === 'number' || f.type === 'numeric-text' || f.type === 'boolean');
+        if (goalFields.length === 0) return;
+
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Goals');
+
+        const goalsContainer = containerEl.createDiv('hindsight-goals-container');
+        const goals = this.plugin.settings.goalTargets;
+
+        // Render existing goals
+        for (const [fieldKey, goal] of Object.entries(goals)) {
+            this.renderGoalRow(goalsContainer, fieldKey, goal, goalFields);
+        }
+
+        // Add goal button
+        new Setting(goalsContainer)
+            .addButton(btn => {
+                btn.setButtonText('Add goal')
+                    .onClick(() => {
+                        // Pick the first field not already configured
+                        const usedKeys = new Set(Object.keys(goals));
+                        const available = goalFields.find(f => !usedKeys.has(f.key));
+                        if (!available) {
+                            new Notice('All detected fields already have goals configured.');
+                            return;
+                        }
+
+                        const newGoal: GoalConfig = {
+                            period: 'weekly',
+                            target: 1,
+                            type: available.type === 'boolean' ? 'count' : 'sum',
+                        };
+                        this.plugin.settings.goalTargets = {
+                            ...this.plugin.settings.goalTargets,
+                            [available.key]: newGoal,
+                        };
+                        void this.plugin.saveSettings().then(() => {
+                            this.display(); // Re-render settings
+                        });
+                    });
+            });
+    }
+
+    /**
+     * Render a single goal configuration row.
+     */
+    private renderGoalRow(
+        container: HTMLElement,
+        fieldKey: string,
+        goal: GoalConfig,
+        availableFields: { key: string; type: string }[]
+    ): void {
+        const row = container.createDiv('hindsight-goal-setting-row');
+
+        // Field dropdown
+        const fieldSelect = row.createEl('select');
+        for (const f of availableFields) {
+            const opt = fieldSelect.createEl('option', { text: f.key, value: f.key });
+            if (f.key === fieldKey) opt.selected = true;
+        }
+
+        // Period dropdown
+        const periodSelect = row.createEl('select');
+        for (const p of ['weekly', 'monthly'] as const) {
+            const opt = periodSelect.createEl('option', { text: p, value: p });
+            if (p === goal.period) opt.selected = true;
+        }
+
+        // Type dropdown
+        const typeSelect = row.createEl('select');
+        for (const t of ['sum', 'count'] as const) {
+            const opt = typeSelect.createEl('option', { text: t, value: t });
+            if (t === goal.type) opt.selected = true;
+        }
+
+        // Target input
+        const targetInput = row.createEl('input', { type: 'number' });
+        targetInput.value = String(goal.target);
+        targetInput.min = '0.1';
+        targetInput.step = '0.1';
+
+        // Remove button
+        const removeBtn = row.createEl('button', {
+            text: '✕',
+            cls: 'hindsight-goal-remove-btn',
+        });
+
+        // Event handlers
+        const saveGoal = () => {
+            void (async () => {
+                const newFieldKey = fieldSelect.value;
+                const targetVal = parseFloat(targetInput.value);
+                if (isNaN(targetVal) || targetVal <= 0) {
+                    new Notice('Goal target must be a positive number.');
+                    targetInput.value = String(goal.target);
+                    return;
+                }
+
+                const updated = { ...this.plugin.settings.goalTargets };
+                // If field changed, remove old key
+                if (newFieldKey !== fieldKey) {
+                    delete updated[fieldKey];
+                }
+                updated[newFieldKey] = {
+                    period: periodSelect.value as 'weekly' | 'monthly',
+                    target: targetVal,
+                    type: typeSelect.value as 'sum' | 'count',
+                };
+                this.plugin.settings.goalTargets = updated;
+                await this.plugin.saveSettings();
+                this.display(); // Re-render
+            })();
+        };
+
+        fieldSelect.addEventListener('change', saveGoal);
+        periodSelect.addEventListener('change', saveGoal);
+        typeSelect.addEventListener('change', saveGoal);
+        targetInput.addEventListener('blur', saveGoal);
+
+        removeBtn.addEventListener('click', () => {
+            void (async () => {
+                const updated = { ...this.plugin.settings.goalTargets };
+                delete updated[fieldKey];
+                this.plugin.settings.goalTargets = updated;
+                await this.plugin.saveSettings();
+                this.display(); // Re-render
+            })();
+        });
+    }
+}

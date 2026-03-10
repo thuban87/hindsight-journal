@@ -1183,3 +1183,566 @@ Fix commands.test.ts manifest path from ../../ to ../
 25 test files, 321 tests passing, lint clean
 ```
 
+---
+
+## 2026-03-09 - Phase 6a: Pulse Dashboard + Heatmap + Personal Bests
+
+**Focus:** Build the Insights → Pulse sub-tab with analytics dashboard, GitHub-style heatmap, personal bests, habit streaks, and consistency scoring.
+
+### Completed:
+
+**Types & Store:**
+- ✅ Added `PersonalBest` interface to `src/types/insights.ts` (type, field, title, value, period)
+- ✅ Added `PersonalBest` re-export to `src/types/index.ts` barrel
+- ✅ Extended `metricsCacheStore.ts` with `cachedPersonalBests`, `personalBestsStale`, `setPersonalBests()`, `markPersonalBestsStale()` — included in all invalidation and reset paths
+- ✅ Wired `markPersonalBestsStale()` into `storeWiring.ts` revision subscription
+
+**Service Layer:**
+- ✅ Expanded `PulseService.ts` from ~91 to ~445 lines with 4 new functions:
+  - `getHeatmapData(entries, fieldKey, months)` — date→value mapping for N months
+  - `getHabitStreaks(entries, booleanFields)` — per boolean field: 90-day array, current/longest streaks
+  - `getPersonalBests(entries, fields, polarity)` — best week (rolling 7-day avg), most consistent month, best trend (windows [7, 14, 30])
+  - `getConsistencyScores(entries, referenceDate, weekStartDay)` — thisWeek/thisMonth/allTime counts
+
+**Components (6 new files):**
+- ✅ `src/components/pulse/PulsePanel.tsx` — layout with collapsible sections, field selector dropdown for heatmap
+- ✅ `src/components/pulse/StatsCards.tsx` — total entries, current streak, avg of first numeric field, this week count
+- ✅ `src/components/pulse/PersonalBests.tsx` — cached in metricsCacheStore, 2s debounce recomputation
+- ✅ `src/components/pulse/ConsistencyScore.tsx` — week/month/all-time with progress bars
+- ✅ `src/components/charts/Heatmap.tsx` (~500 lines) — SVG heatmap with:
+  - Event delegation, polarity-aware coloring via `getPolarityColor()`
+  - React-rendered tooltip (positioned below cells)
+  - Year navigation, color legend with 5 gradient swatches
+  - Desktop drag-select via refs (imperative DOM), updates chartUiStore
+  - Mobile: tap-to-show persistent tooltips, no drag
+  - Keyboard nav: arrow keys + Enter
+  - Accessibility: aria-labelledby + sr-only table
+  - Field selector dropdown for switching between numeric/boolean fields
+- ✅ `src/components/charts/HabitStreaksGrid.tsx` — SVG rows with per-cell aria-labels, memoized on revision
+
+**Styles & Integration:**
+- ✅ `src/styles/pulse.css` — 390+ lines (stats cards, heatmap, legend, habit grid, personal bests, consistency, sr-only, mobile dates)
+- ✅ Added `@import './pulse.css'` to `src/styles/index.css`
+- ✅ Replaced EmptyState stub with `<PulsePanel />` in `MainApp.tsx`
+
+### Files Changed:
+- **New:** `src/components/pulse/PulsePanel.tsx`, `StatsCards.tsx`, `PersonalBests.tsx`, `ConsistencyScore.tsx`
+- **New:** `src/components/charts/Heatmap.tsx`, `HabitStreaksGrid.tsx`
+- **New:** `src/styles/pulse.css`
+- **Modified:** `src/types/insights.ts`, `src/types/index.ts`
+- **Modified:** `src/store/metricsCacheStore.ts`, `src/storeWiring.ts`
+- **Modified:** `src/services/PulseService.ts`
+- **Modified:** `src/components/MainApp.tsx`
+- **Modified:** `src/styles/index.css`
+- **Modified:** `styles.css` (build output)
+
+### Testing Notes:
+- ✅ `npm run build` passes (lint + CSS + tsc + esbuild)
+- ✅ 25 test files, 321 tests all passing — no regressions
+- ✅ Grep gates clean: innerHTML (comment in chartSetup only), style={{ (VirtualList spacer + CalendarCell comment only), console.log (zero results)
+- ✅ Brad manually tested in Obsidian: stats cards, heatmap, personal bests, consistency, habit streaks, tooltips, field selector dropdown
+
+### UI Tweaks Applied During Session:
+- Fixed tooltip positioning (above → below cells to avoid top-row clipping)
+- Added color legend with gradient swatches showing fieldKey min–max
+- Removed native browser tooltip from aria-label → aria-labelledby
+- Added field selector dropdown to switch between numeric/boolean fields
+- Reverted max-width: fit-content (broke short-year layouts)
+
+### Bugs/Issues:
+- Minor: Heatmap section has some excess horizontal scroll space after the SVG content. Cosmetic only, not breaking. Can revisit later.
+- Future enhancement discussed: Support text fields containing numeric values (e.g., text "7" → treated as number for analytics). Estimated ~2-3 hours, would modify `JournalIndexService.detectFields()`.
+
+### Next Steps:
+- Phase 6b: Goals + Week Start Day + Settings Expansion
+- Phase 6c: Weekly Review + Digest
+
+---
+
+## Next Session Prompt
+
+```
+Phase 6a complete. Pulse Dashboard deployed and verified:
+- 6 new components, PulseService expanded with 4 analytics functions
+- GitHub-style heatmap with field selector, drag-select, keyboard nav, legend
+- Personal bests, consistency scores, habit streaks all working
+- 25 test files, 321 tests, lint clean
+
+Continue with Phase 6b: Goals + Week Start Day + Settings Expansion.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 6b (after line 3661)
+- src/components/pulse/ — New Pulse components
+- src/types/settings.ts — Settings to expand
+- src/store/settingsStore.ts — Settings store
+```
+
+## Git Commit Message
+
+```
+feat(phase-6a): pulse dashboard with heatmap, personal bests, and habit streaks
+
+PulseService expanded with 4 analytics functions:
+- getHeatmapData: date-to-value mapping for N months
+- getHabitStreaks: boolean field 90-day tracking with current/longest streaks
+- getPersonalBests: best week, most consistent month, best trend windows
+- getConsistencyScores: week/month/all-time journaling consistency
+
+New components:
+- Heatmap: GitHub-style SVG with polarity coloring, drag-select, keyboard nav,
+  year navigation, color legend, field selector dropdown, sr-only table
+- HabitStreaksGrid: SVG rows per boolean field with aria-labels
+- StatsCards: total entries, streak, average, this week count
+- PersonalBests: cached in metricsCacheStore with 2s debounce
+- ConsistencyScore: week/month/all-time with progress bars
+- PulsePanel: collapsible layout container
+
+Store and wiring:
+- PersonalBest type added to insights.ts
+- metricsCacheStore extended with personal bests caching
+- storeWiring updated for personal bests staleness
+
+8 modified files, 4 new files, 732 insertions
+25 test files, 321 tests passing, lint clean
+```
+
+---
+
+# Phase 6b: Goals + Today Tab Enhancements
+
+## Session 1: Phase 6b — 2026-03-09
+
+### What Was Done:
+- **Settings v3→v4 migration:** Added `GoalConfig` interface, `goalTargets`, `prioritySectionHeading`, `weekStartDay` to `HindsightSettings` and `DEFAULT_SETTINGS`
+- **Migration chain:** Added `migrateV3ToV4()` with validation for all 3 new fields (goalTargets validates period/target/type, target > 0 defense-in-depth, weekStartDay validates 0|1)
+- **PulseService expanded:** Added `getGoalProgress()` (uses `getEntriesInPeriod()` for period scoping, supports sum/count types) and `getAdherenceRate()` (boolean field completion over N days)
+- **4 new components created:**
+  - `ProgressRing.tsx` — SVG progress ring with clamped rendering (0-1) but actual value display, CSS vars via refs, accessible
+  - `GoalTracker.tsx` — Renders ProgressRings per configured goal, compact mode for sidebar
+  - `MorningBriefing.tsx` — Yesterday metrics, 1-year echo excerpt, priorities from configurable heading, streak, boolean adherence rates
+  - `GapAlerts.tsx` — Entry/field gap nudges (3+ day gaps, field-specific for >50% coverage fields), max 3 alerts
+- **Settings tab expanded:** Goals section (add/edit/remove with field/period/target/type), Week start day dropdown, Morning briefing toggle, Priority section heading input
+- **TodayStatus.tsx rewritten:** 5-section scrollable layout (entry status, goal rings, sparklines, gap alerts, morning briefing)
+- **Styles:** New `goals.css` with progress ring, goal tracker, morning briefing, gap alert, and settings styles
+
+### Files Changed:
+**New files (4):**
+- `src/components/charts/ProgressRing.tsx`
+- `src/components/pulse/GoalTracker.tsx`
+- `src/components/sidebar/MorningBriefing.tsx`
+- `src/components/sidebar/GapAlerts.tsx`
+- `src/styles/goals.css`
+
+**Modified files (9):**
+- `src/types/settings.ts` — GoalConfig interface, 3 new settings
+- `src/types/index.ts` — Barrel export for GoalConfig
+- `src/utils/settingsMigration.ts` — v3→v4 migration, validation, version bump
+- `src/services/PulseService.ts` — getGoalProgress(), getAdherenceRate()
+- `src/settings.ts` — Goals section, week start day, priority heading, morning briefing toggle
+- `src/components/sidebar/TodayStatus.tsx` — 5-section layout with new components
+- `src/styles/index.css` — @import goals.css
+- `styles.css` — Built CSS output
+- `test/utils/settingsMigration.test.ts` — Updated assertions for v4, added Phase 6b field checks
+
+### Testing:
+- ✅ `npm run lint` passes (zero errors)
+- ✅ `npx tsc --noEmit` passes (zero type errors)
+- ✅ `npm run build` passes (lint + CSS + tsc + esbuild)
+- ✅ 25 test files, 321 tests all passing — no regressions
+- ✅ Grep gates clean: innerHTML (chartSetup comment only), style={{ (CalendarCell/EntryCard comments only), console.log (zero results)
+- ✅ Brad manually tested in Obsidian: goals settings, progress rings, morning briefing, gap alerts, week start day, scrollable Today tab
+
+### Bugs/Issues:
+- None discovered during this session
+
+### Next Steps:
+- Phase 6c: Widgets + Themes + Quality Dashboard
+- Phase 6.5: Tests for Phase 6a-6c features
+
+---
+
+## Next Session Prompt
+
+```
+Phase 6b complete. Goals + Today Tab Enhancements deployed and verified:
+- Settings v3→v4: goalTargets, prioritySectionHeading, weekStartDay
+- PulseService expanded with getGoalProgress() and getAdherenceRate()
+- 4 new components: ProgressRing, GoalTracker, MorningBriefing, GapAlerts
+- TodayStatus rewritten with 5-section scrollable layout
+- 25 test files, 321 tests, lint clean
+
+Continue with Phase 6c: Widgets + Themes + Quality Dashboard.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 6c (after line 3797)
+- src/components/pulse/ — GoalTracker
+- src/components/sidebar/ — MorningBriefing, GapAlerts, TodayStatus
+- src/types/settings.ts — Settings interface (now v4)
+```
+
+## Git Commit Message
+
+```
+feat(phase-6b): goal tracking, morning briefing, and gap alerts for Today tab
+
+Settings v3 to v4 migration:
+- GoalConfig interface with period, target, type
+- goalTargets, prioritySectionHeading, weekStartDay settings
+- Full validation and migration chain
+
+PulseService expanded with 2 functions:
+- getGoalProgress: period-scoped sum/count with target comparison
+- getAdherenceRate: boolean field completion over N days
+
+New components:
+- ProgressRing: SVG progress ring with clamped rendering, CSS var refs
+- GoalTracker: renders progress rings per goal, compact sidebar mode
+- MorningBriefing: yesterday metrics, echo excerpt, priorities, streak, adherence
+- GapAlerts: entry/field gap nudges for high-coverage fields, max 3 alerts
+
+Settings tab: Goals section with add/edit/remove, week start day dropdown,
+morning briefing toggle, priority section heading input
+TodayStatus: 5-section scrollable layout integrating all new components
+
+9 modified files, 5 new files, 629 insertions
+25 test files, 321 tests passing, lint clean
+```
+
+---
+
+## 2026-03-09 - Phase 6i: Numeric-Text Field Type (Interjected)
+
+**Focus:** Extend the plugin to detect and handle frontmatter text fields that contain numeric values, treating them equivalently to native number fields across all analytics, charts, and UI features.
+
+### Completed:
+
+**Type System:**
+- ✅ Added `'numeric-text'` to the `FrontmatterField.type` union in `src/types/metrics.ts`
+
+**Shared Helpers (FrontmatterService.ts):**
+- ✅ `isNumericField(field)` — returns true for both `'number'` and `'numeric-text'` types
+- ✅ `getNumericValue(raw)` — coerces native numbers and numeric strings to `number | null`
+
+**Detection Logic (FrontmatterService.ts):**
+- ✅ Updated `inferFieldType()` to detect numeric-text using an 80% threshold heuristic
+- ✅ Fixed mixed-type detection: handles fields with native numbers in older entries (`anxiety: 6`) and quoted strings in newer entries (`anxiety: "3"`)
+- ✅ Updated `detectFields()` to compute min/max ranges for numeric-text fields
+
+**Service Updates (3 services):**
+- ✅ `MetricsEngine.ts` — 6 filter sites + value coercion in conditionalAverage, weeklyComparison
+- ✅ `TrendAlertEngine.ts` — 6 filter sites + value coercion in consecutive change, anomaly, pattern recall
+- ✅ `PulseService.ts` — 5 filter sites + value coercion in heatmap, personal bests, goal progress
+
+**Component Updates (12 components):**
+- ✅ `MetricSelector.tsx` — metric dropdown includes numeric-text fields
+- ✅ `ChartsPanel.tsx` — chart field selector includes numeric-text
+- ✅ `ScatterPlot.tsx` — scatter axis selectors include numeric-text
+- ✅ `CorrelationCards.tsx` — correlation count includes numeric-text
+- ✅ `PulsePanel.tsx` — heatmap field selector includes numeric-text
+- ✅ `StatsCards.tsx` — average calculation uses getNumericValue
+- ✅ `TodayStatus.tsx` — sparkline fields include numeric-text
+- ✅ `MorningBriefing.tsx` — yesterday metrics use getNumericValue
+- ✅ `GapAlerts.tsx` — gap detection includes numeric-text
+- ✅ `IndexFilters.tsx` — filter dropdowns include numeric-text
+- ✅ `JournalIndex.tsx` — table columns include numeric-text
+- ✅ `EntryCard.tsx` — badge display uses getNumericValue for polarity coloring
+
+**Settings (settings.ts):**
+- ✅ Polarity config dropdown includes numeric-text fields
+- ✅ Goal config dropdown includes numeric-text fields
+
+**Tests (FrontmatterService.test.ts):**
+- ✅ 21 new tests: numeric-text detection (7), isNumericField (4), getNumericValue (7), range computation (1), time series coercion (1), mixed-type detection (1)
+
+### Files Changed:
+| File | Change |
+|------|--------|
+| `src/types/metrics.ts` | Added `'numeric-text'` to type union |
+| `src/services/FrontmatterService.ts` | Helpers + detection logic (45 lines added) |
+| `src/services/MetricsEngine.ts` | Filter + coercion updates |
+| `src/services/TrendAlertEngine.ts` | Filter + coercion updates |
+| `src/services/PulseService.ts` | Filter + coercion updates |
+| `src/components/charts/ChartsPanel.tsx` | isNumericField filter |
+| `src/components/charts/ScatterPlot.tsx` | isNumericField filter |
+| `src/components/charts/CorrelationCards.tsx` | isNumericField filter |
+| `src/components/shared/MetricSelector.tsx` | isNumericField filter |
+| `src/components/pulse/PulsePanel.tsx` | isNumericField filter |
+| `src/components/pulse/StatsCards.tsx` | isNumericField + getNumericValue |
+| `src/components/sidebar/TodayStatus.tsx` | isNumericField filter |
+| `src/components/sidebar/MorningBriefing.tsx` | isNumericField + getNumericValue |
+| `src/components/sidebar/GapAlerts.tsx` | isNumericField filter |
+| `src/components/index-table/IndexFilters.tsx` | isNumericField filter |
+| `src/components/index-table/JournalIndex.tsx` | isNumericField filter |
+| `src/components/timeline/EntryCard.tsx` | isNumericField + getNumericValue for badges |
+| `src/settings.ts` | Expanded type checks for polarity + goals |
+| `test/services/FrontmatterService.test.ts` | 21 new tests (135 lines added) |
+
+### Testing Notes:
+- ✅ 342 tests passing across 25 test files
+- ✅ `npm run lint` clean
+- ✅ `npm run build` clean (lint + CSS + tsc + esbuild)
+- ✅ Brad manually verified in Obsidian: numeric-text fields appearing in charts, pulse, badges, settings
+
+### Bugs/Issues:
+- **Root cause bug found and fixed:** The initial implementation required ALL values to be strings before checking numeric-text. In Brad's vault, fields like `anxiety` had native numbers in 2023-2024 entries (`anxiety: 6`) but quoted strings in 2026 entries (`anxiety: "3"`). The mixed case fell through to `'string'`. Fixed by checking if ≥80% of ALL values (native numbers + string numbers combined) are parseable as finite numbers.
+
+### Next Steps:
+- Phase 6c: Widgets + Themes + Quality Dashboard
+- Phase 6.5: Tests for Phase 6a-6c features
+
+---
+
+## Next Session Prompt
+
+```
+Phase 6i complete (interjected). Numeric-text field support deployed and verified:
+- New type 'numeric-text' in FrontmatterField type union
+- Shared helpers: isNumericField(), getNumericValue()
+- inferFieldType detects text fields where >=80% of values parse as numbers
+  (handles mixed native-number + string-number across entry generations)
+- All 18 consumer files updated (3 services, 12 components, settings.ts)
+- 342 tests, 25 test files, lint clean
+
+Continue with Phase 6c: Widgets + Themes + Quality Dashboard.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 6c (after line 3797)
+- src/services/FrontmatterService.ts — isNumericField, getNumericValue helpers
+- src/types/metrics.ts — FrontmatterField type union
+```
+
+## Git Commit Message
+
+```
+feat(phase-6i): numeric-text field type for text frontmatter with numeric values
+
+New type and helpers:
+- Added numeric-text to FrontmatterField type union
+- isNumericField(field) returns true for number or numeric-text types
+- getNumericValue(raw) coerces native numbers and numeric strings to number or null
+- inferFieldType detects numeric-text when >=80% of values parse as finite numbers
+- Handles mixed native-number + string-number across entry generations
+
+Updated 15 consumer files:
+- MetricsEngine: 6 filter sites + value coercion
+- TrendAlertEngine: 6 filter sites + value coercion
+- PulseService: 5 filter sites + value coercion
+- 12 UI components: filter swaps + badge coercion in EntryCard
+- settings.ts: polarity and goal config include numeric-text
+
+Tests: 21 new tests for detection, helpers, range computation, mixed types
+19 files changed, 246 insertions, 53 deletions
+25 test files, 342 tests passing, lint clean
+```
+
+---
+
+## 2026-03-10 - Phase 6c: Widgets + Themes + Quality Dashboard
+
+**Focus:** Customizable sidebar widgets, calendar color themes (including color-blind accessible), entry quality dashboard, task volatility tracking, and frontmatter completion grid.
+
+### Completed:
+
+**Types and Settings:**
+- ✅ Added `widgets: { id: string; visible: boolean }[]` and `calendarColorTheme` to `HindsightSettings`
+- ✅ Added `tasksCompleted` and `tasksTotal` fields to `JournalEntry`
+- ✅ Settings migration v4 to v5 with `widgetOrder` legacy migration support
+- ✅ Updated `validateSettings()` with widget array and theme validation
+
+**Utilities:**
+- ✅ Created `src/utils/colorThemes.ts` — 5 color palettes (default, monochrome, warm, cool, colorblind) with CSS variable-based empty color
+- ✅ Created `src/utils/taskParser.ts` — Checkbox parsing with section whitelist/blacklist and productivity score calculation
+- ✅ Updated `src/utils/statsUtils.ts` — Added optional `theme` parameter to `mapValueToColor()` and `getPolarityColor()`
+
+**Indexing:**
+- ✅ Updated `JournalIndexService.parseEntryContent()` to compute `tasksCompleted`/`tasksTotal` from checkboxes during Pass 2
+
+**Components:**
+- ✅ Created `src/components/sidebar/WidgetContainer.tsx` — Arrow-button reordering, visibility toggles, overflow menu (move to top/bottom)
+- ✅ Created `src/components/pulse/QualityDashboard.tsx` — Average score, Chart.js bar distribution, worst gaps list, sparkline trend
+- ✅ Created `src/components/dashboard/TaskVolatility.tsx` — Weekly comparison, 90-day productivity trend line
+- ✅ Created `src/components/dashboard/FrontmatterDash.tsx` — SVG grid showing 30-day field completion per field
+
+**Integration:**
+- ✅ Wired `WidgetContainer` into `TodayStatus.tsx` — Goal rings, sparklines, gap alerts, morning briefing are reorderable widgets
+- ✅ Wired `QualityDashboard` into `PulsePanel.tsx` as new collapsible section
+- ✅ Wired `TaskVolatility` + `FrontmatterDash` into Digest tab via `DigestContent` in `MainApp.tsx`
+- ✅ Updated `CalendarCell.tsx` to pass `calendarColorTheme` to color functions
+
+**Settings Tab:**
+- ✅ Added Calendar theme dropdown (5 options)
+- ✅ Added Productivity sections text input (whitelist)
+- ✅ Added Excluded sections text input (blacklist)
+
+**Styles:**
+- ✅ Created `src/styles/widgets.css` — Widget container with 44px touch targets
+- ✅ Created `src/styles/dashboard.css` — Dashboard component styles
+- ✅ Updated `src/styles/index.css` with new CSS imports
+
+**Bug Fix:**
+- ✅ Fixed calendar metric selector dropdown showing broken chevron artifacts in dark mode — removed Obsidian `dropdown` class, added `appearance: none` with custom SVG chevron
+
+### Files Changed:
+
+| File | Change |
+|------|--------|
+| `src/types/settings.ts` | Added `widgets`, `calendarColorTheme`, `DEFAULT_SETTINGS` |
+| `src/types/journal.ts` | Added `tasksCompleted`, `tasksTotal` |
+| `src/utils/colorThemes.ts` | **NEW** — 5 color theme definitions |
+| `src/utils/taskParser.ts` | **NEW** — Checkbox parsing utility |
+| `src/utils/statsUtils.ts` | Theme-aware color functions |
+| `src/utils/settingsMigration.ts` | v4 to v5 migration, widget/theme validation |
+| `src/services/JournalIndexService.ts` | Task count computation in Pass 2 |
+| `src/components/sidebar/WidgetContainer.tsx` | **NEW** — Reorderable widget container |
+| `src/components/sidebar/TodayStatus.tsx` | Refactored to use WidgetContainer |
+| `src/components/pulse/QualityDashboard.tsx` | **NEW** — Entry quality analytics |
+| `src/components/pulse/PulsePanel.tsx` | Added QualityDashboard section |
+| `src/components/dashboard/TaskVolatility.tsx` | **NEW** — Task completion tracking |
+| `src/components/dashboard/FrontmatterDash.tsx` | **NEW** — Field completion grid |
+| `src/components/MainApp.tsx` | DigestContent replaces placeholder |
+| `src/components/calendar/CalendarCell.tsx` | Theme-aware color functions |
+| `src/components/shared/MetricSelector.tsx` | Removed `dropdown` class |
+| `src/styles/calendar.css` | Custom select chevron |
+| `src/styles/widgets.css` | **NEW** — Widget styles |
+| `src/styles/dashboard.css` | **NEW** — Dashboard styles |
+| `src/styles/index.css` | New CSS imports |
+| `src/settings.ts` | Calendar theme, productivity sections settings |
+| `test/utils/settingsMigration.test.ts` | Updated v5 assertions |
+
+### Testing Notes:
+- ✅ `npm run lint` clean
+- ✅ `npm run build` passes (main.js 454KB)
+- ✅ 342 tests passing across 25 test files
+- ✅ Grep gates clean (no innerHTML, no style={{}}, no console.log)
+- ✅ Brad manually verified in Obsidian — sidebar widgets, calendar themes, digest tab, quality dashboard all working
+
+### Issues Discovered:
+- Calendar metric selector dropdown was using Obsidian `dropdown` class that creates broken chevron artifacts in dark mode — fixed by removing the class and using `appearance: none` with custom SVG
+
+### Next Session Prompt:
+```
+Phase 6c is complete. All Phase 6 work (6a, 6b, 6i, 6c) is now done.
+
+Current state:
+- Settings at version 5
+- 342 tests, 25 test files, lint clean
+- 15 files changed in this session, 606 insertions, 97 deletions
+
+Continue with Phase 6.5: Tests or Phase 7: Lens + Threads depending on plan ordering.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — next phase after 6c
+- src/utils/colorThemes.ts — theme system for charts
+- src/utils/taskParser.ts — task parsing for productivity tracking
+- src/components/sidebar/WidgetContainer.tsx — widget reordering system
+```
+
+## Git Commit Message
+
+```
+feat(phase-6c): widgets, color themes, quality dashboard, task volatility
+
+Sidebar widget system:
+- WidgetContainer with arrow reordering, visibility toggles, overflow menu
+- TodayStatus refactored to use WidgetContainer for goals, sparklines, gap alerts, briefing
+
+Calendar color themes:
+- 5 palettes (default, monochrome, warm, cool, colorblind) in colorThemes.ts
+- Theme-aware mapValueToColor and getPolarityColor in statsUtils.ts
+- CalendarCell passes calendarColorTheme to color functions
+- Settings dropdown for theme selection
+
+Quality dashboard and analytics:
+- QualityDashboard in Pulse tab with avg score, Chart.js bar chart, worst gaps, sparkline
+- TaskVolatility in Digest tab with weekly comparison and 90-day trend line
+- FrontmatterDash in Digest tab with SVG 30-day field completion grid
+- Task checkbox parsing via taskParser.ts with section whitelist/blacklist
+
+Settings migration v4 to v5:
+- widgets array with widgetOrder legacy migration
+- calendarColorTheme with validation
+- Productivity and excluded sections in settings tab
+
+Bug fix: calendar metric selector dark mode chevron artifacts
+
+15 files changed, 606 insertions, 97 deletions
+25 test files, 342 tests passing, lint clean
+```
+
+---
+
+## 2026-03-10 - Phase 6.5: Pulse & Dashboard Tests
+
+**Focus:** Comprehensive unit tests for PulseService (Phase 6a/6b functions), taskParser, and colorThemes.
+
+### Completed:
+
+#### Phase 6.5: Pulse & Dashboard Tests (40 new tests, 382 total passing)
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `test/services/PulseService.test.ts` | 16 new (25 total) | getHeatmapData (date-value mapping, null days, boolean fields), getHabitStreaks (90-day array, current/longest streak, empty), getPersonalBests (rolling avg, consistent month, polarity), getConsistencyScores (week/month/all-time, single entry), getGoalProgress (sum/count types), getAdherenceRate (rate calc, window exclusion) |
+| `test/utils/taskParser.test.ts` | 7 (new file) | parseTaskCompletion (checkbox counting, whitelist, blacklist, no-checkbox sections, empty), computeProductivityScore (percentage, null on empty) |
+| `test/utils/colorThemes.test.ts` | 17 (new file) | All 5 themes validated via parameterized tests (HSL output at 0/0.5/1, emptyColorVar present, colorblind distinctness) |
+
+### Files Changed:
+
+**New Files (2):**
+- `test/utils/taskParser.test.ts`
+- `test/utils/colorThemes.test.ts`
+
+**Modified Files (1):**
+- `test/services/PulseService.test.ts` — Expanded imports, added `tasksCompleted`/`tasksTotal` defaults to `makeEntry` helper, 16 new test cases for 6 PulseService functions
+
+### Testing Notes:
+- ✅ All 382 tests passing across 27 test files (40 new, zero regressions)
+- ✅ `npm run lint` clean
+- No build or deploy needed — test-only phase
+
+### Blockers/Issues:
+- None
+
+### Next Session Prompt:
+
+```
+Phase 6.5 is complete. All Phase 6 work (6a, 6b, 6i, 6c, 6.5) is now done.
+
+Current state:
+- Settings at version 5
+- 382 tests, 27 test files, lint clean
+- Branch: feat/phase-6
+
+Continue with Phase 7: Actionable Echoes + Lens.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 7 (line 4064+)
+- src/services/EchoesService.ts — Echo lookup functions to expand
+- src/services/PulseService.ts — Now fully tested
+- src/utils/colorThemes.ts — Now fully tested
+- src/utils/taskParser.ts — Now fully tested
+```
+
+## Git Commit Message
+
+```
+test(phase-6.5): pulse service, task parser, and color themes tests
+
+PulseService tests (16 new):
+- getHeatmapData: date-value mapping, null for missing days, boolean handling
+- getHabitStreaks: 90-day boolean array, current/longest streak computation
+- getPersonalBests: rolling average, consistent month, lower-is-better polarity
+- getConsistencyScores: week/month/all-time period counting
+- getGoalProgress: sum and count types with period scoping
+- getAdherenceRate: rate calculation with lookback window exclusion
+
+taskParser tests (7 new):
+- parseTaskCompletion: checkbox counting, whitelist/blacklist, empty sections
+- computeProductivityScore: percentage calculation, null on empty
+
+colorThemes tests (17 new):
+- Parameterized validation across all 5 themes (HSL output, emptyColorVar)
+- Colorblind theme distinctness at 0, 0.5, and 1
+
+27 test files, 382 tests passing, lint clean
+```
+

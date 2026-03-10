@@ -1,3 +1,13 @@
+import { getDefaultWeekStart } from '../utils/periodUtils';
+
+/** Goal target configuration for a single field */
+export interface GoalConfig {
+    period: 'weekly' | 'monthly';
+    target: number;
+    /** 'sum' for cumulative (studying_hours), 'count' for occurrences (workout) */
+    type: 'sum' | 'count';
+}
+
 /** Plugin settings */
 export interface HindsightSettings {
     /** Path to the journal folder (scanned recursively) */
@@ -26,6 +36,16 @@ export interface HindsightSettings {
     rollingWindow: number;
     /** Per-field polarity setting: determines badge coloring and trend alert tone */
     fieldPolarity: Record<string, 'higher-is-better' | 'lower-is-better' | 'neutral'>;
+    /** Goal targets: field key -> { period, target, type } */
+    goalTargets: Record<string, GoalConfig>;
+    /** Section heading to extract priorities from yesterday's entry */
+    prioritySectionHeading: string;
+    /** Day the week starts on: 0 = Sunday, 1 = Monday */
+    weekStartDay: 0 | 1;
+    /** Ordered list of widgets with visibility state for the sidebar Today tab */
+    widgets: { id: string; visible: boolean }[];
+    /** Calendar color palette theme */
+    calendarColorTheme: 'default' | 'monochrome' | 'warm' | 'cool' | 'colorblind';
 }
 
 export const DEFAULT_SETTINGS: HindsightSettings = {
@@ -42,4 +62,17 @@ export const DEFAULT_SETTINGS: HindsightSettings = {
     selectedChartFields: [],
     rollingWindow: 7,
     fieldPolarity: {},
+    goalTargets: {},
+    prioritySectionHeading: "Tomorrow's Top 3",
+    weekStartDay: getDefaultWeekStart(),
+    widgets: [
+        { id: 'entry-status', visible: true },
+        { id: 'goal-rings', visible: true },
+        { id: 'sparklines', visible: true },
+        { id: 'gap-alerts', visible: true },
+        { id: 'morning-briefing', visible: true },
+        { id: 'streak', visible: true },
+        { id: 'consistency', visible: true },
+    ],
+    calendarColorTheme: 'default',
 };

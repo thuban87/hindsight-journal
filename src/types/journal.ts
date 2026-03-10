@@ -47,6 +47,10 @@ export interface JournalEntry {
      * Needed because getSectionWordCounts() would otherwise return zero for cold entries.
      */
     sectionWordCounts?: Record<string, number>;
+    /** Number of completed checkboxes (- [x]) in configured productivity sections */
+    tasksCompleted: number;
+    /** Total number of checkboxes (- [ ] + - [x]) in configured productivity sections */
+    tasksTotal: number;
 }
 
 /** Parsed section from a journal entry */

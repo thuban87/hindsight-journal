@@ -16,6 +16,7 @@ import { useAppStore } from '../../store/appStore';
 import { useJournalStore } from '../../store/journalStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { getPolarityColor } from '../../utils/statsUtils';
+import { isNumericField, getNumericValue } from '../../services/FrontmatterService';
 
 interface EntryCardProps {
     entry: JournalEntry;
@@ -177,7 +178,7 @@ export function EntryCard({ entry, detectedFields, sectionKey, onClick }: EntryC
 
     // Build badges for all detected numeric/boolean fields that have a value
     const badgeFields = detectedFields.filter(
-        f => (f.type === 'number' || f.type === 'boolean') && entry.frontmatter[f.key] != null
+        f => (isNumericField(f) || f.type === 'boolean') && entry.frontmatter[f.key] != null
     );
 
     return (
@@ -200,9 +201,10 @@ export function EntryCard({ entry, detectedFields, sectionKey, onClick }: EntryC
                 {badgeFields.map(f => {
                     const val = entry.frontmatter[f.key];
                     let badgeColor: string | undefined;
-                    if (f.type === 'number' && typeof val === 'number') {
+                    const numVal = getNumericValue(val);
+                    if (isNumericField(f) && numVal !== null) {
                         const polarity = fieldPolarity[f.key] ?? 'neutral';
-                        badgeColor = getPolarityColor(val, f.range?.min ?? 0, f.range?.max ?? 10, polarity);
+                        badgeColor = getPolarityColor(numVal, f.range?.min ?? 0, f.range?.max ?? 10, polarity);
                     }
                     return (
                         <BadgeSpan key={f.key} color={badgeColor}>

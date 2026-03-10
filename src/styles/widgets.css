@@ -1,0 +1,108 @@
+/* Widget Container — sidebar widget reordering and visibility */
+
+.hindsight-widget-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.hindsight-widget {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.hindsight-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    background: var(--background-secondary);
+    cursor: default;
+}
+
+.hindsight-widget-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.hindsight-widget-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+}
+
+.hindsight-widget-arrow,
+.hindsight-widget-toggle,
+.hindsight-widget-menu-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    padding: 0;
+}
+
+.hindsight-widget-arrow:hover,
+.hindsight-widget-toggle:hover,
+.hindsight-widget-menu-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.hindsight-widget-arrow:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.hindsight-widget-menu-wrapper {
+    position: relative;
+}
+
+.hindsight-widget-menu-dropdown {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    z-index: 10;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    min-width: 120px;
+}
+
+.hindsight-widget-menu-item {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: none;
+    border: none;
+    color: var(--text-normal);
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.85rem;
+}
+
+.hindsight-widget-menu-item:hover {
+    background: var(--background-modifier-hover);
+}
+
+.hindsight-widget-content {
+    padding: 0.5rem;
+}
+
+.hindsight-widget-empty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 1rem;
+    font-style: italic;
+}

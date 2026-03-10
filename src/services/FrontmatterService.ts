@@ -7,6 +7,31 @@
 
 import type { JournalEntry, FrontmatterField, MetricDataPoint } from '../types';
 
+/** Minimum ratio of non-empty values that must parse as numbers for numeric-text detection */
+const NUMERIC_TEXT_THRESHOLD = 0.8;
+
+/**
+ * Check if a field is numeric (either native number or text containing numbers).
+ * Use this instead of `f.type === 'number'` to include numeric-text fields.
+ */
+export function isNumericField(field: FrontmatterField): boolean {
+    return field.type === 'number' || field.type === 'numeric-text';
+}
+
+/**
+ * Coerce a frontmatter value to a number, or return null.
+ * Handles both native numbers and numeric strings.
+ */
+export function getNumericValue(raw: unknown): number | null {
+    if (raw === null || raw === undefined || raw === '') return null;
+    if (typeof raw === 'number') return isNaN(raw) ? null : raw;
+    if (typeof raw === 'string') {
+        const num = Number(raw);
+        return isFinite(num) ? num : null;
+    }
+    return null;
+}
+
 /**
  * Scan all entries and detect what frontmatter fields exist,
  * their types, coverage (how many entries have them), and ranges.
@@ -44,8 +69,8 @@ export function detectFields(entries: JournalEntry[]): FrontmatterField[] {
             total: entries.length,
         };
 
-        // Compute range for numeric fields
-        if (type === 'number') {
+        // Compute range for numeric and numeric-text fields
+        if (type === 'number' || type === 'numeric-text') {
             const numValues = nonEmpty
                 .map(v => Number(v))
                 .filter(n => !isNaN(n));
@@ -69,6 +94,7 @@ export function detectFields(entries: JournalEntry[]): FrontmatterField[] {
  *        if all are true/false → 'boolean',
  *        if all are arrays → 'string[]',
  *        if all match ISO date pattern → 'date',
+ *        if ≥80% of string values parse as finite numbers → 'numeric-text',
  *        else → 'string'
  */
 export function inferFieldType(values: unknown[]): FrontmatterField['type'] {
@@ -91,6 +117,21 @@ export function inferFieldType(values: unknown[]): FrontmatterField['type'] {
     // Check ISO date pattern (YYYY-MM-DD)
     const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (nonEmpty.every(v => typeof v === 'string' && isoDateRegex.test(v))) return 'date';
+
+    // Check numeric-text: values that are a mix of native numbers and numeric strings,
+    // or all strings where ≥80% parse as finite numbers.
+    // This handles fields where older entries have `anxiety: 6` (native number)
+    // and newer entries have `anxiety: "3"` (quoted string).
+    const numericCount = nonEmpty.filter(v => {
+        if (typeof v === 'number') return !isNaN(v);
+        if (typeof v === 'string') return isFinite(Number(v));
+        return false;
+    }).length;
+    if (numericCount / nonEmpty.length >= NUMERIC_TEXT_THRESHOLD) {
+        // If ALL are native numbers, we already returned 'number' above.
+        // If we reach here, at least some are strings, so it's 'numeric-text'.
+        return 'numeric-text';
+    }
 
     return 'string';
 }
