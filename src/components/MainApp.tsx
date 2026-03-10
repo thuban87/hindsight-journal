@@ -21,6 +21,8 @@ import { ChartsPanel } from './charts/ChartsPanel';
 import { PulsePanel } from './pulse/PulsePanel';
 import { TabGroup } from './shared/TabGroup';
 import { EmptyState } from './shared/EmptyState';
+import { TaskVolatility } from './dashboard/TaskVolatility';
+import { FrontmatterDash } from './dashboard/FrontmatterDash';
 import { useAppStore } from '../store/appStore';
 
 /** Tab group definitions for the two-tier navigation */
@@ -98,7 +100,7 @@ function MainContent({ activeTab }: { activeTab: string }): React.ReactElement {
         case 'pulse':
             return <PulsePanel />;
         case 'digest':
-            return <EmptyState message="Digest — coming in Phase 6c" />;
+            return <DigestContent />;
         case 'lens':
             return <EmptyState message="Lens — coming in Phase 7" />;
         case 'threads':
@@ -152,3 +154,22 @@ function CalendarContent(): React.ReactElement {
         </div>
     );
 }
+
+/**
+ * Digest content wrapper — composes TaskVolatility + FrontmatterDash.
+ */
+function DigestContent(): React.ReactElement {
+    const { entries, detectedFields } = useJournalEntries();
+    const entryArray = React.useMemo(
+        () => Array.from(entries.values()),
+        [entries]
+    );
+
+    return (
+        <div className="hindsight-digest-container">
+            <TaskVolatility />
+            <FrontmatterDash entries={entryArray} fields={detectedFields} />
+        </div>
+    );
+}
+

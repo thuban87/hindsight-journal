@@ -1,13 +1,4 @@
-/**
- * Today Status
- *
- * Shows whether today's journal entry exists and
- * displays key stats: filled fields, writing streak, sparklines.
- * Phase 6b: expanded with goal progress, gap alerts, and morning briefing
- * as scrollable sections.
- */
-
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useJournalEntries, useTodayEntry } from '../../hooks/useJournalEntries';
 import { useJournalStore } from '../../store/journalStore';
 import { useAppStore } from '../../store/appStore';
@@ -21,6 +12,7 @@ import { SparklineRow } from './SparklineRow';
 import { GoalTracker } from '../pulse/GoalTracker';
 import { GapAlerts } from './GapAlerts';
 import { MorningBriefing } from './MorningBriefing';
+import { WidgetContainer } from './WidgetContainer';
 
 /**
  * Format the time difference between now and a date as a relative string.
@@ -57,6 +49,72 @@ export function TodayStatus(): React.ReactElement | null {
     const goalKeys = Object.keys(settings.goalTargets);
     const hasGoals = goalKeys.length > 0;
 
+    // Numeric fields for sparklines
+    const numericFields = detectedFields.filter(f => isNumericField(f));
+
+    // Build widget definitions for WidgetContainer
+    const widgets = useMemo(() => {
+        const defs = [];
+
+        if (hasGoals) {
+            defs.push({
+                id: 'goal-rings',
+                label: 'Goals',
+                component: (
+                    <GoalTracker
+                        entries={allEntries}
+                        goals={settings.goalTargets}
+                        referenceDate={today}
+                        compact
+                    />
+                ),
+            });
+        }
+
+        if (numericFields.length > 0 && todayEntry) {
+            defs.push({
+                id: 'sparklines',
+                label: 'Sparklines',
+                component: (
+                    <div className="hindsight-today-sparklines">
+                        {numericFields.map(field => {
+                            const timeSeries = getFieldTimeSeries(allEntries, field.key);
+                            const currentValue = todayEntry.frontmatter[field.key];
+                            const numValue = currentValue !== undefined && currentValue !== null && currentValue !== ''
+                                ? (isNaN(Number(currentValue)) ? null : Number(currentValue))
+                                : null;
+                            return (
+                                <SparklineRow
+                                    key={field.key}
+                                    fieldKey={field.key}
+                                    label={field.key}
+                                    currentValue={numValue}
+                                    data={timeSeries}
+                                />
+                            );
+                        })}
+                    </div>
+                ),
+            });
+        }
+
+        defs.push({
+            id: 'gap-alerts',
+            label: 'Gap alerts',
+            component: <GapAlerts entries={allEntries} fields={detectedFields} referenceDate={today} />,
+        });
+
+        if (settings.morningBriefingEnabled) {
+            defs.push({
+                id: 'morning-briefing',
+                label: 'Morning briefing',
+                component: <MorningBriefing entries={allEntries} fields={detectedFields} referenceDate={today} />,
+            });
+        }
+
+        return defs;
+    }, [allEntries, detectedFields, today, settings, todayEntry, hasGoals, numericFields]);
+
     if (!todayEntry) {
         return (
             <div className="hindsight-today-status">
@@ -73,21 +131,7 @@ export function TodayStatus(): React.ReactElement | null {
                     <EmptyState message="No journal entries found. Start journaling!" />
                 )}
 
-                {/* Section 2: Goal progress (even without today's entry) */}
-                {hasGoals && (
-                    <GoalTracker
-                        entries={allEntries}
-                        goals={settings.goalTargets}
-                        referenceDate={today}
-                        compact
-                    />
-                )}
-
-                {/* Section 4: Gap alerts */}
-                <GapAlerts entries={allEntries} fields={detectedFields} referenceDate={today} />
-
-                {/* Section 5: Morning briefing */}
-                <MorningBriefing entries={allEntries} fields={detectedFields} referenceDate={today} />
+                <WidgetContainer widgets={widgets} />
             </div>
         );
     }
@@ -100,12 +144,9 @@ export function TodayStatus(): React.ReactElement | null {
         todayEntry.frontmatter[field.key] !== ''
     ).length;
 
-    // Numeric fields for sparklines
-    const numericFields = detectedFields.filter(f => isNumericField(f));
-
     return (
         <div className="hindsight-today-status">
-            {/* Section 1: Entry status (existing) */}
+            {/* Entry status — always at top, not widgetized */}
             <div className="hindsight-today-header">
                 <span className="hindsight-today-indicator hindsight-today-indicator-exists">✓</span>
                 <span>Today's entry</span>
@@ -139,43 +180,9 @@ export function TodayStatus(): React.ReactElement | null {
                 Open today's note
             </button>
 
-            {/* Section 2: Goal progress rings (compact) */}
-            {hasGoals && (
-                <GoalTracker
-                    entries={allEntries}
-                    goals={settings.goalTargets}
-                    referenceDate={today}
-                    compact
-                />
-            )}
-
-            {/* Section 3: Sparklines for numeric fields */}
-            {numericFields.length > 0 && (
-                <div className="hindsight-today-sparklines">
-                    {numericFields.map(field => {
-                        const timeSeries = getFieldTimeSeries(allEntries, field.key);
-                        const currentValue = todayEntry.frontmatter[field.key];
-                        const numValue = currentValue !== undefined && currentValue !== null && currentValue !== ''
-                            ? (isNaN(Number(currentValue)) ? null : Number(currentValue))
-                            : null;
-                        return (
-                            <SparklineRow
-                                key={field.key}
-                                fieldKey={field.key}
-                                label={field.key}
-                                currentValue={numValue}
-                                data={timeSeries}
-                            />
-                        );
-                    })}
-                </div>
-            )}
-
-            {/* Section 4: Gap alerts */}
-            <GapAlerts entries={allEntries} fields={detectedFields} referenceDate={today} />
-
-            {/* Section 5: Morning briefing */}
-            <MorningBriefing entries={allEntries} fields={detectedFields} referenceDate={today} />
+            {/* Reorderable widget sections */}
+            <WidgetContainer widgets={widgets} />
         </div>
     );
 }
+

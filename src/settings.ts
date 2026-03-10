@@ -158,6 +158,84 @@ export class HindsightSettingTab extends PluginSettingTab {
         // Goals section
         this.renderGoalsSection(containerEl, detectedFields);
 
+        // Calendar theme
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Calendar');
+
+        new Setting(containerEl)
+            .setName('Color theme')
+            .setDesc('Color palette for the calendar heatmap and metric cells.')
+            .addDropdown(dropdown => {
+                dropdown
+                    .addOption('default', 'Default (red-green)')
+                    .addOption('monochrome', 'Monochrome')
+                    .addOption('warm', 'Warm')
+                    .addOption('cool', 'Cool')
+                    .addOption('colorblind', 'Color-blind safe')
+                    .setValue(this.plugin.settings.calendarColorTheme)
+                    .onChange(async (value) => {
+                        this.plugin.settings.calendarColorTheme = value as typeof this.plugin.settings.calendarColorTheme;
+                        await this.plugin.saveSettings();
+                    });
+            });
+
+        // Productivity tracking
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Productivity');
+
+        // Get detected section headings for multi-select
+        const allEntries = Array.from(useJournalStore.getState().entries.values());
+        const sectionHeadings = new Set<string>();
+        for (const entry of allEntries) {
+            if (entry.sections) {
+                for (const heading of Object.keys(entry.sections)) {
+                    sectionHeadings.add(heading);
+                }
+            }
+            if (entry.sectionHeadings) {
+                for (const heading of entry.sectionHeadings) {
+                    sectionHeadings.add(heading);
+                }
+            }
+        }
+        const sortedHeadings = Array.from(sectionHeadings).sort();
+
+        if (sortedHeadings.length > 0) {
+            new Setting(containerEl)
+                .setName('Productivity sections')
+                .setDesc('Only count checkboxes in these sections. Leave empty to count all sections.')
+                .addText(text => {
+                    text.setPlaceholder('e.g., Tasks, Goals')
+                        .setValue(this.plugin.settings.productivitySections.join(', '));
+                    text.inputEl.addEventListener('blur', () => {
+                        void (async () => {
+                            const raw = text.inputEl.value;
+                            const sections = raw.split(',').map(s => s.trim()).filter(s => s !== '');
+                            this.plugin.settings.productivitySections = sections;
+                            await this.plugin.saveSettings();
+                        })();
+                    });
+                });
+
+            new Setting(containerEl)
+                .setName('Excluded sections')
+                .setDesc('Never count checkboxes in these sections (overrides the whitelist above).')
+                .addText(text => {
+                    text.setPlaceholder('e.g., Meds, Shopping')
+                        .setValue(this.plugin.settings.excludedSections.join(', '));
+                    text.inputEl.addEventListener('blur', () => {
+                        void (async () => {
+                            const raw = text.inputEl.value;
+                            const sections = raw.split(',').map(s => s.trim()).filter(s => s !== '');
+                            this.plugin.settings.excludedSections = sections;
+                            await this.plugin.saveSettings();
+                        })();
+                    });
+                });
+        }
+
         new Setting(containerEl)
             .setHeading()
             .setName('Advanced');

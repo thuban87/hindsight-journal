@@ -1,0 +1,204 @@
+/* Dashboard Components — Quality, TaskVolatility, FrontmatterDash */
+
+/* Quality Dashboard */
+.hindsight-quality-dashboard {
+    padding: 0.5rem 0;
+}
+
+.hindsight-quality-summary {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.hindsight-quality-avg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.hindsight-quality-avg-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-normal);
+    line-height: 1;
+}
+
+.hindsight-quality-avg-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.hindsight-quality-trend {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.hindsight-quality-trend-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.hindsight-quality-chart-container {
+    position: relative;
+    height: 150px;
+    margin-bottom: 1rem;
+}
+
+.hindsight-chart-error {
+    color: var(--text-error);
+    text-align: center;
+    padding: 1rem;
+}
+
+.hindsight-chart-tooltip {
+    position: absolute;
+    left: var(--tooltip-x, 0);
+    top: var(--tooltip-y, 0);
+    transform: translateX(-50%);
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-normal);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+/* Worst Gaps */
+.hindsight-worst-gaps {
+    margin-top: 0.5rem;
+}
+
+.hindsight-worst-gaps-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.hindsight-worst-gap-item {
+    margin-bottom: 0.25rem;
+}
+
+.hindsight-worst-gap-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.375rem 0.5rem;
+    background: none;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.hindsight-worst-gap-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.hindsight-worst-gap-score {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+/* Task Volatility */
+.hindsight-task-volatility {
+    padding: 0.5rem 0;
+}
+
+.hindsight-task-weekly-comparison {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.hindsight-task-week-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.hindsight-task-week-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.hindsight-task-week-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.hindsight-task-chart-container {
+    position: relative;
+    height: 150px;
+}
+
+/* Frontmatter Dashboard */
+.hindsight-frontmatter-dash {
+    padding: 0.5rem 0;
+}
+
+.hindsight-frontmatter-dash-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.hindsight-frontmatter-dash-day-label {
+    fill: var(--text-muted);
+    font-size: 0.6rem;
+}
+
+.hindsight-frontmatter-dash-field-label {
+    fill: var(--text-normal);
+    font-size: 0.7rem;
+}
+
+.hindsight-frontmatter-dash-cell-filled {
+    fill: var(--text-success);
+    opacity: 0.7;
+}
+
+.hindsight-frontmatter-dash-cell-empty {
+    fill: var(--background-modifier-border);
+    opacity: 0.5;
+}
+
+.hindsight-frontmatter-dash-pct {
+    fill: var(--text-muted);
+    font-size: 0.65rem;
+}
+
+/* Digest container */
+.hindsight-digest-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 0.5rem;
+}
+
+/* Section headings */
+.hindsight-section-heading {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-normal);
+    margin: 0 0 0.5rem 0;
+}
+
+.hindsight-subsection-heading {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin: 0 0 0.375rem 0;
+}

@@ -15,6 +15,7 @@ import { PersonalBests } from './PersonalBests';
 import { ConsistencyScore } from './ConsistencyScore';
 import { Heatmap } from '../charts/Heatmap';
 import { HabitStreaksGrid } from '../charts/HabitStreaksGrid';
+import { QualityDashboard } from './QualityDashboard';
 import { EmptyState } from '../shared/EmptyState';
 import { isNumericField } from '../../services/FrontmatterService';
 
@@ -127,6 +128,10 @@ export function PulsePanel(): React.ReactElement {
                     <HabitStreaksGrid booleanFields={booleanFields} />
                 </CollapsibleSection>
             )}
+
+            <CollapsibleSection title="Entry quality">
+                <QualityDashboard entries={entryArray} />
+            </CollapsibleSection>
         </div>
     );
 }

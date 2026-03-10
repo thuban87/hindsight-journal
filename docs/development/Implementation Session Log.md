@@ -1534,3 +1534,137 @@ Tests: 21 new tests for detection, helpers, range computation, mixed types
 19 files changed, 246 insertions, 53 deletions
 25 test files, 342 tests passing, lint clean
 ```
+
+---
+
+## 2026-03-10 - Phase 6c: Widgets + Themes + Quality Dashboard
+
+**Focus:** Customizable sidebar widgets, calendar color themes (including color-blind accessible), entry quality dashboard, task volatility tracking, and frontmatter completion grid.
+
+### Completed:
+
+**Types and Settings:**
+- ✅ Added `widgets: { id: string; visible: boolean }[]` and `calendarColorTheme` to `HindsightSettings`
+- ✅ Added `tasksCompleted` and `tasksTotal` fields to `JournalEntry`
+- ✅ Settings migration v4 to v5 with `widgetOrder` legacy migration support
+- ✅ Updated `validateSettings()` with widget array and theme validation
+
+**Utilities:**
+- ✅ Created `src/utils/colorThemes.ts` — 5 color palettes (default, monochrome, warm, cool, colorblind) with CSS variable-based empty color
+- ✅ Created `src/utils/taskParser.ts` — Checkbox parsing with section whitelist/blacklist and productivity score calculation
+- ✅ Updated `src/utils/statsUtils.ts` — Added optional `theme` parameter to `mapValueToColor()` and `getPolarityColor()`
+
+**Indexing:**
+- ✅ Updated `JournalIndexService.parseEntryContent()` to compute `tasksCompleted`/`tasksTotal` from checkboxes during Pass 2
+
+**Components:**
+- ✅ Created `src/components/sidebar/WidgetContainer.tsx` — Arrow-button reordering, visibility toggles, overflow menu (move to top/bottom)
+- ✅ Created `src/components/pulse/QualityDashboard.tsx` — Average score, Chart.js bar distribution, worst gaps list, sparkline trend
+- ✅ Created `src/components/dashboard/TaskVolatility.tsx` — Weekly comparison, 90-day productivity trend line
+- ✅ Created `src/components/dashboard/FrontmatterDash.tsx` — SVG grid showing 30-day field completion per field
+
+**Integration:**
+- ✅ Wired `WidgetContainer` into `TodayStatus.tsx` — Goal rings, sparklines, gap alerts, morning briefing are reorderable widgets
+- ✅ Wired `QualityDashboard` into `PulsePanel.tsx` as new collapsible section
+- ✅ Wired `TaskVolatility` + `FrontmatterDash` into Digest tab via `DigestContent` in `MainApp.tsx`
+- ✅ Updated `CalendarCell.tsx` to pass `calendarColorTheme` to color functions
+
+**Settings Tab:**
+- ✅ Added Calendar theme dropdown (5 options)
+- ✅ Added Productivity sections text input (whitelist)
+- ✅ Added Excluded sections text input (blacklist)
+
+**Styles:**
+- ✅ Created `src/styles/widgets.css` — Widget container with 44px touch targets
+- ✅ Created `src/styles/dashboard.css` — Dashboard component styles
+- ✅ Updated `src/styles/index.css` with new CSS imports
+
+**Bug Fix:**
+- ✅ Fixed calendar metric selector dropdown showing broken chevron artifacts in dark mode — removed Obsidian `dropdown` class, added `appearance: none` with custom SVG chevron
+
+### Files Changed:
+
+| File | Change |
+|------|--------|
+| `src/types/settings.ts` | Added `widgets`, `calendarColorTheme`, `DEFAULT_SETTINGS` |
+| `src/types/journal.ts` | Added `tasksCompleted`, `tasksTotal` |
+| `src/utils/colorThemes.ts` | **NEW** — 5 color theme definitions |
+| `src/utils/taskParser.ts` | **NEW** — Checkbox parsing utility |
+| `src/utils/statsUtils.ts` | Theme-aware color functions |
+| `src/utils/settingsMigration.ts` | v4 to v5 migration, widget/theme validation |
+| `src/services/JournalIndexService.ts` | Task count computation in Pass 2 |
+| `src/components/sidebar/WidgetContainer.tsx` | **NEW** — Reorderable widget container |
+| `src/components/sidebar/TodayStatus.tsx` | Refactored to use WidgetContainer |
+| `src/components/pulse/QualityDashboard.tsx` | **NEW** — Entry quality analytics |
+| `src/components/pulse/PulsePanel.tsx` | Added QualityDashboard section |
+| `src/components/dashboard/TaskVolatility.tsx` | **NEW** — Task completion tracking |
+| `src/components/dashboard/FrontmatterDash.tsx` | **NEW** — Field completion grid |
+| `src/components/MainApp.tsx` | DigestContent replaces placeholder |
+| `src/components/calendar/CalendarCell.tsx` | Theme-aware color functions |
+| `src/components/shared/MetricSelector.tsx` | Removed `dropdown` class |
+| `src/styles/calendar.css` | Custom select chevron |
+| `src/styles/widgets.css` | **NEW** — Widget styles |
+| `src/styles/dashboard.css` | **NEW** — Dashboard styles |
+| `src/styles/index.css` | New CSS imports |
+| `src/settings.ts` | Calendar theme, productivity sections settings |
+| `test/utils/settingsMigration.test.ts` | Updated v5 assertions |
+
+### Testing Notes:
+- ✅ `npm run lint` clean
+- ✅ `npm run build` passes (main.js 454KB)
+- ✅ 342 tests passing across 25 test files
+- ✅ Grep gates clean (no innerHTML, no style={{}}, no console.log)
+- ✅ Brad manually verified in Obsidian — sidebar widgets, calendar themes, digest tab, quality dashboard all working
+
+### Issues Discovered:
+- Calendar metric selector dropdown was using Obsidian `dropdown` class that creates broken chevron artifacts in dark mode — fixed by removing the class and using `appearance: none` with custom SVG
+
+### Next Session Prompt:
+```
+Phase 6c is complete. All Phase 6 work (6a, 6b, 6i, 6c) is now done.
+
+Current state:
+- Settings at version 5
+- 342 tests, 25 test files, lint clean
+- 15 files changed in this session, 606 insertions, 97 deletions
+
+Continue with Phase 6.5: Tests or Phase 7: Lens + Threads depending on plan ordering.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — next phase after 6c
+- src/utils/colorThemes.ts — theme system for charts
+- src/utils/taskParser.ts — task parsing for productivity tracking
+- src/components/sidebar/WidgetContainer.tsx — widget reordering system
+```
+
+## Git Commit Message
+
+```
+feat(phase-6c): widgets, color themes, quality dashboard, task volatility
+
+Sidebar widget system:
+- WidgetContainer with arrow reordering, visibility toggles, overflow menu
+- TodayStatus refactored to use WidgetContainer for goals, sparklines, gap alerts, briefing
+
+Calendar color themes:
+- 5 palettes (default, monochrome, warm, cool, colorblind) in colorThemes.ts
+- Theme-aware mapValueToColor and getPolarityColor in statsUtils.ts
+- CalendarCell passes calendarColorTheme to color functions
+- Settings dropdown for theme selection
+
+Quality dashboard and analytics:
+- QualityDashboard in Pulse tab with avg score, Chart.js bar chart, worst gaps, sparkline
+- TaskVolatility in Digest tab with weekly comparison and 90-day trend line
+- FrontmatterDash in Digest tab with SVG 30-day field completion grid
+- Task checkbox parsing via taskParser.ts with section whitelist/blacklist
+
+Settings migration v4 to v5:
+- widgets array with widgetOrder legacy migration
+- calendarColorTheme with validation
+- Productivity and excluded sections in settings tab
+
+Bug fix: calendar metric selector dark mode chevron artifacts
+
+15 files changed, 606 insertions, 97 deletions
+25 test files, 342 tests passing, lint clean
+```

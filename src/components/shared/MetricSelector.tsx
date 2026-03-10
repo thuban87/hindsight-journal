@@ -29,7 +29,7 @@ export function MetricSelector({ fields, selected, onChange }: MetricSelectorPro
 
     return (
         <select
-            className="hindsight-metric-selector dropdown"
+            className="hindsight-metric-selector"
             value={selected ?? ''}
             onChange={handleChange}
             aria-label="Color-code by metric"

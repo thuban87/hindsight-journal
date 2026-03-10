@@ -3817,7 +3817,7 @@ Expand the Today tab to be a scrollable container with sections:
 
 ---
 
-## Phase 6c: Widgets + Themes + Quality Dashboard (~1-2 sessions)
+## Phase 6c: Widgets + Themes + Quality Dashboard ✅ COMPLETED 2026-03-10
 
 **Goal:** Customizable sidebar widgets, calendar color palette themes (including color-blind accessible), entry quality dashboard, and task/habit volatility tracking.
 

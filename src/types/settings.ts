@@ -42,6 +42,10 @@ export interface HindsightSettings {
     prioritySectionHeading: string;
     /** Day the week starts on: 0 = Sunday, 1 = Monday */
     weekStartDay: 0 | 1;
+    /** Ordered list of widgets with visibility state for the sidebar Today tab */
+    widgets: { id: string; visible: boolean }[];
+    /** Calendar color palette theme */
+    calendarColorTheme: 'default' | 'monochrome' | 'warm' | 'cool' | 'colorblind';
 }
 
 export const DEFAULT_SETTINGS: HindsightSettings = {
@@ -61,4 +65,14 @@ export const DEFAULT_SETTINGS: HindsightSettings = {
     goalTargets: {},
     prioritySectionHeading: "Tomorrow's Top 3",
     weekStartDay: getDefaultWeekStart(),
+    widgets: [
+        { id: 'entry-status', visible: true },
+        { id: 'goal-rings', visible: true },
+        { id: 'sparklines', visible: true },
+        { id: 'gap-alerts', visible: true },
+        { id: 'morning-briefing', visible: true },
+        { id: 'streak', visible: true },
+        { id: 'consistency', visible: true },
+    ],
+    calendarColorTheme: 'default',
 };
