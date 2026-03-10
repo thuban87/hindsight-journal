@@ -1668,3 +1668,81 @@ Bug fix: calendar metric selector dark mode chevron artifacts
 15 files changed, 606 insertions, 97 deletions
 25 test files, 342 tests passing, lint clean
 ```
+
+---
+
+## 2026-03-10 - Phase 6.5: Pulse & Dashboard Tests
+
+**Focus:** Comprehensive unit tests for PulseService (Phase 6a/6b functions), taskParser, and colorThemes.
+
+### Completed:
+
+#### Phase 6.5: Pulse & Dashboard Tests (40 new tests, 382 total passing)
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `test/services/PulseService.test.ts` | 16 new (25 total) | getHeatmapData (date-value mapping, null days, boolean fields), getHabitStreaks (90-day array, current/longest streak, empty), getPersonalBests (rolling avg, consistent month, polarity), getConsistencyScores (week/month/all-time, single entry), getGoalProgress (sum/count types), getAdherenceRate (rate calc, window exclusion) |
+| `test/utils/taskParser.test.ts` | 7 (new file) | parseTaskCompletion (checkbox counting, whitelist, blacklist, no-checkbox sections, empty), computeProductivityScore (percentage, null on empty) |
+| `test/utils/colorThemes.test.ts` | 17 (new file) | All 5 themes validated via parameterized tests (HSL output at 0/0.5/1, emptyColorVar present, colorblind distinctness) |
+
+### Files Changed:
+
+**New Files (2):**
+- `test/utils/taskParser.test.ts`
+- `test/utils/colorThemes.test.ts`
+
+**Modified Files (1):**
+- `test/services/PulseService.test.ts` — Expanded imports, added `tasksCompleted`/`tasksTotal` defaults to `makeEntry` helper, 16 new test cases for 6 PulseService functions
+
+### Testing Notes:
+- ✅ All 382 tests passing across 27 test files (40 new, zero regressions)
+- ✅ `npm run lint` clean
+- No build or deploy needed — test-only phase
+
+### Blockers/Issues:
+- None
+
+### Next Session Prompt:
+
+```
+Phase 6.5 is complete. All Phase 6 work (6a, 6b, 6i, 6c, 6.5) is now done.
+
+Current state:
+- Settings at version 5
+- 382 tests, 27 test files, lint clean
+- Branch: feat/phase-6
+
+Continue with Phase 7: Actionable Echoes + Lens.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 7 (line 4064+)
+- src/services/EchoesService.ts — Echo lookup functions to expand
+- src/services/PulseService.ts — Now fully tested
+- src/utils/colorThemes.ts — Now fully tested
+- src/utils/taskParser.ts — Now fully tested
+```
+
+## Git Commit Message
+
+```
+test(phase-6.5): pulse service, task parser, and color themes tests
+
+PulseService tests (16 new):
+- getHeatmapData: date-value mapping, null for missing days, boolean handling
+- getHabitStreaks: 90-day boolean array, current/longest streak computation
+- getPersonalBests: rolling average, consistent month, lower-is-better polarity
+- getConsistencyScores: week/month/all-time period counting
+- getGoalProgress: sum and count types with period scoping
+- getAdherenceRate: rate calculation with lookback window exclusion
+
+taskParser tests (7 new):
+- parseTaskCompletion: checkbox counting, whitelist/blacklist, empty sections
+- computeProductivityScore: percentage calculation, null on empty
+
+colorThemes tests (17 new):
+- Parameterized validation across all 5 themes (HSL output, emptyColorVar)
+- Colorblind theme distinctness at 0, 0.5, and 1
+
+27 test files, 382 tests passing, lint clean
+```
+
