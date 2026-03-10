@@ -1890,3 +1890,100 @@ Infrastructure:
 24 files changed, 13 new files
 28 test files, 389 tests passing, lint clean
 ```
+
+---
+
+## 2026-03-10 - Phase 7.5: Echoes & Lens Tests
+
+**Focus:** Test coverage for Phase 7 features — EchoesService expanded functions, Lens compound filtering, and HighlightText.
+
+### Completed:
+
+#### EchoesService Tests (14 new tests → 21 total)
+- ✅ `compareMetrics`: correct comparison for matching fields, skips fields not in both entries, direction respects polarity settings, returns empty when todayEntry undefined
+- ✅ `findSimilarEntries`: finds entries within tolerance range, excludes today's entry, returns most recent first, respects limit parameter
+- ✅ `detectMilestones`: detects 100th entry, detects 1-year anniversary, no milestone for non-milestone counts, detects streak milestone
+- ✅ `getExtendedEchoes`: returns entries for same day of month, returns entries for quarterly periods
+
+#### Lens Utils Extraction
+- ✅ Created `src/utils/lensUtils.ts` — extracted `applyLensFilters()`, `sortEntries()`, and `SortOption` from `LensPanel.tsx` (zero logic change, enables testability)
+- ✅ Updated `LensPanel.tsx` to import from new utility file
+
+#### Lens Integration Tests (13 new tests)
+- ✅ Compound filters: date range + field filter, tag filter, all empty returns all, multi-term AND text search, word count filter, hasImages filter
+- ✅ Saved filters: serialization/deserialization roundtrip, removing a saved filter
+- ✅ Random entry: returns entry from filtered set, empty set returns null
+- ✅ Sorting: date newest first, quality high to low, word count low to high
+
+#### HighlightText Tests (already complete)
+- ✅ Confirmed existing `test/components/HighlightText.test.ts` (7 tests) covers all 5 plan-specified test cases plus 2 extras — no changes needed
+
+### Files Changed:
+
+**New Files (2):**
+- `src/utils/lensUtils.ts`
+- `test/integration/lens-integration.test.ts`
+
+**Modified Files (2):**
+- `src/components/lens/LensPanel.tsx` — replaced local functions with imports from lensUtils.ts
+- `test/services/EchoesService.test.ts` — expanded with 14 new tests for Phase 7 functions
+
+### Testing Notes:
+- ✅ All 416 unit tests passing across 29 test files
+- ✅ `npm run lint` passes — zero errors
+- ✅ `npm run build` passes — lint + CSS + TypeScript + esbuild clean
+- ✅ No regressions from prior phases
+
+### Blockers/Issues:
+- None
+
+---
+
+## Next Session Prompt
+
+```
+Phase 7.5 complete. Echoes & Lens test coverage done:
+- EchoesService: 21 tests (14 new) covering compareMetrics, findSimilarEntries,
+  detectMilestones, getExtendedEchoes
+- Lens integration: 13 new tests covering compound filters, saved filters,
+  random entry, sorting
+- HighlightText: 7 existing tests already covered all plan cases
+- lensUtils.ts extracted from LensPanel.tsx for testability
+- 416 tests passing, 29 test files, lint clean, build clean
+
+Continue with Phase 8: Threads + Section Reader.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 8 (line 4340+)
+- src/services/EchoesService.ts — tested echo functions
+- src/utils/lensUtils.ts — extracted lens filtering logic
+- test/integration/lens-integration.test.ts — lens test patterns
+```
+
+## Git Commit Message
+
+```
+test(phase-7.5): echoes and lens test coverage with lensUtils extraction
+
+EchoesService tests (14 new, 21 total):
+- compareMetrics: field matching, missing fields, polarity direction, undefined today
+- findSimilarEntries: tolerance range, today exclusion, newest-first sort, limit
+- detectMilestones: entry count, anniversary, non-milestone, streak
+- getExtendedEchoes: same-day-of-month, quarterly periods
+
+Lens integration tests (13 new):
+- Compound filters: date range + field, tag, empty returns all, multi-term AND,
+  word count, hasImages
+- Saved filters: JSON roundtrip, removal
+- Random entry: selection from set, empty set guard
+- Sorting: date, quality, word count
+
+Refactor:
+- Extract applyLensFilters and sortEntries from LensPanel.tsx into lensUtils.ts
+- LensPanel imports from new util (zero logic change)
+
+HighlightText tests confirmed complete (7 existing tests cover all plan cases)
+
+29 test files, 416 tests passing, lint and build clean
+```
+
