@@ -18,6 +18,7 @@ import { CalendarGrid } from './calendar/CalendarGrid';
 import { TimelineList } from './timeline/TimelineList';
 import { JournalIndex } from './index-table/JournalIndex';
 import { ChartsPanel } from './charts/ChartsPanel';
+import { PulsePanel } from './pulse/PulsePanel';
 import { TabGroup } from './shared/TabGroup';
 import { EmptyState } from './shared/EmptyState';
 import { useAppStore } from '../store/appStore';
@@ -95,7 +96,7 @@ function MainContent({ activeTab }: { activeTab: string }): React.ReactElement {
         case 'charts':
             return <ChartsPanel />;
         case 'pulse':
-            return <EmptyState message="Pulse — coming in Phase 6a" />;
+            return <PulsePanel />;
         case 'digest':
             return <EmptyState message="Digest — coming in Phase 6c" />;
         case 'lens':

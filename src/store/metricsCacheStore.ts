@@ -13,7 +13,7 @@
  */
 
 import { create } from 'zustand';
-import type { MetricDataPoint, CorrelationResult, TrendAlert, ConditionalInsight } from '../types';
+import type { MetricDataPoint, CorrelationResult, TrendAlert, ConditionalInsight, PersonalBest } from '../types';
 
 interface MetricsCacheState {
     /** Cached time series per field key. Invalidated when entries change. */
@@ -30,6 +30,10 @@ interface MetricsCacheState {
     cachedAlerts: TrendAlert[] | null;
     /** Cached weekly comparison (Phase 5c — null until computed) */
     cachedWeeklyComparison: { field: string; thisWeek: number; lastWeek: number; change: number; percentChange: number }[] | null;
+    /** Cached personal bests — null until computed */
+    cachedPersonalBests: PersonalBest[] | null;
+    /** Whether personal bests need recomputation */
+    personalBestsStale: boolean;
     /** Whether cached data is stale (entry changed but recomputation pending) */
     stale: boolean;
 }
@@ -76,6 +80,12 @@ interface MetricsCacheActions {
     /** Store weekly comparison results. */
     setWeeklyComparison(data: { field: string; thisWeek: number; lastWeek: number; change: number; percentChange: number }[]): void;
 
+    /** Store computed personal bests. */
+    setPersonalBests(bests: PersonalBest[]): void;
+
+    /** Mark personal bests as stale (needs recomputation). */
+    markPersonalBestsStale(): void;
+
     /** Reset to initial state (called from plugin.onunload()) */
     reset(): void;
 }
@@ -88,6 +98,8 @@ export const useMetricsCacheStore = create<MetricsCacheState & MetricsCacheActio
     cachedConditionalInsights: null,
     cachedAlerts: null,
     cachedWeeklyComparison: null,
+    cachedPersonalBests: null,
+    personalBestsStale: false,
     stale: false,
 
     markStale(): void {
@@ -106,6 +118,8 @@ export const useMetricsCacheStore = create<MetricsCacheState & MetricsCacheActio
                 cachedConditionalInsights: null,
                 cachedAlerts: null,
                 cachedWeeklyComparison: null,
+                cachedPersonalBests: null,
+                personalBestsStale: false,
                 stale: false,
             });
             return;
@@ -156,6 +170,8 @@ export const useMetricsCacheStore = create<MetricsCacheState & MetricsCacheActio
             cachedConditionalInsights: newConditionalInsights,
             cachedAlerts: null,
             cachedWeeklyComparison: null,
+            cachedPersonalBests: null,
+            personalBestsStale: false,
             stale: false,
         });
     },
@@ -192,6 +208,10 @@ export const useMetricsCacheStore = create<MetricsCacheState & MetricsCacheActio
 
     setWeeklyComparison: (data) => set({ cachedWeeklyComparison: data }),
 
+    setPersonalBests: (bests) => set({ cachedPersonalBests: bests, personalBestsStale: false }),
+
+    markPersonalBestsStale: () => set({ personalBestsStale: true }),
+
     reset(): void {
         set({
             timeSeriesCache: new Map(),
@@ -201,6 +221,8 @@ export const useMetricsCacheStore = create<MetricsCacheState & MetricsCacheActio
             cachedConditionalInsights: null,
             cachedAlerts: null,
             cachedWeeklyComparison: null,
+            cachedPersonalBests: null,
+            personalBestsStale: false,
             stale: false,
         });
     },

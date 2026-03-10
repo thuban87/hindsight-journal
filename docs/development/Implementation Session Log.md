@@ -1183,3 +1183,125 @@ Fix commands.test.ts manifest path from ../../ to ../
 25 test files, 321 tests passing, lint clean
 ```
 
+---
+
+## 2026-03-09 - Phase 6a: Pulse Dashboard + Heatmap + Personal Bests
+
+**Focus:** Build the Insights → Pulse sub-tab with analytics dashboard, GitHub-style heatmap, personal bests, habit streaks, and consistency scoring.
+
+### Completed:
+
+**Types & Store:**
+- ✅ Added `PersonalBest` interface to `src/types/insights.ts` (type, field, title, value, period)
+- ✅ Added `PersonalBest` re-export to `src/types/index.ts` barrel
+- ✅ Extended `metricsCacheStore.ts` with `cachedPersonalBests`, `personalBestsStale`, `setPersonalBests()`, `markPersonalBestsStale()` — included in all invalidation and reset paths
+- ✅ Wired `markPersonalBestsStale()` into `storeWiring.ts` revision subscription
+
+**Service Layer:**
+- ✅ Expanded `PulseService.ts` from ~91 to ~445 lines with 4 new functions:
+  - `getHeatmapData(entries, fieldKey, months)` — date→value mapping for N months
+  - `getHabitStreaks(entries, booleanFields)` — per boolean field: 90-day array, current/longest streaks
+  - `getPersonalBests(entries, fields, polarity)` — best week (rolling 7-day avg), most consistent month, best trend (windows [7, 14, 30])
+  - `getConsistencyScores(entries, referenceDate, weekStartDay)` — thisWeek/thisMonth/allTime counts
+
+**Components (6 new files):**
+- ✅ `src/components/pulse/PulsePanel.tsx` — layout with collapsible sections, field selector dropdown for heatmap
+- ✅ `src/components/pulse/StatsCards.tsx` — total entries, current streak, avg of first numeric field, this week count
+- ✅ `src/components/pulse/PersonalBests.tsx` — cached in metricsCacheStore, 2s debounce recomputation
+- ✅ `src/components/pulse/ConsistencyScore.tsx` — week/month/all-time with progress bars
+- ✅ `src/components/charts/Heatmap.tsx` (~500 lines) — SVG heatmap with:
+  - Event delegation, polarity-aware coloring via `getPolarityColor()`
+  - React-rendered tooltip (positioned below cells)
+  - Year navigation, color legend with 5 gradient swatches
+  - Desktop drag-select via refs (imperative DOM), updates chartUiStore
+  - Mobile: tap-to-show persistent tooltips, no drag
+  - Keyboard nav: arrow keys + Enter
+  - Accessibility: aria-labelledby + sr-only table
+  - Field selector dropdown for switching between numeric/boolean fields
+- ✅ `src/components/charts/HabitStreaksGrid.tsx` — SVG rows with per-cell aria-labels, memoized on revision
+
+**Styles & Integration:**
+- ✅ `src/styles/pulse.css` — 390+ lines (stats cards, heatmap, legend, habit grid, personal bests, consistency, sr-only, mobile dates)
+- ✅ Added `@import './pulse.css'` to `src/styles/index.css`
+- ✅ Replaced EmptyState stub with `<PulsePanel />` in `MainApp.tsx`
+
+### Files Changed:
+- **New:** `src/components/pulse/PulsePanel.tsx`, `StatsCards.tsx`, `PersonalBests.tsx`, `ConsistencyScore.tsx`
+- **New:** `src/components/charts/Heatmap.tsx`, `HabitStreaksGrid.tsx`
+- **New:** `src/styles/pulse.css`
+- **Modified:** `src/types/insights.ts`, `src/types/index.ts`
+- **Modified:** `src/store/metricsCacheStore.ts`, `src/storeWiring.ts`
+- **Modified:** `src/services/PulseService.ts`
+- **Modified:** `src/components/MainApp.tsx`
+- **Modified:** `src/styles/index.css`
+- **Modified:** `styles.css` (build output)
+
+### Testing Notes:
+- ✅ `npm run build` passes (lint + CSS + tsc + esbuild)
+- ✅ 25 test files, 321 tests all passing — no regressions
+- ✅ Grep gates clean: innerHTML (comment in chartSetup only), style={{ (VirtualList spacer + CalendarCell comment only), console.log (zero results)
+- ✅ Brad manually tested in Obsidian: stats cards, heatmap, personal bests, consistency, habit streaks, tooltips, field selector dropdown
+
+### UI Tweaks Applied During Session:
+- Fixed tooltip positioning (above → below cells to avoid top-row clipping)
+- Added color legend with gradient swatches showing fieldKey min–max
+- Removed native browser tooltip from aria-label → aria-labelledby
+- Added field selector dropdown to switch between numeric/boolean fields
+- Reverted max-width: fit-content (broke short-year layouts)
+
+### Bugs/Issues:
+- Minor: Heatmap section has some excess horizontal scroll space after the SVG content. Cosmetic only, not breaking. Can revisit later.
+- Future enhancement discussed: Support text fields containing numeric values (e.g., text "7" → treated as number for analytics). Estimated ~2-3 hours, would modify `JournalIndexService.detectFields()`.
+
+### Next Steps:
+- Phase 6b: Goals + Week Start Day + Settings Expansion
+- Phase 6c: Weekly Review + Digest
+
+---
+
+## Next Session Prompt
+
+```
+Phase 6a complete. Pulse Dashboard deployed and verified:
+- 6 new components, PulseService expanded with 4 analytics functions
+- GitHub-style heatmap with field selector, drag-select, keyboard nav, legend
+- Personal bests, consistency scores, habit streaks all working
+- 25 test files, 321 tests, lint clean
+
+Continue with Phase 6b: Goals + Week Start Day + Settings Expansion.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 6b (after line 3661)
+- src/components/pulse/ — New Pulse components
+- src/types/settings.ts — Settings to expand
+- src/store/settingsStore.ts — Settings store
+```
+
+## Git Commit Message
+
+```
+feat(phase-6a): pulse dashboard with heatmap, personal bests, and habit streaks
+
+PulseService expanded with 4 analytics functions:
+- getHeatmapData: date-to-value mapping for N months
+- getHabitStreaks: boolean field 90-day tracking with current/longest streaks
+- getPersonalBests: best week, most consistent month, best trend windows
+- getConsistencyScores: week/month/all-time journaling consistency
+
+New components:
+- Heatmap: GitHub-style SVG with polarity coloring, drag-select, keyboard nav,
+  year navigation, color legend, field selector dropdown, sr-only table
+- HabitStreaksGrid: SVG rows per boolean field with aria-labels
+- StatsCards: total entries, streak, average, this week count
+- PersonalBests: cached in metricsCacheStore with 2s debounce
+- ConsistencyScore: week/month/all-time with progress bars
+- PulsePanel: collapsible layout container
+
+Store and wiring:
+- PersonalBest type added to insights.ts
+- metricsCacheStore extended with personal bests caching
+- storeWiring updated for personal bests staleness
+
+8 modified files, 4 new files, 732 insertions
+25 test files, 321 tests passing, lint clean
+```
