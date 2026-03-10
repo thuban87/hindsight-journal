@@ -1746,3 +1746,147 @@ colorThemes tests (17 new):
 27 test files, 382 tests passing, lint clean
 ```
 
+---
+
+## 2026-03-10 - Phase 7: Actionable Echoes + Lens
+
+**Focus:** Data-aware retrospection via metric comparisons, coping lookups, and milestones in Echoes; full-text search with compound filtering, sorting, saved filters, and formatted markdown excerpts in Lens.
+
+### Completed:
+
+**Types & Settings:**
+- ✅ Added `MetricComparison` and `Milestone` interfaces to `insights.ts`
+- ✅ Added `FilterConfig`, `LensFilterRow` (discriminated union), `savedFilters` to `settings.ts`
+- ✅ Settings migration v5 → v6 with `savedFilters` validation (max 25, name max 80 chars)
+
+**EchoesService Expansion (4 new functions):**
+- ✅ `compareMetrics()` — field-by-field numeric comparison with polarity awareness
+- ✅ `findSimilarEntries()` — "last time you felt this way" with configurable tolerance
+- ✅ `detectMilestones()` — entry count, anniversary, and streak milestones
+- ✅ `getExtendedEchoes()` — same day last month, quarterly echoes (±2 day window)
+
+**Echo UI Components (4 new + 1 rewritten):**
+- ✅ `ActionableEcho.tsx` — wraps EchoCard with MetricComparisonCard badges
+- ✅ `MetricComparisonCard.tsx` — arrow, field, then→now values, color-coded by polarity
+- ✅ `CopingLookup.tsx` — compact chip cards showing date + metric value (simplified from initial version that had excerpts)
+- ✅ `MilestoneCard.tsx` — subtle accent card with emoji milestone acknowledgment
+- ✅ `EchoesPanel.tsx` — rewritten with period selector (on-this-day/last-month/last-quarter), milestones section, ActionableEcho cards, CopingLookup section
+
+**Lens Panel (5 new files):**
+- ✅ `lensStore.ts` — Zustand store with search query, filter state, generation token for stale-result guard, reset for onunload
+- ✅ `LensPanel.tsx` — full-text search with multi-term AND logic, compound filters, full-content toggle, sorting (6 options), random entry button, formatted markdown excerpts
+- ✅ `LensFilterRow.tsx` — stackable filter row with type-specific controls (field, dateRange, tag, wordCount, qualityScore, hasImages)
+- ✅ `SavedFilters.tsx` — save/load/delete filter configs with 25-max cap and upsert semantics
+- ✅ `MarkdownExcerpt.tsx` — renders raw markdown via Obsidian MarkdownRenderer.render() with DOM-based search term highlighting
+
+**Shared Components:**
+- ✅ `HighlightText.tsx` — safe String.split-based highlighting (used for future non-markdown contexts)
+
+**Integration:**
+- ✅ `MainApp.tsx` — replaced Lens stub with LensPanel, updated Threads stub to "coming in Phase 8"
+- ✅ `storeWiring.ts` — added `lensStore.reset()` to resetAllStores
+- ✅ `useEchoes.ts` — updated hook to expose `todayEntry` for metric comparisons
+
+**Styles:**
+- ✅ `echoes-enhanced.css` — ActionableEcho with bordered cards, milestones, metric comparison pills, coping lookup chips
+- ✅ `lens.css` — Search input, filter rows, saved filters, sort selector, result cards with markdown excerpt overflow, highlight marks
+- ✅ `index.css` — added imports for both new CSS files
+
+### Files Changed:
+
+| File | Change |
+|------|--------|
+| `src/types/insights.ts` | Added `MetricComparison`, `Milestone` interfaces |
+| `src/types/settings.ts` | Added `FilterConfig`, `LensFilterRow`, `savedFilters` |
+| `src/types/index.ts` | Updated barrel exports |
+| `src/utils/settingsMigration.ts` | v5→v6 migration, `savedFilters` validation |
+| `src/services/EchoesService.ts` | Rewritten with 4 new functions |
+| `src/hooks/useEchoes.ts` | Exposes `todayEntry` |
+| `src/components/echoes/EchoesPanel.tsx` | Rewritten with period selector, milestones, ActionableEcho |
+| `src/components/echoes/ActionableEcho.tsx` | **NEW** |
+| `src/components/echoes/MetricComparisonCard.tsx` | **NEW** |
+| `src/components/echoes/CopingLookup.tsx` | **NEW** |
+| `src/components/echoes/MilestoneCard.tsx` | **NEW** |
+| `src/store/lensStore.ts` | **NEW** |
+| `src/components/lens/LensPanel.tsx` | **NEW** |
+| `src/components/lens/LensFilterRow.tsx` | **NEW** |
+| `src/components/lens/SavedFilters.tsx` | **NEW** |
+| `src/components/shared/HighlightText.tsx` | **NEW** |
+| `src/components/shared/MarkdownExcerpt.tsx` | **NEW** |
+| `src/components/MainApp.tsx` | Lens wired, Threads stub text updated |
+| `src/storeWiring.ts` | lensStore reset added |
+| `src/styles/echoes-enhanced.css` | **NEW** |
+| `src/styles/lens.css` | **NEW** |
+| `src/styles/index.css` | New imports |
+| `test/components/HighlightText.test.ts` | **NEW** — 7 tests |
+| `test/utils/settingsMigration.test.ts` | Updated v6 assertions + savedFilters checks |
+
+### Testing Notes:
+- ✅ 389 tests passing across 28 test files (7 new HighlightText tests)
+- ✅ `npm run lint` clean
+- ✅ `npm run build` passes (main.js 478KB)
+- ✅ Grep gates clean: innerHTML (comments only), style={{ (VirtualList exception only), console.log (zero)
+- ✅ Brad manually verified in Obsidian — echoes with metric comparisons, period selector, coping lookup chips, Lens search with formatted markdown excerpts, sorting, saved filters, highlighting
+
+### Bugs Fixed During Session:
+- **SavedFilters reactivity:** Saving/deleting filters mutated `plugin.settings` but did not sync back into `settingsStore`, so the React component never re-rendered. Fixed by calling `useSettingsStore.getState().setSettings()` after save/delete.
+- **CopingLookup overflow:** Initial design showed excerpts that caused text overflow in small sidebar. Simplified to compact chips with just date + metric value.
+- **Search highlighting lost:** Switching from HighlightText to MarkdownExcerpt removed highlighting. Fixed by adding DOM-based text node walking in MarkdownExcerpt to wrap matches in `<mark>` elements after MarkdownRenderer finishes.
+
+### Next Steps:
+- Phase 8: Threads + Section Reader
+- Phase 7.5 (optional): Additional EchoesService / Lens tests
+
+---
+
+## Next Session Prompt
+
+```
+Phase 7 complete. Actionable Echoes + Lens deployed and verified:
+- Settings at version 6 (savedFilters added)
+- EchoesService expanded with compareMetrics, findSimilarEntries, detectMilestones, getExtendedEchoes
+- EchoesPanel rewritten with period selector, milestones, ActionableEcho, CopingLookup
+- LensPanel with full-text search, compound filters, sorting (6 options), saved filters, formatted markdown excerpts
+- MarkdownExcerpt component using MarkdownRenderer.render() with DOM-based highlighting
+- 389 tests, 28 test files, lint clean, build 478KB
+
+Continue with Phase 8: Threads + Section Reader.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 8 (after Phase 7)
+- src/services/EchoesService.ts — expanded echo functions
+- src/store/lensStore.ts — Lens state management
+- src/components/shared/MarkdownExcerpt.tsx — reusable formatted markdown rendering
+```
+
+## Git Commit Message
+
+```
+feat(phase-7): actionable echoes with metric comparisons and lens search panel
+
+Echoes enhancements:
+- EchoesService expanded with compareMetrics, findSimilarEntries, detectMilestones, getExtendedEchoes
+- ActionableEcho wraps EchoCard with polarity-colored metric comparison badges
+- CopingLookup shows compact date+value chips for similar past entries
+- MilestoneCard for entry count, anniversary, and streak achievements
+- EchoesPanel rewritten with period selector (on-this-day/last-month/last-quarter)
+
+Lens panel:
+- Full-text search with multi-term AND logic and 250ms debounce
+- Compound filters: field value, date range, tag, word count, quality score, has images
+- Sorting by date/quality/word count ascending or descending
+- Saved filter configurations persisted in settings (max 25)
+- MarkdownExcerpt component renders formatted excerpts via MarkdownRenderer.render()
+- DOM-based search term highlighting after markdown rendering
+- Full-content search toggle for cold-tier entries with generation token guard
+- Random entry button
+
+Infrastructure:
+- Settings migration v5 to v6 with savedFilters validation
+- lensStore Zustand store with generation token stale-result guard
+- HighlightText component for safe String.split-based highlighting
+- storeWiring updated with lensStore reset
+
+24 files changed, 13 new files
+28 test files, 389 tests passing, lint clean
+```

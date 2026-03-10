@@ -6,7 +6,7 @@
  */
 
 // Settings
-export type { HindsightSettings, GoalConfig } from './settings';
+export type { HindsightSettings, GoalConfig, LensFilterRow, FilterConfig } from './settings';
 export { DEFAULT_SETTINGS } from './settings';
 
 // Journal
@@ -19,4 +19,4 @@ export type { FrontmatterField, MetricDataPoint, DateRange } from './metrics';
 export type { HindsightPluginInterface, ServiceRegistry } from './plugin';
 
 // Insights
-export type { AlertSeverity, TrendAlert, CorrelationResult, ConditionalInsight, PersonalBest } from './insights';
+export type { AlertSeverity, TrendAlert, CorrelationResult, ConditionalInsight, PersonalBest, MetricComparison, Milestone } from './insights';

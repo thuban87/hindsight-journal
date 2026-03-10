@@ -23,6 +23,7 @@ import { TabGroup } from './shared/TabGroup';
 import { EmptyState } from './shared/EmptyState';
 import { TaskVolatility } from './dashboard/TaskVolatility';
 import { FrontmatterDash } from './dashboard/FrontmatterDash';
+import { LensPanel } from './lens/LensPanel';
 import { useAppStore } from '../store/appStore';
 
 /** Tab group definitions for the two-tier navigation */
@@ -102,9 +103,9 @@ function MainContent({ activeTab }: { activeTab: string }): React.ReactElement {
         case 'digest':
             return <DigestContent />;
         case 'lens':
-            return <EmptyState message="Lens — coming in Phase 7" />;
+            return <LensPanel />;
         case 'threads':
-            return <EmptyState message="Threads — coming in Phase 7" />;
+            return <EmptyState message="Threads — coming in Phase 8" />;
         case 'gallery':
             return <EmptyState message="Gallery — coming in Phase 9" />;
         default:

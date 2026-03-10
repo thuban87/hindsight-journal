@@ -14,7 +14,7 @@ import { validateVaultRelativePath } from './vaultUtils';
 import { debugLog } from './debugLog';
 
 /** Current settings schema version */
-const CURRENT_MAX_VERSION = 5;
+const CURRENT_MAX_VERSION = 6;
 
 /**
  * Normalize a path-type setting value.
@@ -199,6 +199,24 @@ export function validateSettings(settings: unknown): HindsightSettings {
         result.calendarColorTheme = s['calendarColorTheme'] as HindsightSettings['calendarColorTheme'];
     }
 
+    // savedFilters: { name: string; config: FilterConfig }[]
+    if (Array.isArray(s['savedFilters'])) {
+        const cleaned = (s['savedFilters'] as unknown[]).filter((f: unknown) => {
+            if (typeof f !== 'object' || f === null || Array.isArray(f)) return false;
+            const filter = f as Record<string, unknown>;
+            if (typeof filter['name'] !== 'string' || filter['name'].trim() === '') return false;
+            if (filter['name'].length > 80) return false;
+            if (typeof filter['config'] !== 'object' || filter['config'] === null || Array.isArray(filter['config'])) return false;
+            const config = filter['config'] as Record<string, unknown>;
+            if (typeof config['searchQuery'] !== 'string') return false;
+            if ((config['searchQuery'] as string).length > 200) return false;
+            if (!Array.isArray(config['filters'])) return false;
+            return true;
+        }) as { name: string; config: { searchQuery: string; filters: unknown[] } }[];
+        // Cap at 25 saved filters
+        result.savedFilters = cleaned.slice(0, 25) as HindsightSettings['savedFilters'];
+    }
+
     return result;
 }
 
@@ -252,6 +270,9 @@ export function migrateSettings(loaded: Record<string, unknown> | null): Hindsig
     }
     if (version < 5) {
         migrated = migrateV4ToV5(migrated);
+    }
+    if (version < 6) {
+        migrated = migrateV5ToV6(migrated);
     }
 
     // 4. Validate all fields
@@ -387,6 +408,23 @@ function migrateV4ToV5(data: Record<string, unknown>): Record<string, unknown> {
     // Add calendarColorTheme with default if missing
     if (typeof result['calendarColorTheme'] !== 'string') {
         result['calendarColorTheme'] = DEFAULT_SETTINGS.calendarColorTheme;
+    }
+
+    return result;
+}
+
+/**
+ * Migration: v5 → v6
+ * - Adds savedFilters array for Lens saved filter configurations
+ */
+function migrateV5ToV6(data: Record<string, unknown>): Record<string, unknown> {
+    const result = { ...data };
+
+    result['settingsVersion'] = 6;
+
+    // Add savedFilters with empty default if missing
+    if (!Array.isArray(result['savedFilters'])) {
+        result['savedFilters'] = [];
     }
 
     return result;

@@ -1,0 +1,397 @@
+/* ============================================================
+ * Lens Panel Styles
+ *
+ * Styles for LensPanel, filter rows, saved filters, search input,
+ * highlight marks, result cards, and result count.
+ * ============================================================ */
+
+/* ---- Search ---- */
+
+.hindsight-lens-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+}
+
+.hindsight-lens-search {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.hindsight-lens-search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.95em;
+}
+
+.hindsight-lens-search-input:focus {
+    border-color: var(--interactive-accent);
+    outline: none;
+}
+
+.hindsight-lens-fullcontent-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85em;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+/* ---- Filters ---- */
+
+.hindsight-lens-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.hindsight-lens-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 6px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-secondary);
+}
+
+.hindsight-lens-filter-type,
+.hindsight-lens-filter-field,
+.hindsight-lens-filter-operator,
+.hindsight-lens-filter-tag {
+    padding: 4px 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.85em;
+}
+
+.hindsight-lens-filter-value {
+    width: 80px;
+    padding: 4px 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.85em;
+}
+
+.hindsight-lens-filter-date {
+    padding: 4px 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.85em;
+}
+
+.hindsight-lens-filter-separator {
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+.hindsight-lens-filter-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85em;
+    color: var(--text-normal);
+    cursor: pointer;
+}
+
+.hindsight-lens-filter-remove {
+    padding: 2px 8px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1em;
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hindsight-lens-filter-remove:hover {
+    color: var(--text-error);
+    background: var(--background-primary);
+}
+
+.hindsight-lens-add-filter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.85em;
+    min-height: 44px;
+}
+
+.hindsight-lens-add-filter:hover {
+    border-color: var(--interactive-accent);
+    color: var(--interactive-accent);
+}
+
+/* ---- Saved Filters ---- */
+
+.hindsight-lens-saved-filters {
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 8px;
+}
+
+.hindsight-lens-saved-filters-save {
+    display: flex;
+    gap: 6px;
+}
+
+.hindsight-lens-saved-filters-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.85em;
+}
+
+.hindsight-lens-saved-filters-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--interactive-accent);
+    border-radius: 4px;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    cursor: pointer;
+    font-size: 0.85em;
+    min-height: 44px;
+    min-width: 44px;
+}
+
+.hindsight-lens-saved-filters-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.hindsight-lens-saved-filters-count {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    width: 100%;
+    margin-bottom: 4px;
+}
+
+.hindsight-lens-saved-filter-item {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.hindsight-lens-saved-filter-item.is-active {
+    border-color: var(--interactive-accent);
+}
+
+.hindsight-lens-saved-filter-load {
+    padding: 4px 10px;
+    border: none;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 0.82em;
+    min-height: 44px;
+}
+
+.hindsight-lens-saved-filter-load:hover {
+    background: var(--background-primary);
+}
+
+.hindsight-lens-saved-filter-delete {
+    padding: 4px 8px;
+    border: none;
+    border-left: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.9em;
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hindsight-lens-saved-filter-delete:hover {
+    color: var(--text-error);
+    background: var(--background-primary);
+}
+
+/* ---- Results Header ---- */
+
+.hindsight-lens-results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    gap: 8px;
+}
+
+.hindsight-lens-result-count {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.hindsight-lens-results-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.hindsight-lens-sort-select {
+    padding: 4px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 0.82em;
+    min-height: 44px;
+}
+
+.hindsight-lens-random-btn {
+    padding: 4px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 0.85em;
+    min-height: 44px;
+    white-space: nowrap;
+}
+
+.hindsight-lens-random-btn:hover {
+    border-color: var(--interactive-accent);
+}
+
+.hindsight-lens-random-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ---- Result Cards ---- */
+
+.hindsight-lens-results {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hindsight-lens-result-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 16px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    background: var(--background-primary);
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    font: inherit;
+    color: inherit;
+    min-height: 80px;
+    transition: border-color 0.15s ease;
+}
+
+.hindsight-lens-result-card:hover {
+    border-color: var(--interactive-accent);
+    background: var(--background-secondary);
+}
+
+.hindsight-lens-result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.hindsight-lens-result-date {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.hindsight-lens-result-meta {
+    font-size: 0.8em;
+    color: var(--text-muted);
+}
+
+.hindsight-lens-result-excerpt {
+    margin: 0;
+    font-size: 0.88em;
+    color: var(--text-muted);
+    line-height: 1.5;
+    max-height: 6.5em;
+    overflow: hidden;
+}
+
+.hindsight-lens-result-excerpt p {
+    margin: 0 0 4px 0;
+}
+
+.hindsight-lens-result-excerpt ul,
+.hindsight-lens-result-excerpt ol {
+    margin: 0 0 4px 0;
+    padding-left: 1.2em;
+}
+
+.hindsight-lens-result-excerpt li {
+    margin-bottom: 2px;
+}
+
+.hindsight-lens-result-excerpt h1,
+.hindsight-lens-result-excerpt h2,
+.hindsight-lens-result-excerpt h3,
+.hindsight-lens-result-excerpt h4 {
+    font-size: 0.95em;
+    margin: 0 0 4px 0;
+}
+
+.hindsight-lens-more-results {
+    text-align: center;
+    font-size: 0.82em;
+    color: var(--text-muted);
+    padding: 8px;
+}
+
+/* ---- Highlight ---- */
+
+.hindsight-highlight {
+    background: hsl(50, 80%, 60%);
+    color: var(--text-normal);
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+.hindsight-highlight-overflow {
+    display: block;
+    font-size: 0.8em;
+    color: var(--text-muted);
+    font-style: italic;
+}

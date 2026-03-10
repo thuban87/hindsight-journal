@@ -19,6 +19,7 @@ import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
 import { useAppStore } from './store/appStore';
 import { useChartUiStore } from './store/chartUiStore';
+import { useLensStore } from './store/lensStore';
 import { debugLog } from './utils/debugLog';
 
 /** Debounce delay for revision → markStale subscription (ms) */
@@ -113,6 +114,7 @@ export function resetAllStores(): void {
     useSettingsStore.getState().reset();
     useMetricsCacheStore.getState().reset();
     useChartUiStore.getState().reset();
+    useLensStore.getState().reset();
     useUIStore.getState().reset();
     useAppStore.getState().reset(); // LAST — components may still access app during teardown
 }

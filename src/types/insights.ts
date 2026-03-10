@@ -2,7 +2,8 @@
  * Insights Types
  *
  * Type definitions for insight-related features:
- * trend alerts, correlations, and conditional insights.
+ * trend alerts, correlations, conditional insights,
+ * metric comparisons, and milestones.
  */
 
 /** Alert severity levels */
@@ -55,4 +56,28 @@ export interface PersonalBest {
     title: string;
     value: number;
     period: string;
+}
+
+/** A field-by-field comparison between today's entry and an echo entry */
+export interface MetricComparison {
+    /** Frontmatter field key */
+    field: string;
+    /** Today's value */
+    today: number;
+    /** Echo entry's value */
+    then: number;
+    /** Direction based on polarity setting */
+    direction: 'improved' | 'declined' | 'unchanged';
+    /** Numeric change (today - then) */
+    change: number;
+}
+
+/** A journaling milestone worth celebrating */
+export interface Milestone {
+    /** Type of milestone detected */
+    type: 'entry-count' | 'anniversary' | 'streak';
+    /** Human-readable milestone description */
+    title: string;
+    /** Numeric value associated (entry count, years, streak days) */
+    value: number;
 }
