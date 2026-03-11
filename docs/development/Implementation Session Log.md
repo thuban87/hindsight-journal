@@ -2571,3 +2571,85 @@ Tests:
 - 30 test files, 449+ tests passing, lint clean
 ```
 
+---
+
+## 2026-03-11 - Phase 9.5: Thumbnail Tests
+
+**Focus:** Comprehensive unit tests for ThumbnailService covering IndexedDB caching, security gates, concurrency, LRU eviction, feature detection, and graceful degradation.
+
+### Completed:
+
+#### Phase 9.5: Thumbnail Tests (27 new tests, 476 total passing)
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `test/services/ThumbnailService.test.ts` | 27 | Cache key generation (3), security gates (4), concurrency/dedup (3), cache hit/miss (3), LRU eviction (3), quota handling (3), feature detection (3), clearCache/getCacheStats (2), destroy/cleanup (2), graceful degradation (1) |
+
+**Mocking Infrastructure:**
+- ✅ Installed `fake-indexeddb` for in-memory IndexedDB testing in jsdom
+- ✅ Global mocks for OffscreenCanvas, createImageBitmap, canvas.toBlob, URL.createObjectURL/revokeObjectURL
+- ✅ Mock App with configurable metadataCache.getFirstLinkpathDest and vault.readBinary
+
+### Files Changed:
+
+**New Files (1):**
+- `test/services/ThumbnailService.test.ts`
+
+**Modified Files (2):**
+- `package.json` — Added `fake-indexeddb` dev dependency
+- `package-lock.json` — Updated lockfile
+
+### Testing Notes:
+- ✅ All 476 unit tests passing across 31 test files (27 new, zero regressions)
+- ✅ `fake-indexeddb` provides full in-memory IndexedDB implementation
+- ✅ LRU eviction tests account for 30-second rate-limit behavior in the service
+- ✅ Feature detection tests verify both OffscreenCanvas available/unavailable paths
+
+### Blockers/Issues:
+- None
+
+### Design Notes:
+- **LRU eviction rate-limit:** The service has a 30-second rate-limit on evictLRU to prevent thrashing during rapid Gallery scrolling. Tests verify the rate-limit exists and that the cache stays bounded, rather than asserting exact max counts which are timing-sensitive.
+- **vi.fn() warnings:** Vitest shows harmless warnings about vi.fn() mocks not using function/class — these come from the OffscreenCanvas/createImageBitmap mocks returning plain objects. The warnings do not affect test correctness.
+
+---
+
+## Next Session Prompt
+
+```
+Phase 9.5 complete. Thumbnail tests shipped:
+- 27 tests for ThumbnailService covering cache keys, security, concurrency,
+  LRU eviction, quota handling, feature detection, cleanup, degradation
+- fake-indexeddb installed for in-memory IndexedDB testing
+- 476 tests passing across 31 files, lint clean, build clean
+- Branch: feat/phase-9
+
+Continue with Phase 10: Digest View + Reports + Annotations + Export.
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, does not
+block functionality) - investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md - Phase 10 (line 5002+)
+- src/services/ThumbnailService.ts - tested service
+- test/services/ThumbnailService.test.ts - new test file
+```
+
+## Git Commit Message
+
+```
+test(phase-9.5): ThumbnailService unit tests
+
+- Install fake-indexeddb for in-memory IndexedDB testing in jsdom
+- Create test/services/ThumbnailService.test.ts with 27 tests
+- Cache key generation: vaultId/path/mtime inclusion, mtime change detection
+- Security gates: disabled thumbnails, unresolvable paths, extension allowlist
+- Concurrency: request deduplication, MAX_CONCURRENT respect, signal cancellation
+- Cache operations: IDB hit/miss, in-memory blob URL reuse
+- LRU eviction: bounds verification, rate-limit behavior, access time updates
+- Feature detection: OffscreenCanvas available/unavailable, WebP PNG fallback
+- Cleanup: clearCache revokes URLs, destroy closes DB, in-flight map clearing
+- Graceful degradation: IndexedDB unavailable sets disabled state
+- 476 tests passing across 31 files, zero regressions
+```
+
