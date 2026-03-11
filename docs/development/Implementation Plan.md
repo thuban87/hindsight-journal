@@ -4521,7 +4521,7 @@ Continuous feed of a single section heading across entries:
       }, [content, sourcePath]);
       ```
       **`sourcePath` specification (A14):** The `sourcePath` argument passed to `MarkdownRenderer.renderMarkdown()` MUST be `entry.filePath` (the actual journal entry file path). This enables Obsidian's link resolution to work correctly for wikilinks within the rendered content (e.g., `[[Note Name]]` resolves relative to the entry's folder). Add a defensive guard: if `entry.filePath` is falsy, skip rich rendering and fall back to `stripMarkdown()` — rendering with an empty sourcePath produces broken links.
-      ```
+    
     - VirtualList handles DOM virtualization (mount/unmount as items enter/leave viewport)
     - Interactive markdown elements (checkboxes, embedded content) work correctly because the `Component` tree is intact
     - **Mobile performance:** Use lower overscan on mobile: `Platform.isMobile ? 2 : 5). **Mobile safeguard:** On mobile, if the date range contains > 100 entries, default to plain-text mode (`stripMarkdown`) with a Notice: "Using simple view for performance. Toggle rich rendering in the header." The user can override this, and the preference resets each session (stored in `uiStore`, not settings` as the VirtualList `overscan` prop. This reduces the number of simultaneously mounted MarkdownRenderer component trees on mobile, where each renderer is heavier due to WebView constraints
@@ -4584,6 +4584,7 @@ plugin.addCommand({
 
 ## Phase 8.5: Threads & Section Tests
 
+> ✅ COMPLETE (2026-03-10) — 15 tests covering all 6 ThreadsService functions. 431 total tests, 30 test files.
 
 
 **PREREQUISITE:** Brad confirms Phase 8 works correctly in Obsidian.

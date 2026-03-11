@@ -2270,3 +2270,78 @@ SectionReader wiring:
 
 416 tests passing, lint clean, build clean
 ```
+
+
+---
+
+## 2026-03-10 - Phase 8.5: Threads & Section Tests
+
+**Focus:** Unit tests for all 6 ThreadsService functions — tag frequency, co-occurrence, metric averages by tag, tag timeline, section word counts, and section insights.
+
+### Completed:
+
+#### ThreadsService Tests (15 new tests, 431 total passing)
+
+| Test Group | Tests | Description |
+|-----------|-------|-------------|
+| `getTagFrequency` | 3 | Correct counts + descending sort, no-tags entries (empty/null/non-array), percentage math |
+| `getTagCoOccurrence` | 3 | Finds co-occurring pairs, filters below threshold (<3), no duplicate pairs (canonical ordering) |
+| `getMetricAveragesByTag` | 2 | Correct average per tag, excludes tags with <5 occurrences |
+| `getTagTimeline` | 1 | Returns matching entries sorted ascending by date |
+| `getSectionWordCounts` | 3 | Time series from sectionWordCounts, missing sections excluded (<2 data points), fallback to counting words in sections |
+| `getSectionInsights` | 3 | Growth (>50% increase last 14d vs prior 30d), decline (>50% decrease), inactive (21+ days) |
+
+### Files Changed:
+
+**New Files (1):**
+- `test/services/ThreadsService.test.ts`
+
+### Testing Notes:
+- ✅ All 431 tests passing across 30 test files (15 new, zero regressions)
+- ✅ `npm run lint` clean (0 errors)
+- No build or deploy needed — test-only phase
+
+### Blockers/Issues:
+- None
+- React error #300 still present from Phase 8a (caught by ErrorBoundary, does not affect functionality)
+
+---
+
+## Next Session Prompt
+
+```
+Phase 8.5 complete. ThreadsService test coverage done:
+- 15 tests covering all 6 functions: getTagFrequency (3), getTagCoOccurrence (3),
+  getMetricAveragesByTag (2), getTagTimeline (1), getSectionWordCounts (3),
+  getSectionInsights (3)
+- 431 tests passing, 30 test files, lint clean
+- Branch: feat/phase-8
+
+Continue with Phase 9: Image Handling + Thumbnails + Gallery.
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, does not block
+functionality) — investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 9 (line 4617+)
+- src/services/ThreadsService.ts — now fully tested
+- test/services/ThreadsService.test.ts — test patterns
+```
+
+## Git Commit Message
+
+```
+test(phase-8.5): threads service unit tests for tag analytics and section trends
+
+ThreadsService tests (15 new):
+- getTagFrequency: correct counts and sort order, no-tags handling, percentage math
+- getTagCoOccurrence: pair detection, threshold filtering, canonical pair ordering
+- getMetricAveragesByTag: average calculation, minimum occurrence filtering
+- getTagTimeline: tag filtering with chronological sort
+- getSectionWordCounts: time series from pre-computed counts, missing section handling,
+  fallback word counting from section content
+- getSectionInsights: growth detection (50%+ increase), decline detection (50%+ decrease),
+  inactive detection (21+ days)
+
+30 test files, 431 tests passing, lint clean
+```
