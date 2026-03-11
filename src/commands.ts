@@ -6,6 +6,7 @@
  */
 
 import type HindsightPlugin from '../main';
+import { SectionReaderModal } from './modals/SectionReaderModal';
 
 /**
  * Register all plugin commands.
@@ -25,6 +26,14 @@ export function registerCommands(plugin: HindsightPlugin): void {
         name: 'Open journal view',
         callback: () => {
             void plugin.activateMainView();
+        },
+    });
+
+    plugin.addCommand({
+        id: 'open-section-reader',
+        name: 'Open section reader',
+        callback: () => {
+            new SectionReaderModal(plugin.app, plugin).open();
         },
     });
 }

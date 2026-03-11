@@ -9,9 +9,31 @@ import { describe, it, expect, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Mock obsidian module
+// Mock obsidian module — needs Modal for SectionReaderModal import chain
 vi.mock('obsidian', () => ({
     Platform: { isMobile: false },
+    Modal: class MockModal {
+        app: unknown;
+        modalEl = { addClass: vi.fn() };
+        contentEl = { empty: vi.fn(), addClass: vi.fn() };
+        constructor(app: unknown) { this.app = app; }
+        open(): void { /* noop */ }
+        close(): void { /* noop */ }
+    },
+    Notice: vi.fn(),
+    MarkdownRenderer: { render: vi.fn() },
+    Component: class MockComponent {
+        load(): void { /* noop */ }
+        unload(): void { /* noop */ }
+    },
+}));
+
+// Mock react-dom/client to avoid DOM dependency
+vi.mock('react-dom/client', () => ({
+    createRoot: () => ({
+        render: vi.fn(),
+        unmount: vi.fn(),
+    }),
 }));
 
 import { registerCommands } from '../src/commands';

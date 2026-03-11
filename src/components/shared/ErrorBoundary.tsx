@@ -12,7 +12,7 @@ interface ErrorBoundaryProps {
     /** Fallback message to show when an error occurs */
     fallback: string;
     /** Child components to wrap */
-    children: ReactNode;
+    children?: ReactNode;
 }
 
 interface ErrorBoundaryState {

@@ -2091,3 +2091,104 @@ textAnchor start rotation, timeline pagination, metric picker visibility
 416 tests passing, lint clean, build clean
 ```
 
+
+---
+
+# Phase 8b: Section Reader Panel — 2026-03-10
+
+### What Was Done:
+- Implemented the Section Reader modal — full-screen reading experience for browsing a single section heading across all journal entries
+- Created VirtualVariableList component (variable-height virtual scroll, separate from existing fixed-height VirtualList)
+- Created useSharedObserver hook (instance-scoped shared ResizeObserver with lazy creation/destruction)
+- Created useSectionReaderData hook (heading detection, two-tier search with 5-concurrent cold entry loading, 10s timeout, generation-token stale guard)
+- Rich rendering via MarkdownRenderer.render() with Component lifecycle, 5s timeout, 50KB size limit
+- Simple view toggle for plain text fallback
+- Long section collapse (>500 words) with expand button
+- Cold-tier lazy loading with skeleton placeholder
+- Custom date picker (From/To inputs + preset buttons: 30d, 90d, all time, custom)
+- Mobile safeguard: >100 entries defaults to simple view with Notice
+- Command palette: "Open section reader"
+
+### New Files:
+- `src/modals/SectionReaderModal.ts` — Obsidian Modal with React root (canonical pattern)
+- `src/hooks/useSectionReaderData.ts` — Data hook with two-tier search
+- `src/hooks/useSharedObserver.ts` — Shared ResizeObserver provider/hook
+- `src/components/shared/VirtualVariableList.tsx` — Variable-height virtual scroll
+- `src/components/sections/SectionReader.tsx` — Composer component
+- `src/components/sections/SectionReaderToolbar.tsx` — Controls bar with date picker
+- `src/components/sections/SectionReaderEntry.tsx` — Entry renderer with MarkdownRenderer
+- `src/styles/sections.css` — Fullscreen modal + section reader styles
+
+### Modified Files:
+- `src/commands.ts` — Added open-section-reader command + SectionReaderModal import
+- `src/styles/index.css` — Added sections.css import
+- `src/components/shared/ErrorBoundary.tsx` — Made children prop optional for React.createElement usage
+- `test/commands.test.ts` — Added Modal/Component/MarkdownRenderer/react-dom mocks for SectionReaderModal import chain
+
+### Testing:
+- 416 tests pass (zero regressions), lint clean, build clean
+- Grep gates all pass (zero innerHTML/style={{}}/console.log in src/)
+- Manual testing: all 12 checklist items verified by Brad
+- Custom date picker tested and confirmed working
+
+### Blockers/Issues:
+- React error #300 still present from Phase 8a (caught by ErrorBoundary, does not affect functionality)
+- Performance optimizations (concurrent render cap, fast-scroll throttle, render debounce) deferred to Phase 8c
+
+---
+
+## Next Session Prompt
+
+```
+Phase 8b complete. Section Reader Panel implemented and manually verified:
+- SectionReaderModal: full-screen Obsidian Modal with React root
+- VirtualVariableList: variable-height virtual scroll (separate from VirtualList)
+- useSectionReaderData: two-tier search (hot in-memory, cold via ensureSectionsLoaded)
+- Rich rendering via MarkdownRenderer.render() with 5s timeout, 50KB limit
+- Custom date picker, simple view toggle, 500-word collapse
+- 416 tests passing, lint clean, build clean
+
+Continue with Phase 8c: Performance optimizations (concurrent render cap,
+fast-scroll throttle, render debounce for VirtualVariableList).
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, doesn't block
+functionality) — investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 8c (line 4340+)
+- src/components/shared/VirtualVariableList.tsx — virtual list to optimize
+- src/components/sections/SectionReaderEntry.tsx — MarkdownRenderer integration
+```
+
+## Git Commit Message
+
+```
+feat(phase-8b): section reader panel with MarkdownRenderer and virtual scroll
+
+Section Reader Modal:
+- SectionReaderModal: full-screen Obsidian Modal with React root
+- SectionReader: composer component with mobile safeguard
+- SectionReaderToolbar: heading dropdown, date presets + custom date picker, search, simple view toggle
+- SectionReaderEntry: rich rendering via MarkdownRenderer.render() with 5s timeout, 50KB limit, Component lifecycle
+
+VirtualVariableList (new, separate from existing VirtualList):
+- Variable-height virtual scroll with measuredHeights cache
+- Instance-scoped shared ResizeObserver via useSharedObserver hook
+- Height cache batching via requestAnimationFrame
+- Container-width resize debounce (200ms), CSS-change stale marking
+- Context version reset on heading/date range change
+
+useSectionReaderData hook:
+- Section heading detection from hot-tier sections + cold-tier sectionHeadings
+- Two-tier search with 5-concurrent sliding window and 10s timeout
+- Generation-token stale-result guard
+- Custom date range with From/To date pickers
+
+Additional changes:
+- commands.ts: added open-section-reader command
+- ErrorBoundary: children prop optional for createElement usage
+- commands.test.ts: expanded obsidian mock for Modal import chain
+
+416 tests passing, lint clean, build clean
+```
+
