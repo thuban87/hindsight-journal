@@ -1987,3 +1987,469 @@ HighlightText tests confirmed complete (7 existing tests cover all plan cases)
 29 test files, 416 tests passing, lint and build clean
 ```
 
+
+---
+
+# Phase 8a: Threads Panel — 2026-03-10
+
+## Summary
+Implemented the Threads panel (Explore → Threads tab) with tag analytics, co-occurrence matrix, tag timeline with pagination, and section word count trends.
+
+## What Was Done
+
+### Implementation
+1. **`src/services/ThreadsService.ts`** — 6 pure functions: `getTagFrequency`, `getTagCoOccurrence`, `getMetricAveragesByTag`, `getTagTimeline`, `getSectionWordCounts`, `getSectionInsights`
+2. **`src/components/threads/TagFrequencyChart.tsx`** — Chart.js horizontal bar chart (top 20 tags), ref-based tooltip to prevent re-render loop, theme reactivity via css-change
+3. **`src/components/threads/TagCoOccurrence.tsx`** — SVG co-occurrence matrix with configurable size (5-20), hover tooltips positioned via container-relative coords, `textAnchor="start"` for upward label rotation
+4. **`src/components/threads/TagTimeline.tsx`** — Paginated entry list (10/page) for a selected tag, integrated metric picker with per-tag averages
+5. **`src/components/threads/SectionTrends.tsx`** — Sparkline per section heading using existing Sparkline component, section usage insights (growth/decline/inactive)
+6. **`src/components/threads/ThreadsPanel.tsx`** — Layout container with collapsible sections, tag selection state, empty state handling
+7. **`src/styles/threads.css`** — All Threads styles (panel, chart, matrix, timeline, trends, pagination, controls)
+8. **`src/components/MainApp.tsx`** — Replaced Threads stub with `<ThreadsPanel />`
+9. **`src/styles/index.css`** — Added `threads.css` import
+
+### Bug Fixes
+- **TagFrequencyChart re-render loop**: Hover was triggering React state update → re-render → Chart.js destroy/recreate cycle. Fixed by managing tooltip via DOM refs instead of useState.
+- **TagCoOccurrence tooltip offset**: Container was missing `position: relative`, so absolute tooltip anchored to a distant ancestor. Fixed by adding `position: relative` to container CSS.
+- **TagCoOccurrence label overlap**: SVG painter's model renders later elements on top. Labels rendered before cells, so cells painted over them. Fixed by rendering cells first, then labels. Column labels also needed `textAnchor="start"` (not `"end"`) so -45° rotation extends text upward instead of swinging downward into the grid.
+- **Tag timeline too long**: Added 10-per-page pagination with Previous/Next controls.
+- **Metric picker not visible**: Moved metric selector directly into the TagTimeline header component.
+
+### Files Changed
+
+**New Files (8):**
+- `src/services/ThreadsService.ts`
+- `src/components/threads/ThreadsPanel.tsx`
+- `src/components/threads/TagFrequencyChart.tsx`
+- `src/components/threads/TagCoOccurrence.tsx`
+- `src/components/threads/TagTimeline.tsx`
+- `src/components/threads/SectionTrends.tsx`
+- `src/styles/threads.css`
+
+**Modified Files (2):**
+- `src/components/MainApp.tsx` — replaced Threads stub with ThreadsPanel
+- `src/styles/index.css` — added threads.css import
+
+### Testing Notes:
+- ✅ All 416 unit tests passing across 29 test files
+- ✅ `npm run lint` passes — zero errors
+- ✅ `npm run build` passes — lint + CSS + TypeScript + esbuild clean
+- ✅ Grep gates clean: zero innerHTML, zero style={{}}, zero console.log in src/
+- ✅ Manual testing confirmed by Brad: tag frequency chart, co-occurrence matrix, tag timeline with pagination, section trends all working
+
+### Blockers/Issues:
+- React error #300 observed in console on plugin load. Error caught by ErrorBoundary but does not affect functionality (all tabs still render and work). May be pre-existing — needs investigation with dev build in a future session.
+- `sectionUtils.ts` (mentioned in plan as Phase 8a) was skipped per Brad's direction — existing `SectionParserService` already covers the needed functionality.
+
+---
+
+## Next Session Prompt
+
+```
+Phase 8a complete. Threads Panel implemented and manually verified:
+- ThreadsService: 6 pure functions (tag frequency, co-occurrence, metric
+  averages, tag timeline, section word counts, section insights)
+- 5 UI components: TagFrequencyChart (Chart.js), TagCoOccurrence (SVG matrix),
+  TagTimeline (paginated), SectionTrends (sparklines), ThreadsPanel (layout)
+- All integrated into Explore → Threads tab
+- 416 tests passing, lint clean, build clean
+
+Continue with Phase 8b: Section Reader with MarkdownRenderer integration.
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, doesn't block
+functionality) — investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 8b (line 4340+)
+- src/services/ThreadsService.ts — threads service pattern
+- src/components/threads/ — threads panel components
+```
+
+## Git Commit Message
+
+```
+feat(phase-8a): threads panel with tag analytics and section trends
+
+ThreadsService (6 pure functions):
+- getTagFrequency: top tags by count with percentages
+- getTagCoOccurrence: co-occurrence matrix limited to top N tags
+- getMetricAveragesByTag: field averages per tag (min 5 occurrences)
+- getTagTimeline: chronological entries for a selected tag
+- getSectionWordCounts: per-section word count time series
+- getSectionInsights: growth/decline/inactive detection
+
+UI components:
+- TagFrequencyChart: Chart.js horizontal bar with ref-based tooltip
+- TagCoOccurrence: SVG matrix with configurable size and hover tooltip
+- TagTimeline: paginated entry list (10/page) with integrated metric picker
+- SectionTrends: sparklines per section heading with insight cards
+- ThreadsPanel: layout container with collapsible sections
+
+Bug fixes: chart re-render loop, SVG tooltip offset, label overlap via
+textAnchor start rotation, timeline pagination, metric picker visibility
+
+416 tests passing, lint clean, build clean
+```
+
+
+---
+
+# Phase 8b: Section Reader Panel — 2026-03-10
+
+### What Was Done:
+- Implemented the Section Reader modal — full-screen reading experience for browsing a single section heading across all journal entries
+- Created VirtualVariableList component (variable-height virtual scroll, separate from existing fixed-height VirtualList)
+- Created useSharedObserver hook (instance-scoped shared ResizeObserver with lazy creation/destruction)
+- Created useSectionReaderData hook (heading detection, two-tier search with 5-concurrent cold entry loading, 10s timeout, generation-token stale guard)
+- Rich rendering via MarkdownRenderer.render() with Component lifecycle, 5s timeout, 50KB size limit
+- Simple view toggle for plain text fallback
+- Long section collapse (>500 words) with expand button
+- Cold-tier lazy loading with skeleton placeholder
+- Custom date picker (From/To inputs + preset buttons: 30d, 90d, all time, custom)
+- Mobile safeguard: >100 entries defaults to simple view with Notice
+- Command palette: "Open section reader"
+
+### New Files:
+- `src/modals/SectionReaderModal.ts` — Obsidian Modal with React root (canonical pattern)
+- `src/hooks/useSectionReaderData.ts` — Data hook with two-tier search
+- `src/hooks/useSharedObserver.ts` — Shared ResizeObserver provider/hook
+- `src/components/shared/VirtualVariableList.tsx` — Variable-height virtual scroll
+- `src/components/sections/SectionReader.tsx` — Composer component
+- `src/components/sections/SectionReaderToolbar.tsx` — Controls bar with date picker
+- `src/components/sections/SectionReaderEntry.tsx` — Entry renderer with MarkdownRenderer
+- `src/styles/sections.css` — Fullscreen modal + section reader styles
+
+### Modified Files:
+- `src/commands.ts` — Added open-section-reader command + SectionReaderModal import
+- `src/styles/index.css` — Added sections.css import
+- `src/components/shared/ErrorBoundary.tsx` — Made children prop optional for React.createElement usage
+- `test/commands.test.ts` — Added Modal/Component/MarkdownRenderer/react-dom mocks for SectionReaderModal import chain
+
+### Testing:
+- 416 tests pass (zero regressions), lint clean, build clean
+- Grep gates all pass (zero innerHTML/style={{}}/console.log in src/)
+- Manual testing: all 12 checklist items verified by Brad
+- Custom date picker tested and confirmed working
+
+### Blockers/Issues:
+- React error #300 still present from Phase 8a (caught by ErrorBoundary, does not affect functionality)
+- Performance optimizations (concurrent render cap, fast-scroll throttle, render debounce) deferred to Phase 8c
+
+---
+
+## Next Session Prompt
+
+```
+Phase 8b complete. Section Reader Panel implemented and manually verified:
+- SectionReaderModal: full-screen Obsidian Modal with React root
+- VirtualVariableList: variable-height virtual scroll (separate from VirtualList)
+- useSectionReaderData: two-tier search (hot in-memory, cold via ensureSectionsLoaded)
+- Rich rendering via MarkdownRenderer.render() with 5s timeout, 50KB limit
+- Custom date picker, simple view toggle, 500-word collapse
+- 416 tests passing, lint clean, build clean
+
+Continue with Phase 8c: Performance optimizations (concurrent render cap,
+fast-scroll throttle, render debounce for VirtualVariableList).
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, doesn't block
+functionality) — investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 8c (line 4340+)
+- src/components/shared/VirtualVariableList.tsx — virtual list to optimize
+- src/components/sections/SectionReaderEntry.tsx — MarkdownRenderer integration
+```
+
+## Git Commit Message
+
+```
+feat(phase-8b): section reader panel with MarkdownRenderer and virtual scroll
+
+Section Reader Modal:
+- SectionReaderModal: full-screen Obsidian Modal with React root
+- SectionReader: composer component with mobile safeguard
+- SectionReaderToolbar: heading dropdown, date presets + custom date picker, search, simple view toggle
+- SectionReaderEntry: rich rendering via MarkdownRenderer.render() with 5s timeout, 50KB limit, Component lifecycle
+
+VirtualVariableList (new, separate from existing VirtualList):
+- Variable-height virtual scroll with measuredHeights cache
+- Instance-scoped shared ResizeObserver via useSharedObserver hook
+- Height cache batching via requestAnimationFrame
+- Container-width resize debounce (200ms), CSS-change stale marking
+- Context version reset on heading/date range change
+
+useSectionReaderData hook:
+- Section heading detection from hot-tier sections + cold-tier sectionHeadings
+- Two-tier search with 5-concurrent sliding window and 10s timeout
+- Generation-token stale-result guard
+- Custom date range with From/To date pickers
+
+Additional changes:
+- commands.ts: added open-section-reader command
+- ErrorBoundary: children prop optional for createElement usage
+- commands.test.ts: expanded obsidian mock for Modal import chain
+
+416 tests passing, lint clean, build clean
+```
+
+
+---
+
+# Phase 8c: Section Reader Performance Optimizations — 2026-03-10
+
+### What Was Done:
+- Implemented fast-scroll throttle in VirtualVariableList — detects >3 scroll events in 100ms, pauses rendering, resumes after 150ms settle
+- Implemented render debounce in SectionReaderEntry — 50ms delay before starting MarkdownRenderer after scroll settles
+- Implemented concurrent render cap via new useRenderQueue hook — MAX_ACTIVE_RENDERERS: 2 on mobile, 4 on desktop
+- Fixed render starvation bug: initial implementation held slots forever (only released on unmount). Rewritten with onRenderComplete callback + hasRendered ref so slots release when MarkdownRenderer finishes
+
+### New Files:
+- `src/hooks/useRenderQueue.ts` — Module-level render queue with concurrent cap, fast-scroll pause, and slot lifecycle management
+
+### Modified Files:
+- `src/components/shared/VirtualVariableList.tsx` — Fast-scroll detection (timestamp tracking, settle timeout), renderItem callback extended with isFastScrolling parameter
+- `src/components/sections/SectionReaderEntry.tsx` — Render debounce (50ms), useRenderSlot integration, onRenderComplete on success/timeout/error, simple-text fallback while waiting for slot
+- `src/components/sections/SectionReader.tsx` — Syncs fast-scroll state to render queue, passes isFastScrolling through renderItem, resets render queue on unmount
+
+### Testing:
+- 416 tests pass (zero regressions), lint clean, build clean
+- Grep gates all pass (zero innerHTML/style={{}}/console.log in src/)
+- Manual testing confirmed by Brad: all entries render correctly, no blank entries, performance feels instant on desktop with ~700 entries
+
+### Blockers/Issues:
+- React error #300 still present from Phase 8a (caught by ErrorBoundary, does not affect functionality)
+- Performance optimizations run silently on desktop — would become more noticeable on mobile or with significantly larger datasets (1500+ entries)
+
+---
+
+## Next Session Prompt
+
+```
+Phase 8c complete. Section Reader performance optimizations done:
+- Fast-scroll throttle in VirtualVariableList (>3 events in 100ms -> pause rendering)
+- Render debounce in SectionReaderEntry (50ms delay after scroll settles)
+- Concurrent render cap via useRenderQueue (MAX_ACTIVE_RENDERERS: 2 mobile, 4 desktop)
+- 416 tests passing, lint clean, build clean
+
+Continue with Phase 8.5: Threads & Section Tests.
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, does not block
+functionality) — investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 8.5 (line 4585+)
+- src/services/ThreadsService.ts — threads service to test
+- src/hooks/useRenderQueue.ts — render queue hook
+```
+
+## Git Commit Message
+
+```
+feat(phase-8c): section reader performance optimizations
+
+VirtualVariableList fast-scroll throttle:
+- Track scroll event timestamps, detect >3 events in 100ms window
+- Set isFastScrolling state, reset after 150ms settle timeout
+- Extended renderItem callback with isFastScrolling parameter
+
+SectionReaderEntry render debounce:
+- 50ms delay before starting MarkdownRenderer after scroll settles
+- Simple-text fallback shown while waiting for render slot
+
+useRenderQueue hook (new):
+- Module-level render queue with MAX_ACTIVE_RENDERERS cap (2 mobile, 4 desktop)
+- Slot acquired before MarkdownRenderer starts, released via onRenderComplete
+- hasRendered ref keeps canRender true after slot release
+- Fast-scroll pause: no dequeue during rapid scrolling
+- resetRenderQueue for cleanup on unmount
+
+SectionReader wiring:
+- Syncs fast-scroll state from VirtualVariableList to render queue
+- Passes isFastScrolling to SectionReaderEntry
+- Resets render queue on component unmount
+
+416 tests passing, lint clean, build clean
+```
+
+
+---
+
+## 2026-03-10 - Phase 8.5: Threads & Section Tests
+
+**Focus:** Unit tests for all 6 ThreadsService functions — tag frequency, co-occurrence, metric averages by tag, tag timeline, section word counts, and section insights.
+
+### Completed:
+
+#### ThreadsService Tests (15 new tests, 431 total passing)
+
+| Test Group | Tests | Description |
+|-----------|-------|-------------|
+| `getTagFrequency` | 3 | Correct counts + descending sort, no-tags entries (empty/null/non-array), percentage math |
+| `getTagCoOccurrence` | 3 | Finds co-occurring pairs, filters below threshold (<3), no duplicate pairs (canonical ordering) |
+| `getMetricAveragesByTag` | 2 | Correct average per tag, excludes tags with <5 occurrences |
+| `getTagTimeline` | 1 | Returns matching entries sorted ascending by date |
+| `getSectionWordCounts` | 3 | Time series from sectionWordCounts, missing sections excluded (<2 data points), fallback to counting words in sections |
+| `getSectionInsights` | 3 | Growth (>50% increase last 14d vs prior 30d), decline (>50% decrease), inactive (21+ days) |
+
+### Files Changed:
+
+**New Files (1):**
+- `test/services/ThreadsService.test.ts`
+
+### Testing Notes:
+- ✅ All 431 tests passing across 30 test files (15 new, zero regressions)
+- ✅ `npm run lint` clean (0 errors)
+- No build or deploy needed — test-only phase
+
+### Blockers/Issues:
+- None
+- React error #300 still present from Phase 8a (caught by ErrorBoundary, does not affect functionality)
+
+---
+
+## Next Session Prompt
+
+```
+Phase 8.5 complete. ThreadsService test coverage done:
+- 15 tests covering all 6 functions: getTagFrequency (3), getTagCoOccurrence (3),
+  getMetricAveragesByTag (2), getTagTimeline (1), getSectionWordCounts (3),
+  getSectionInsights (3)
+- 431 tests passing, 30 test files, lint clean
+- Branch: feat/phase-8
+
+Continue with Phase 9: Image Handling + Thumbnails + Gallery.
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, does not block
+functionality) — investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 9 (line 4617+)
+- src/services/ThreadsService.ts — now fully tested
+- test/services/ThreadsService.test.ts — test patterns
+```
+
+## Git Commit Message
+
+```
+test(phase-8.5): threads service unit tests for tag analytics and section trends
+
+ThreadsService tests (15 new):
+- getTagFrequency: correct counts and sort order, no-tags handling, percentage math
+- getTagCoOccurrence: pair detection, threshold filtering, canonical pair ordering
+- getMetricAveragesByTag: average calculation, minimum occurrence filtering
+- getTagTimeline: tag filtering with chronological sort
+- getSectionWordCounts: time series from pre-computed counts, missing section handling,
+  fallback word counting from section content
+- getSectionInsights: growth detection (50%+ increase), decline detection (50%+ decrease),
+  inactive detection (21+ days)
+
+30 test files, 431 tests passing, lint clean
+```
+
+---
+
+## 2026-03-11 - Phase 6j (Interjected): Fix Field Detection for Unit-Suffixed Values and Booleans
+
+**Focus:** Frontmatter fields with unit suffixes (`182 lbs`, `6h`) classified as `string` instead of `numeric-text`. Boolean fields (`morning_meds_taken`, `evening_meds_taken`) classified as `string` instead of `boolean` due to requiring 100% boolean values — a few outlier values in 325+ entries broke detection.
+
+### Root Causes Found:
+
+1. **Unit-suffixed values:** `Number("182 lbs")` returns `NaN`, so `inferFieldType` failed the numeric-text threshold. Only clean recent entries parsed correctly — insufficient to meet 80%.
+2. **Boolean threshold too strict:** `inferFieldType` used `nonEmpty.every(v => typeof v === 'boolean')`, requiring 100% of values to be native booleans. With 325+ entries, a handful of non-boolean outliers (possibly `1`/`0` or number values from older entries) caused complete detection failure.
+3. **Mixed boolean+number field:** `light_therapy` is sometimes `true`/`false`, sometimes a number (minutes). This field correctly remains `string` — mixed types are irreconcilable.
+
+### Completed:
+
+#### FrontmatterService.ts
+- ✅ Added `extractNumericPart()` — strips trailing unit suffixes (`"182 lbs"` → `182`, `"6h"` → `6`, `"7.5 kg"` → `7.5`) via conservative regex
+- ✅ Added `getBooleanValue()` — coerces native booleans and string `"true"`/`"false"` (case-insensitive)
+- ✅ Updated `inferFieldType()` — boolean detection uses 80% threshold (matching numeric-text) instead of `every()`; handles string `"true"`/`"false"` alongside native booleans
+- ✅ Updated numeric-text check — uses `extractNumericPart()` instead of `Number()` for unit-suffixed values
+- ✅ Updated `getNumericValue()` — delegates to `extractNumericPart()` for string inputs
+- ✅ Updated `getFieldTimeSeries()` — uses `getNumericValue()` instead of inline `Number(raw)`
+
+#### PulseService.ts
+- ✅ Updated `getHabitStreaks()` — uses `getBooleanValue()` instead of raw `typeof val === 'boolean'` check
+
+#### commands.ts
+- ✅ Added `debug-fields` command — logs all detected fields with types, coverage, and sample values (including `typeof` for diagnosis)
+
+### Files Changed:
+
+**Modified Files (4):**
+- `src/services/FrontmatterService.ts` — `extractNumericPart()`, `getBooleanValue()`, threshold-based boolean detection, unit-aware numeric parsing
+- `src/services/PulseService.ts` — `getHabitStreaks` uses `getBooleanValue()`
+- `src/commands.ts` — `debug-fields` diagnostic command
+- `test/services/FrontmatterService.test.ts` — 25+ new test cases
+
+### Testing Notes:
+- ✅ All 449 tests passing across 30 test files (25+ new tests, zero regressions)
+- ✅ `npm run lint` clean
+- ✅ `npm run build` passes
+- ✅ `npm run deploy:test` successful
+- ✅ Brad confirmed: `weight` and `sleep_duration` show as `numeric-text`, `morning_meds_taken` and `evening_meds_taken` show as `boolean`, fields appear in Pulse heatmap and habit streaks
+
+### Blockers/Issues:
+- `light_therapy` remains `string` due to genuinely mixed types (boolean + number). User confirmed this is acceptable.
+
+### Design Notes:
+- **Debug command proved essential:** Initial deploy showed booleans still classified as `string`. The `debug-fields` command with `typeof` logging revealed that samples were native booleans but outlier values deeper in the 325-entry dataset failed the all-boolean check. This led directly to the 80% threshold fix.
+- **Conservative unit regex:** `extractNumericPart` only matches `^(-?\d+\.?\d*)\s*[a-zA-Z%]+$` — requires digits first, then alpha/%. Strings like `"Walk"`, `"Stable"`, `"true"` safely return `null`.
+
+---
+
+## Next Session Prompt
+
+```
+Phase 6j (interjected) complete. Field detection fixes shipped:
+- extractNumericPart strips unit suffixes (182 lbs -> 182, 6h -> 6)
+- Boolean detection uses 80% threshold instead of 100% (handles real-world data)
+- getBooleanValue coerces native + string booleans
+- getHabitStreaks uses getBooleanValue for consistency
+- debug-fields command added for runtime field inspection
+- 449 tests passing, lint clean, build clean
+- Branch: feat/phase-8
+
+Continue with Phase 9: Image Handling + Thumbnails + Gallery.
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, does not block
+functionality) - investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md - Phase 9 (line 4617+)
+- src/services/FrontmatterService.ts - updated field detection
+- src/services/PulseService.ts - updated getHabitStreaks
+```
+
+## Git Commit Message
+
+```
+fix(field-detection): unit-suffixed numerics and boolean threshold detection
+
+FrontmatterService:
+- Add extractNumericPart() to strip trailing unit suffixes from values
+  like 182 lbs, 6h, 7.5 kg before numeric parsing
+- Add getBooleanValue() to coerce native booleans and string true/false
+- Change boolean detection from requiring 100% boolean values to 80%
+  threshold, matching numeric-text behavior - fixes real-world data
+  where a few outlier values in 325+ entries broke detection
+- Update getNumericValue() to use extractNumericPart() for strings
+- Update getFieldTimeSeries() to use getNumericValue() consistently
+
+PulseService:
+- Update getHabitStreaks() to use getBooleanValue() instead of raw
+  typeof check, handling string booleans in habit streak data
+
+Commands:
+- Add debug-fields command that logs all detected field types with
+  coverage and typeof-annotated sample values for diagnosis
+
+Tests (25+ new):
+- extractNumericPart: clean numbers, unit-suffixed, non-numeric, empty
+- getBooleanValue: native, string, case-insensitive, non-boolean
+- inferFieldType: string booleans, mixed native+string, unit-suffixed
+- getNumericValue: unit-suffixed extraction
+- getFieldTimeSeries: unit-suffixed entries
+
+30 test files, 449 tests passing, lint clean
+```

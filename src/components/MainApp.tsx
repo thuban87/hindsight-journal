@@ -24,6 +24,7 @@ import { EmptyState } from './shared/EmptyState';
 import { TaskVolatility } from './dashboard/TaskVolatility';
 import { FrontmatterDash } from './dashboard/FrontmatterDash';
 import { LensPanel } from './lens/LensPanel';
+import { ThreadsPanel } from './threads/ThreadsPanel';
 import { useAppStore } from '../store/appStore';
 
 /** Tab group definitions for the two-tier navigation */
@@ -105,7 +106,7 @@ function MainContent({ activeTab }: { activeTab: string }): React.ReactElement {
         case 'lens':
             return <LensPanel />;
         case 'threads':
-            return <EmptyState message="Threads — coming in Phase 8" />;
+            return <ThreadsPanel />;
         case 'gallery':
             return <EmptyState message="Gallery — coming in Phase 9" />;
         default:

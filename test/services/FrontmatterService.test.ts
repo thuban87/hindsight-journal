@@ -5,6 +5,8 @@ import {
     getFieldTimeSeries,
     isNumericField,
     getNumericValue,
+    extractNumericPart,
+    getBooleanValue,
 } from '../../src/services/FrontmatterService';
 import type { JournalEntry, FrontmatterField } from '../../src/types';
 
@@ -289,5 +291,126 @@ describe('detectFields — numeric-text range', () => {
         expect(prodField?.type).toBe('numeric-text');
         expect(prodField?.range?.min).toBe(3);
         expect(prodField?.range?.max).toBe(9);
+    });
+});
+
+describe('extractNumericPart', () => {
+    it('returns number for clean numeric strings', () => {
+        expect(extractNumericPart('7')).toBe(7);
+        expect(extractNumericPart('3.5')).toBe(3.5);
+        expect(extractNumericPart('0')).toBe(0);
+        expect(extractNumericPart('-1')).toBe(-1);
+    });
+
+    it('extracts number from unit-suffixed strings', () => {
+        expect(extractNumericPart('182 lbs')).toBe(182);
+        expect(extractNumericPart('6h')).toBe(6);
+        expect(extractNumericPart('7.5 kg')).toBe(7.5);
+        expect(extractNumericPart('95%')).toBe(95);
+        expect(extractNumericPart('180 lbs')).toBe(180);
+    });
+
+    it('returns null for non-numeric strings', () => {
+        expect(extractNumericPart('Walk')).toBeNull();
+        expect(extractNumericPart('Stable')).toBeNull();
+        expect(extractNumericPart('true')).toBeNull();
+        expect(extractNumericPart('Good')).toBeNull();
+        expect(extractNumericPart('Minor Flare')).toBeNull();
+    });
+
+    it('returns null for empty string', () => {
+        expect(extractNumericPart('')).toBeNull();
+    });
+
+    it('handles whitespace around values', () => {
+        expect(extractNumericPart('  182 lbs  ')).toBe(182);
+        expect(extractNumericPart('  7  ')).toBe(7);
+    });
+});
+
+describe('getBooleanValue', () => {
+    it('returns boolean for native booleans', () => {
+        expect(getBooleanValue(true)).toBe(true);
+        expect(getBooleanValue(false)).toBe(false);
+    });
+
+    it('returns boolean for string booleans', () => {
+        expect(getBooleanValue('true')).toBe(true);
+        expect(getBooleanValue('false')).toBe(false);
+        expect(getBooleanValue('True')).toBe(true);
+        expect(getBooleanValue('FALSE')).toBe(false);
+    });
+
+    it('returns null for non-boolean values', () => {
+        expect(getBooleanValue('yes')).toBeNull();
+        expect(getBooleanValue('no')).toBeNull();
+        expect(getBooleanValue(1)).toBeNull();
+        expect(getBooleanValue(0)).toBeNull();
+        expect(getBooleanValue(null)).toBeNull();
+        expect(getBooleanValue(undefined)).toBeNull();
+        expect(getBooleanValue('Walk')).toBeNull();
+    });
+});
+
+describe('inferFieldType — string booleans', () => {
+    it('detects string "true"/"false" as boolean', () => {
+        expect(inferFieldType(['true', 'false', 'true'])).toBe('boolean');
+    });
+
+    it('detects mixed native + string booleans as boolean', () => {
+        expect(inferFieldType([true, 'false', true, 'true'])).toBe('boolean');
+    });
+
+    it('handles case-insensitive string booleans', () => {
+        expect(inferFieldType(['True', 'FALSE', 'true'])).toBe('boolean');
+    });
+});
+
+describe('inferFieldType — unit-suffixed numerics', () => {
+    it('detects unit-suffixed values as numeric-text', () => {
+        expect(inferFieldType(['182 lbs', '179 lbs', '180 lbs'])).toBe('numeric-text');
+    });
+
+    it('detects mixed clean numbers and unit-suffixed as numeric-text', () => {
+        expect(inferFieldType([180, '182 lbs', '179 lbs', 178])).toBe('numeric-text');
+    });
+
+    it('detects hour-suffixed values as numeric-text', () => {
+        expect(inferFieldType(['6h', '7h', '8h', '6h'])).toBe('numeric-text');
+    });
+
+    it('real-world: weight field with mostly units, one clean', () => {
+        // 16 entries with units, 1 entry without
+        const values: unknown[] = [];
+        for (let i = 0; i < 16; i++) values.push(`${178 + i % 5} lbs`);
+        values.push(180);
+        expect(inferFieldType(values)).toBe('numeric-text');
+    });
+});
+
+describe('getNumericValue — unit-suffixed', () => {
+    it('extracts number from unit-suffixed string', () => {
+        expect(getNumericValue('182 lbs')).toBe(182);
+        expect(getNumericValue('6h')).toBe(6);
+        expect(getNumericValue('7.5 kg')).toBe(7.5);
+    });
+
+    it('still returns null for non-numeric strings', () => {
+        expect(getNumericValue('Walk')).toBeNull();
+        expect(getNumericValue('Stable')).toBeNull();
+    });
+});
+
+describe('getFieldTimeSeries — unit-suffixed values', () => {
+    it('extracts numeric values from unit-suffixed entries', () => {
+        const entries = [
+            makeEntry({ filePath: 'a.md', date: new Date(2026, 2, 1), frontmatter: { weight: '182 lbs' } }),
+            makeEntry({ filePath: 'b.md', date: new Date(2026, 2, 2), frontmatter: { weight: 180 } }),
+            makeEntry({ filePath: 'c.md', date: new Date(2026, 2, 3), frontmatter: { weight: '178 lbs' } }),
+        ];
+        const series = getFieldTimeSeries(entries, 'weight');
+        expect(series[0].value).toBe(182);
+        expect(series[1].value).toBe(180);
+        expect(series[2].value).toBe(178);
     });
 });

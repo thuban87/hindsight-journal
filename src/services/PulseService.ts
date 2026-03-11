@@ -9,7 +9,7 @@
 import type { JournalEntry, FrontmatterField, PersonalBest } from '../types';
 import { formatDateISO, startOfDay } from '../utils/dateUtils';
 import { getWeekBounds, getMonthBounds, getEntriesInPeriod } from '../utils/periodUtils';
-import { isNumericField, getNumericValue } from './FrontmatterService';
+import { isNumericField, getNumericValue, getBooleanValue } from './FrontmatterService';
 
 /**
  * Calculate the current writing streak (consecutive days with entries ending today).
@@ -168,7 +168,8 @@ export function getHabitStreaks(
                 days.push(null);
             } else {
                 const val = entry.frontmatter[field.key];
-                days.push(typeof val === 'boolean' ? val : null);
+                const boolVal = getBooleanValue(val);
+                days.push(boolVal);
             }
         }
 
