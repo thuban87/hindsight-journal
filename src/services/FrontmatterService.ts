@@ -11,6 +11,21 @@ import type { JournalEntry, FrontmatterField, MetricDataPoint } from '../types';
 const NUMERIC_TEXT_THRESHOLD = 0.8;
 
 /**
+ * Extract the numeric portion from a string that may have a trailing unit suffix.
+ * Examples: "182 lbs" → 182, "6h" → 6, "7.5 kg" → 7.5
+ * Returns null for non-numeric strings like "Walk", "Stable", "true".
+ */
+export function extractNumericPart(value: string): number | null {
+    const trimmed = value.trim();
+    if (trimmed === '') return null;
+    const num = Number(trimmed);
+    if (isFinite(num)) return num; // fast path: clean number
+    // Try leading number with optional trailing unit (e.g., "182 lbs", "6h", "95%")
+    const match = trimmed.match(/^(-?\d+\.?\d*)\s*[a-zA-Z%]+$/);
+    return match ? Number(match[1]) : null;
+}
+
+/**
  * Check if a field is numeric (either native number or text containing numbers).
  * Use this instead of `f.type === 'number'` to include numeric-text fields.
  */
@@ -25,9 +40,20 @@ export function isNumericField(field: FrontmatterField): boolean {
 export function getNumericValue(raw: unknown): number | null {
     if (raw === null || raw === undefined || raw === '') return null;
     if (typeof raw === 'number') return isNaN(raw) ? null : raw;
+    if (typeof raw === 'string') return extractNumericPart(raw);
+    return null;
+}
+
+/**
+ * Coerce a frontmatter value to a boolean, or return null.
+ * Handles both native booleans and string "true"/"false".
+ */
+export function getBooleanValue(raw: unknown): boolean | null {
+    if (typeof raw === 'boolean') return raw;
     if (typeof raw === 'string') {
-        const num = Number(raw);
-        return isFinite(num) ? num : null;
+        const lower = raw.toLowerCase();
+        if (lower === 'true') return true;
+        if (lower === 'false') return false;
     }
     return null;
 }
@@ -105,8 +131,15 @@ export function inferFieldType(values: unknown[]): FrontmatterField['type'] {
 
     if (nonEmpty.length === 0) return 'string';
 
-    // Check boolean first (typeof true === 'object' is false, so this is safe)
-    if (nonEmpty.every(v => typeof v === 'boolean')) return 'boolean';
+    // Check boolean — handles native booleans, string "true"/"false", and allows
+    // a minority of non-boolean outliers (same 80% threshold as numeric-text).
+    // This handles real-world data where a few entries out of 300+ may have a
+    // different format (e.g., a number 1/0 instead of true/false).
+    const isBoolLike = (v: unknown): boolean =>
+        typeof v === 'boolean' ||
+        (typeof v === 'string' && (v.toLowerCase() === 'true' || v.toLowerCase() === 'false'));
+    const boolCount = nonEmpty.filter(v => isBoolLike(v)).length;
+    if (boolCount / nonEmpty.length >= NUMERIC_TEXT_THRESHOLD) return 'boolean';
 
     // Check number (must be actual numbers, not strings that parse as numbers)
     if (nonEmpty.every(v => typeof v === 'number' && !isNaN(v as number))) return 'number';
@@ -124,7 +157,7 @@ export function inferFieldType(values: unknown[]): FrontmatterField['type'] {
     // and newer entries have `anxiety: "3"` (quoted string).
     const numericCount = nonEmpty.filter(v => {
         if (typeof v === 'number') return !isNaN(v);
-        if (typeof v === 'string') return isFinite(Number(v));
+        if (typeof v === 'string') return extractNumericPart(v) !== null;
         return false;
     }).length;
     if (numericCount / nonEmpty.length >= NUMERIC_TEXT_THRESHOLD) {
@@ -147,18 +180,9 @@ export function getFieldTimeSeries(
 ): MetricDataPoint[] {
     return entries.map(entry => {
         const raw = entry.frontmatter[fieldKey];
-        let value: number | null = null;
-
-        if (raw !== null && raw !== undefined && raw !== '') {
-            const num = Number(raw);
-            if (!isNaN(num)) {
-                value = num;
-            }
-        }
-
         return {
             date: entry.date.getTime(),
-            value,
+            value: getNumericValue(raw),
         };
     });
 }

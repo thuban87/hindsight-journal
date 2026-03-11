@@ -2345,3 +2345,111 @@ ThreadsService tests (15 new):
 
 30 test files, 431 tests passing, lint clean
 ```
+
+---
+
+## 2026-03-11 - Phase 6j (Interjected): Fix Field Detection for Unit-Suffixed Values and Booleans
+
+**Focus:** Frontmatter fields with unit suffixes (`182 lbs`, `6h`) classified as `string` instead of `numeric-text`. Boolean fields (`morning_meds_taken`, `evening_meds_taken`) classified as `string` instead of `boolean` due to requiring 100% boolean values — a few outlier values in 325+ entries broke detection.
+
+### Root Causes Found:
+
+1. **Unit-suffixed values:** `Number("182 lbs")` returns `NaN`, so `inferFieldType` failed the numeric-text threshold. Only clean recent entries parsed correctly — insufficient to meet 80%.
+2. **Boolean threshold too strict:** `inferFieldType` used `nonEmpty.every(v => typeof v === 'boolean')`, requiring 100% of values to be native booleans. With 325+ entries, a handful of non-boolean outliers (possibly `1`/`0` or number values from older entries) caused complete detection failure.
+3. **Mixed boolean+number field:** `light_therapy` is sometimes `true`/`false`, sometimes a number (minutes). This field correctly remains `string` — mixed types are irreconcilable.
+
+### Completed:
+
+#### FrontmatterService.ts
+- ✅ Added `extractNumericPart()` — strips trailing unit suffixes (`"182 lbs"` → `182`, `"6h"` → `6`, `"7.5 kg"` → `7.5`) via conservative regex
+- ✅ Added `getBooleanValue()` — coerces native booleans and string `"true"`/`"false"` (case-insensitive)
+- ✅ Updated `inferFieldType()` — boolean detection uses 80% threshold (matching numeric-text) instead of `every()`; handles string `"true"`/`"false"` alongside native booleans
+- ✅ Updated numeric-text check — uses `extractNumericPart()` instead of `Number()` for unit-suffixed values
+- ✅ Updated `getNumericValue()` — delegates to `extractNumericPart()` for string inputs
+- ✅ Updated `getFieldTimeSeries()` — uses `getNumericValue()` instead of inline `Number(raw)`
+
+#### PulseService.ts
+- ✅ Updated `getHabitStreaks()` — uses `getBooleanValue()` instead of raw `typeof val === 'boolean'` check
+
+#### commands.ts
+- ✅ Added `debug-fields` command — logs all detected fields with types, coverage, and sample values (including `typeof` for diagnosis)
+
+### Files Changed:
+
+**Modified Files (4):**
+- `src/services/FrontmatterService.ts` — `extractNumericPart()`, `getBooleanValue()`, threshold-based boolean detection, unit-aware numeric parsing
+- `src/services/PulseService.ts` — `getHabitStreaks` uses `getBooleanValue()`
+- `src/commands.ts` — `debug-fields` diagnostic command
+- `test/services/FrontmatterService.test.ts` — 25+ new test cases
+
+### Testing Notes:
+- ✅ All 449 tests passing across 30 test files (25+ new tests, zero regressions)
+- ✅ `npm run lint` clean
+- ✅ `npm run build` passes
+- ✅ `npm run deploy:test` successful
+- ✅ Brad confirmed: `weight` and `sleep_duration` show as `numeric-text`, `morning_meds_taken` and `evening_meds_taken` show as `boolean`, fields appear in Pulse heatmap and habit streaks
+
+### Blockers/Issues:
+- `light_therapy` remains `string` due to genuinely mixed types (boolean + number). User confirmed this is acceptable.
+
+### Design Notes:
+- **Debug command proved essential:** Initial deploy showed booleans still classified as `string`. The `debug-fields` command with `typeof` logging revealed that samples were native booleans but outlier values deeper in the 325-entry dataset failed the all-boolean check. This led directly to the 80% threshold fix.
+- **Conservative unit regex:** `extractNumericPart` only matches `^(-?\d+\.?\d*)\s*[a-zA-Z%]+$` — requires digits first, then alpha/%. Strings like `"Walk"`, `"Stable"`, `"true"` safely return `null`.
+
+---
+
+## Next Session Prompt
+
+```
+Phase 6j (interjected) complete. Field detection fixes shipped:
+- extractNumericPart strips unit suffixes (182 lbs -> 182, 6h -> 6)
+- Boolean detection uses 80% threshold instead of 100% (handles real-world data)
+- getBooleanValue coerces native + string booleans
+- getHabitStreaks uses getBooleanValue for consistency
+- debug-fields command added for runtime field inspection
+- 449 tests passing, lint clean, build clean
+- Branch: feat/phase-8
+
+Continue with Phase 9: Image Handling + Thumbnails + Gallery.
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, does not block
+functionality) - investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md - Phase 9 (line 4617+)
+- src/services/FrontmatterService.ts - updated field detection
+- src/services/PulseService.ts - updated getHabitStreaks
+```
+
+## Git Commit Message
+
+```
+fix(field-detection): unit-suffixed numerics and boolean threshold detection
+
+FrontmatterService:
+- Add extractNumericPart() to strip trailing unit suffixes from values
+  like 182 lbs, 6h, 7.5 kg before numeric parsing
+- Add getBooleanValue() to coerce native booleans and string true/false
+- Change boolean detection from requiring 100% boolean values to 80%
+  threshold, matching numeric-text behavior - fixes real-world data
+  where a few outlier values in 325+ entries broke detection
+- Update getNumericValue() to use extractNumericPart() for strings
+- Update getFieldTimeSeries() to use getNumericValue() consistently
+
+PulseService:
+- Update getHabitStreaks() to use getBooleanValue() instead of raw
+  typeof check, handling string booleans in habit streak data
+
+Commands:
+- Add debug-fields command that logs all detected field types with
+  coverage and typeof-annotated sample values for diagnosis
+
+Tests (25+ new):
+- extractNumericPart: clean numbers, unit-suffixed, non-numeric, empty
+- getBooleanValue: native, string, case-insensitive, non-boolean
+- inferFieldType: string booleans, mixed native+string, unit-suffixed
+- getNumericValue: unit-suffixed extraction
+- getFieldTimeSeries: unit-suffixed entries
+
+30 test files, 449 tests passing, lint clean
+```
