@@ -2192,3 +2192,81 @@ Additional changes:
 416 tests passing, lint clean, build clean
 ```
 
+
+---
+
+# Phase 8c: Section Reader Performance Optimizations — 2026-03-10
+
+### What Was Done:
+- Implemented fast-scroll throttle in VirtualVariableList — detects >3 scroll events in 100ms, pauses rendering, resumes after 150ms settle
+- Implemented render debounce in SectionReaderEntry — 50ms delay before starting MarkdownRenderer after scroll settles
+- Implemented concurrent render cap via new useRenderQueue hook — MAX_ACTIVE_RENDERERS: 2 on mobile, 4 on desktop
+- Fixed render starvation bug: initial implementation held slots forever (only released on unmount). Rewritten with onRenderComplete callback + hasRendered ref so slots release when MarkdownRenderer finishes
+
+### New Files:
+- `src/hooks/useRenderQueue.ts` — Module-level render queue with concurrent cap, fast-scroll pause, and slot lifecycle management
+
+### Modified Files:
+- `src/components/shared/VirtualVariableList.tsx` — Fast-scroll detection (timestamp tracking, settle timeout), renderItem callback extended with isFastScrolling parameter
+- `src/components/sections/SectionReaderEntry.tsx` — Render debounce (50ms), useRenderSlot integration, onRenderComplete on success/timeout/error, simple-text fallback while waiting for slot
+- `src/components/sections/SectionReader.tsx` — Syncs fast-scroll state to render queue, passes isFastScrolling through renderItem, resets render queue on unmount
+
+### Testing:
+- 416 tests pass (zero regressions), lint clean, build clean
+- Grep gates all pass (zero innerHTML/style={{}}/console.log in src/)
+- Manual testing confirmed by Brad: all entries render correctly, no blank entries, performance feels instant on desktop with ~700 entries
+
+### Blockers/Issues:
+- React error #300 still present from Phase 8a (caught by ErrorBoundary, does not affect functionality)
+- Performance optimizations run silently on desktop — would become more noticeable on mobile or with significantly larger datasets (1500+ entries)
+
+---
+
+## Next Session Prompt
+
+```
+Phase 8c complete. Section Reader performance optimizations done:
+- Fast-scroll throttle in VirtualVariableList (>3 events in 100ms -> pause rendering)
+- Render debounce in SectionReaderEntry (50ms delay after scroll settles)
+- Concurrent render cap via useRenderQueue (MAX_ACTIVE_RENDERERS: 2 mobile, 4 desktop)
+- 416 tests passing, lint clean, build clean
+
+Continue with Phase 8.5: Threads & Section Tests.
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, does not block
+functionality) — investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 8.5 (line 4585+)
+- src/services/ThreadsService.ts — threads service to test
+- src/hooks/useRenderQueue.ts — render queue hook
+```
+
+## Git Commit Message
+
+```
+feat(phase-8c): section reader performance optimizations
+
+VirtualVariableList fast-scroll throttle:
+- Track scroll event timestamps, detect >3 events in 100ms window
+- Set isFastScrolling state, reset after 150ms settle timeout
+- Extended renderItem callback with isFastScrolling parameter
+
+SectionReaderEntry render debounce:
+- 50ms delay before starting MarkdownRenderer after scroll settles
+- Simple-text fallback shown while waiting for render slot
+
+useRenderQueue hook (new):
+- Module-level render queue with MAX_ACTIVE_RENDERERS cap (2 mobile, 4 desktop)
+- Slot acquired before MarkdownRenderer starts, released via onRenderComplete
+- hasRendered ref keeps canRender true after slot release
+- Fast-scroll pause: no dequeue during rapid scrolling
+- resetRenderQueue for cleanup on unmount
+
+SectionReader wiring:
+- Syncs fast-scroll state from VirtualVariableList to render queue
+- Passes isFastScrolling to SectionReaderEntry
+- Resets render queue on component unmount
+
+416 tests passing, lint clean, build clean
+```

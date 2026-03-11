@@ -30,8 +30,8 @@ import { useAppStore } from '../../store/appStore';
 interface VirtualVariableListProps<T> {
     /** Items to render */
     items: T[];
-    /** Render function for each item */
-    renderItem: (item: T, index: number) => ReactNode;
+    /** Render function for each item — isFastScrolling indicates rapid scrolling in progress */
+    renderItem: (item: T, index: number, isFastScrolling: boolean) => ReactNode;
     /** Estimated height of each item in pixels (default for unmeasured items) */
     estimatedItemHeight: number;
     /** Number of extra items to render above/below the visible window */
@@ -104,6 +104,15 @@ function VirtualVariableListInner<T>({
     const widthDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const app = useAppStore(s => s.app);
 
+    // Fast-scroll detection: track last N scroll timestamps
+    const FAST_SCROLL_EVENT_COUNT = 3;
+    const FAST_SCROLL_WINDOW_MS = 100;
+    const FAST_SCROLL_SETTLE_MS = 150;
+    const scrollTimestampsRef = useRef<number[]>([]);
+    const [isFastScrolling, setIsFastScrolling] = useState(false);
+    const fastScrollRef = useRef(false);
+    const settleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     // Context change: clear heights + scroll to top
     useEffect(() => {
         if (contextVersion !== prevContextVersion.current) {
@@ -143,11 +152,40 @@ function VirtualVariableListInner<T>({
         return measuredHeightsRef.current.get(index) ?? estimatedItemHeight;
     }, [estimatedItemHeight]);
 
-    // Scroll handler
+    // Scroll handler with fast-scroll detection
     const handleScroll = useCallback(() => {
-        if (containerRef.current) {
-            setScrollTop(containerRef.current.scrollTop);
+        if (!containerRef.current) return;
+        setScrollTop(containerRef.current.scrollTop);
+
+        // Track scroll timestamps for fast-scroll detection
+        const now = performance.now();
+        const timestamps = scrollTimestampsRef.current;
+        timestamps.push(now);
+        // Keep only the last N + 1 timestamps
+        while (timestamps.length > FAST_SCROLL_EVENT_COUNT + 1) {
+            timestamps.shift();
         }
+
+        // Check if >FAST_SCROLL_EVENT_COUNT events fired within FAST_SCROLL_WINDOW_MS
+        if (timestamps.length > FAST_SCROLL_EVENT_COUNT) {
+            const oldest = timestamps[timestamps.length - FAST_SCROLL_EVENT_COUNT - 1];
+            if (now - oldest < FAST_SCROLL_WINDOW_MS) {
+                if (!fastScrollRef.current) {
+                    fastScrollRef.current = true;
+                    setIsFastScrolling(true);
+                }
+            }
+        }
+
+        // Reset settle timeout — fires when scrolling stops
+        if (settleTimeoutRef.current) {
+            clearTimeout(settleTimeoutRef.current);
+        }
+        settleTimeoutRef.current = setTimeout(() => {
+            fastScrollRef.current = false;
+            setIsFastScrolling(false);
+            scrollTimestampsRef.current = [];
+        }, FAST_SCROLL_SETTLE_MS);
     }, []);
 
     // Container resize observer + scroll listener
@@ -187,6 +225,9 @@ function VirtualVariableListInner<T>({
             container.removeEventListener('scroll', handleScroll);
             if (widthDebounceRef.current) {
                 clearTimeout(widthDebounceRef.current);
+            }
+            if (settleTimeoutRef.current) {
+                clearTimeout(settleTimeoutRef.current);
             }
         };
     }, [handleScroll]);
@@ -304,7 +345,7 @@ function VirtualVariableListInner<T>({
                         itemKey={key}
                         onHeightMeasured={onHeightMeasured}
                     >
-                        {renderItem(item, globalIndex)}
+                        {renderItem(item, globalIndex, isFastScrolling)}
                     </MeasuredRow>
                 );
             })}

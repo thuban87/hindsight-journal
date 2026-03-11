@@ -20,6 +20,7 @@ import { useAppStore } from '../../store/appStore';
 import { useJournalStore } from '../../store/journalStore';
 import { stripMarkdown, countWords } from '../../services/SectionParserService';
 import { HighlightText } from '../shared/HighlightText';
+import { useRenderSlot } from '../../hooks/useRenderQueue';
 
 /** Maximum content size for rich rendering (50KB) */
 const MAX_RICH_RENDER_SIZE = 50 * 1024;
@@ -27,12 +28,16 @@ const MAX_RICH_RENDER_SIZE = 50 * 1024;
 const COLLAPSE_WORD_THRESHOLD = 500;
 /** Render timeout in ms */
 const RENDER_TIMEOUT_MS = 5000;
+/** Render debounce delay after fast-scroll settles (ms) */
+const RENDER_DEBOUNCE_MS = 50;
 
 interface SectionReaderEntryProps {
     entry: JournalEntry;
     heading: string;
     simpleView: boolean;
     searchQuery: string;
+    /** Whether fast scrolling is in progress (from VirtualVariableList) */
+    isFastScrolling: boolean;
 }
 
 /**
@@ -52,6 +57,7 @@ export function SectionReaderEntry({
     heading,
     simpleView,
     searchQuery,
+    isFastScrolling,
 }: SectionReaderEntryProps): React.ReactElement {
     const app = useAppStore(s => s.app);
 
@@ -63,6 +69,18 @@ export function SectionReaderEntry({
     const [renderError, setRenderError] = useState<string | null>(null);
     const richContentRef = useRef<HTMLDivElement>(null);
     const componentRef = useRef<ObsidianComponent | null>(null);
+
+    // Render debounce: delay rich rendering by RENDER_DEBOUNCE_MS after fast-scroll settles
+    const [isRenderReady, setIsRenderReady] = useState(!isFastScrolling);
+    useEffect(() => {
+        if (isFastScrolling) {
+            setIsRenderReady(false);
+            return;
+        }
+        // Scrolling settled — debounce before allowing render
+        const timer = setTimeout(() => setIsRenderReady(true), RENDER_DEBOUNCE_MS);
+        return () => clearTimeout(timer);
+    }, [isFastScrolling]);
 
     // Cold-tier loading
     useEffect(() => {
@@ -97,9 +115,14 @@ export function SectionReaderEntry({
         return content;
     })();
 
-    // Rich rendering via MarkdownRenderer
+    // Concurrent render cap: acquire a render slot before starting MarkdownRenderer
+    const renderKey = `${entry.filePath}::${heading}::${entry.mtime}`;
+    const shouldRender = !simpleView && !isLargeContent && isRenderReady && !!displayContent;
+    const { canRender, onRenderComplete } = useRenderSlot(renderKey, shouldRender);
+
+    // Rich rendering via MarkdownRenderer (gated on render debounce + render slot)
     useEffect(() => {
-        if (simpleView || !displayContent || isLargeContent) return;
+        if (simpleView || !displayContent || isLargeContent || !canRender) return;
         const el = richContentRef.current;
         if (!el) return;
         if (!app) return;
@@ -128,6 +151,7 @@ export function SectionReaderEntry({
                     el.replaceChildren();
                 }
                 setRenderError('Section rendering timed out — switch to simple view.');
+                onRenderComplete(); // Release slot on timeout
             }
         }, RENDER_TIMEOUT_MS);
 
@@ -142,11 +166,13 @@ export function SectionReaderEntry({
                 component.unload();
             }
             if (timeoutId) clearTimeout(timeoutId);
+            onRenderComplete(); // Release slot — rendering done
         }).catch(() => {
             if (!cancelled) {
-                setRenderError('Rendering failed — switch to simple view.');
+                setRenderError('Rendering failed \u2014 switch to simple view.');
             }
             if (timeoutId) clearTimeout(timeoutId);
+            onRenderComplete(); // Release slot on error too
         });
 
         return () => {
@@ -155,7 +181,7 @@ export function SectionReaderEntry({
             component.unload();
             componentRef.current = null;
         };
-    }, [displayContent, simpleView, isLargeContent, app, entry.filePath]);
+    }, [displayContent, simpleView, isLargeContent, app, entry.filePath, canRender]);
 
     // Open the full note
     const handleDateClick = useCallback(() => {
@@ -205,8 +231,8 @@ export function SectionReaderEntry({
         );
     }
 
-    // Decide rendering mode
-    const useSimple = simpleView || isLargeContent || renderError;
+    // Decide rendering mode: show simple text when simple view, large content, render error, or waiting for render slot
+    const useSimple = simpleView || isLargeContent || renderError || !canRender;
 
     return (
         <div className="hindsight-section-reader-entry">

@@ -4342,7 +4342,7 @@ All tests pass. Approximately 30-35 new tests.
 > **Note:** This phase is split into three sub-phases for incremental testing:
 > - **Phase 8a:** ✅ COMPLETE (2026-03-10) — Threads panel with tag analytics (frequency chart, co-occurrence matrix, tag timeline, section trends). `sectionUtils.ts` skipped — `SectionParserService` covers needed functionality.
 > - **Phase 8b:** ✅ COMPLETE (2026-03-10) — Section Reader modal with MarkdownRenderer integration, VirtualVariableList, two-tier cold search, custom date picker.
-> - **Phase 8c:** Performance optimizations (observer architecture, fast-scroll throttling, concurrent render cap)
+> - **Phase 8c:** ✅ COMPLETE (2026-03-10) — Performance optimizations (fast-scroll throttling, render debounce, concurrent render cap via useRenderQueue)
 >
 > Each sub-phase has its own testing gate.
 

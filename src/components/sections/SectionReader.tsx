@@ -8,15 +8,17 @@
  * - Mobile safeguard: >100 entries on mobile → default to simple view
  * - EmptyState when no headings detected
  * - Search footer display
+ * - Fast-scroll → render queue sync (Phase 8c)
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Platform, Notice } from 'obsidian';
 import { useSectionReaderData } from '../../hooks/useSectionReaderData';
 import { SectionReaderToolbar } from './SectionReaderToolbar';
 import { SectionReaderEntry } from './SectionReaderEntry';
 import { VirtualVariableList } from '../shared/VirtualVariableList';
 import { EmptyState } from '../shared/EmptyState';
+import { setRenderQueueFastScroll, resetRenderQueue } from '../../hooks/useRenderQueue';
 
 /** Default estimated height for section entries in the virtual list */
 const ESTIMATED_ENTRY_HEIGHT = 200;
@@ -41,6 +43,16 @@ export function SectionReader(): React.ReactElement {
         setSimpleView,
         contextVersion,
     } = useSectionReaderData();
+
+    // Track last fast-scroll state to sync with render queue
+    const lastFastScrollRef = useRef(false);
+
+    // Reset render queue on unmount
+    useEffect(() => {
+        return () => {
+            resetRenderQueue();
+        };
+    }, []);
 
     // Mobile safeguard: >100 entries → default to simple view
     useEffect(() => {
@@ -102,14 +114,22 @@ export function SectionReader(): React.ReactElement {
                         const entry = filteredEntries[index];
                         return `${entry.filePath}::${selectedHeading}::${entry.mtime}`;
                     }}
-                    renderItem={(entry) => (
-                        <SectionReaderEntry
-                            entry={entry}
-                            heading={selectedHeading}
-                            simpleView={simpleView}
-                            searchQuery={searchQuery}
-                        />
-                    )}
+                    renderItem={(entry, _index, isFastScrolling) => {
+                        // Sync fast-scroll state with render queue
+                        if (isFastScrolling !== lastFastScrollRef.current) {
+                            lastFastScrollRef.current = isFastScrolling;
+                            setRenderQueueFastScroll(isFastScrolling);
+                        }
+                        return (
+                            <SectionReaderEntry
+                                entry={entry}
+                                heading={selectedHeading}
+                                simpleView={simpleView}
+                                searchQuery={searchQuery}
+                                isFastScrolling={isFastScrolling}
+                            />
+                        );
+                    }}
                 />
             )}
 
