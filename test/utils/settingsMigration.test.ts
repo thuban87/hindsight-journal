@@ -105,7 +105,7 @@ describe('migrateSettings', () => {
             // No settingsVersion field
         };
         const result = migrateSettings(v0);
-        expect(result.settingsVersion).toBe(6);
+        expect(result.settingsVersion).toBe(7);
         expect(result.journalFolder).toBe('Journal');
         // Should also have chart settings from v2 migration
         expect(result.selectedChartFields).toEqual([]);
@@ -120,6 +120,9 @@ describe('migrateSettings', () => {
         expect(result.calendarColorTheme).toBe('default');
         // Should have Phase 7 settings from v6 migration
         expect(result.savedFilters).toEqual([]);
+        // Should have Phase 9 settings from v7 migration
+        expect(result.maxThumbnailCount).toBe(500);
+        expect(result.thumbnailSize).toBe(120);
     });
 
     it('preserves existing valid settings during migration', () => {
@@ -184,7 +187,7 @@ describe('migrateSettings', () => {
         };
         const result = migrateSettings(minimal);
         expect(result.hotTierDays).toBe(DEFAULT_SETTINGS.hotTierDays);
-        expect(result.settingsVersion).toBe(6);
+        expect(result.settingsVersion).toBe(7);
         expect(result.selectedChartFields).toEqual([]);
         expect(result.rollingWindow).toBe(7);
         expect(result.thumbnailsEnabled).toBe(DEFAULT_SETTINGS.thumbnailsEnabled);
@@ -195,5 +198,8 @@ describe('migrateSettings', () => {
         expect(result.calendarColorTheme).toBe('default');
         // Phase 7 fields
         expect(result.savedFilters).toEqual([]);
+        // Phase 9 fields
+        expect(result.maxThumbnailCount).toBe(500);
+        expect(result.thumbnailSize).toBe(120);
     });
 });

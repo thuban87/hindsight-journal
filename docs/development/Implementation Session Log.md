@@ -2453,3 +2453,203 @@ Tests (25+ new):
 
 30 test files, 449 tests passing, lint clean
 ```
+
+---
+
+## 2026-03-11 - Phase 9: Image Handling + Thumbnails + Gallery
+
+**Focus:** WebP thumbnail generation via canvas, IndexedDB cache with LRU eviction, Gallery view, calendar cell background thumbnails, entry card thumbnails, and image embed compatibility fixes.
+
+### Completed:
+
+#### Core Service
+- ✅ Created `src/services/ThumbnailService.ts` (~480 lines) — WebP/PNG thumbnail generation with OffscreenCanvas/canvas fallback, IndexedDB cache, LRU eviction, concurrency limiting (max 3), quota handling, blob URL lifecycle management, feature detection (WebP, OffscreenCanvas, createImageBitmap resize), cache state machine (healthy/evicting/disabled), corruption recovery
+- ✅ Created `src/hooks/useThumbnail.ts` (~65 lines) — React hook for lazy thumbnail loading with cancellation on unmount
+
+#### Settings & Migration
+- ✅ Added `thumbnailsEnabled`, `maxThumbnailCount`, `thumbnailSize`, `thumbnailVaultId` to `HindsightSettings` + `DEFAULT_SETTINGS`
+- ✅ Added `thumbnailService` to `ServiceRegistry` in `src/types/plugin.ts`
+- ✅ Bumped `settingsMigration.ts` to v7 — `migrateV6ToV7` with validation (range/allowlist guards)
+- ✅ Added Thumbnails section to settings tab — enable toggle, max cache (50-2000), size dropdown (80/120/160px), clear cache button with stats
+
+#### UI Components
+- ✅ Created `src/components/shared/Thumbnail.tsx` (~80 lines) — loading skeleton, placeholder SVG, keyboard accessibility
+- ✅ Created `src/components/gallery/GalleryView.tsx` (~170 lines) — virtualized row-based grid, ResizeObserver for responsive columns, image count with aria-live
+- ✅ Created `src/modals/LightboxModal.tsx` (~135 lines) — Obsidian Modal with React root, ErrorBoundary, blob URL lifecycle, loading/error states
+- ✅ Created `src/styles/gallery.css` — thumbnail shared styles, calendar background thumbnails, entry card thumbnails, lightbox, skeleton animation
+- ✅ Updated `MainApp.tsx` — replaced Gallery EmptyState stub with GalleryView
+- ✅ Updated `CalendarCell.tsx` — full-cell background thumbnail (40% opacity, hover to 60%), z-index layering for day number
+- ✅ Updated `EntryCard.tsx` — 90px thumbnail alongside excerpt in flex layout
+
+#### Plugin Initialization
+- ✅ Updated `main.ts` — conditional ThumbnailService init (guarded by `thumbnailsEnabled`), UUID vaultId generation on first run, service registry, cleanup in onunload
+
+#### Bug Fix: Image Embed Compatibility
+- ✅ Fixed `extractImagePaths` regex to handle `![[image.jpg|500]]` wikilink size parameters
+- ✅ Fixed `extractImagePaths` to handle linked images `[![alt](path)](url)` from obsidian-google-photos plugin
+- ✅ Added `decodeURIComponent()` for URL-encoded paths (`%20` spaces) in standard markdown syntax
+- ✅ Added `.avif` to supported image extensions
+- ✅ Extracted shared `imgExtPattern` constant to avoid regex duplication
+
+### Files Changed:
+- **New:** `src/services/ThumbnailService.ts`, `src/hooks/useThumbnail.ts`, `src/components/shared/Thumbnail.tsx`, `src/components/gallery/GalleryView.tsx`, `src/modals/LightboxModal.tsx`, `src/styles/gallery.css`
+- **Modified:** `main.ts`, `src/components/MainApp.tsx`, `src/components/calendar/CalendarCell.tsx`, `src/components/timeline/EntryCard.tsx`, `src/services/SectionParserService.ts`, `src/settings.ts`, `src/styles/index.css`, `src/types/plugin.ts`, `src/types/settings.ts`, `src/utils/settingsMigration.ts`, `styles.css`, `test/utils/settingsMigration.test.ts`
+
+### Testing Notes:
+- `tsc --noEmit` — zero errors
+- `npm run lint` — 0 errors (6 pre-existing warnings)
+- All 449+ tests passing across 30 test files
+- Updated `settingsMigration.test.ts` — version assertions bumped to v7, Phase 9 field assertions added
+- Grep gates verified: `innerHTML` (5 hits, all pre-existing comments), `style={{` (6 hits, all pre-existing VirtualList spacers/comments)
+- Manual testing confirmed by Brad: gallery works, calendar thumbnails show as full-cell backgrounds, timeline thumbnails visible, Google Photos plugin images detected after URL decode fix
+
+### Blockers/Issues:
+- React error #300 remains (pre-existing, caught by ErrorBoundary, does not block functionality)
+
+---
+
+## Next Session Prompt
+
+```
+Phase 9 complete. Image handling, thumbnails, and gallery shipped:
+- ThumbnailService with IndexedDB cache, LRU eviction, WebP generation
+- GalleryView with virtualized grid in Explore > Gallery tab
+- Calendar cell background thumbnails + timeline card thumbnails
+- Fixed extractImagePaths for wikilink size params (![[img|500]])
+  and URL-encoded markdown paths from obsidian-google-photos plugin
+- Settings: thumbnail enable/disable, cache size, pixel size, clear cache
+- 449 tests passing, lint clean, build clean
+- Branch: feat/phase-9
+
+Continue with Phase 10: Annotations.
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, does not
+block functionality) - investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md - Phase 10 (line TBD)
+- src/services/ThumbnailService.ts - new thumbnail service
+- src/services/SectionParserService.ts - updated extractImagePaths
+```
+
+## Git Commit Message
+
+```
+feat(phase-9): image handling, thumbnails, and gallery view
+
+ThumbnailService:
+- WebP thumbnail generation with OffscreenCanvas/canvas fallback
+- IndexedDB cache with LRU eviction and quota handling
+- Concurrency limiting (max 3 simultaneous generations)
+- Blob URL lifecycle management (centralized create/revoke)
+- Feature detection for WebP encoding, OffscreenCanvas, createImageBitmap resize
+- Cache state machine (healthy/evicting/disabled) with corruption recovery
+
+Gallery:
+- GalleryView with virtualized row-based grid using VirtualList
+- ResizeObserver for responsive column calculation
+- Thumbnail component with loading skeleton and placeholder fallback
+- LightboxModal for full-size image viewing
+
+Calendar + Timeline:
+- Calendar cells show first image as full-cell background at 40% opacity
+- Entry cards show 90px thumbnail alongside excerpt
+
+Image Embed Compatibility:
+- extractImagePaths supports wikilink size params: ![[img.jpg|500]]
+- URL-decode markdown paths (%20 spaces) for Google Photos plugin
+- Linked image syntax: [![alt](path.jpg)](url)
+- Added .avif to supported image extensions
+
+Settings:
+- Thumbnails section: enable toggle, max cache (50-2000), size dropdown, clear cache
+- Settings migration v6 to v7 for new thumbnail fields
+- thumbnailVaultId UUID generated on first enable
+
+Tests:
+- settingsMigration assertions updated for v7 with Phase 9 fields
+- 30 test files, 449+ tests passing, lint clean
+```
+
+---
+
+## 2026-03-11 - Phase 9.5: Thumbnail Tests
+
+**Focus:** Comprehensive unit tests for ThumbnailService covering IndexedDB caching, security gates, concurrency, LRU eviction, feature detection, and graceful degradation.
+
+### Completed:
+
+#### Phase 9.5: Thumbnail Tests (27 new tests, 476 total passing)
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `test/services/ThumbnailService.test.ts` | 27 | Cache key generation (3), security gates (4), concurrency/dedup (3), cache hit/miss (3), LRU eviction (3), quota handling (3), feature detection (3), clearCache/getCacheStats (2), destroy/cleanup (2), graceful degradation (1) |
+
+**Mocking Infrastructure:**
+- ✅ Installed `fake-indexeddb` for in-memory IndexedDB testing in jsdom
+- ✅ Global mocks for OffscreenCanvas, createImageBitmap, canvas.toBlob, URL.createObjectURL/revokeObjectURL
+- ✅ Mock App with configurable metadataCache.getFirstLinkpathDest and vault.readBinary
+
+### Files Changed:
+
+**New Files (1):**
+- `test/services/ThumbnailService.test.ts`
+
+**Modified Files (2):**
+- `package.json` — Added `fake-indexeddb` dev dependency
+- `package-lock.json` — Updated lockfile
+
+### Testing Notes:
+- ✅ All 476 unit tests passing across 31 test files (27 new, zero regressions)
+- ✅ `fake-indexeddb` provides full in-memory IndexedDB implementation
+- ✅ LRU eviction tests account for 30-second rate-limit behavior in the service
+- ✅ Feature detection tests verify both OffscreenCanvas available/unavailable paths
+
+### Blockers/Issues:
+- None
+
+### Design Notes:
+- **LRU eviction rate-limit:** The service has a 30-second rate-limit on evictLRU to prevent thrashing during rapid Gallery scrolling. Tests verify the rate-limit exists and that the cache stays bounded, rather than asserting exact max counts which are timing-sensitive.
+- **vi.fn() warnings:** Vitest shows harmless warnings about vi.fn() mocks not using function/class — these come from the OffscreenCanvas/createImageBitmap mocks returning plain objects. The warnings do not affect test correctness.
+
+---
+
+## Next Session Prompt
+
+```
+Phase 9.5 complete. Thumbnail tests shipped:
+- 27 tests for ThumbnailService covering cache keys, security, concurrency,
+  LRU eviction, quota handling, feature detection, cleanup, degradation
+- fake-indexeddb installed for in-memory IndexedDB testing
+- 476 tests passing across 31 files, lint clean, build clean
+- Branch: feat/phase-9
+
+Continue with Phase 10: Digest View + Reports + Annotations + Export.
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, does not
+block functionality) - investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md - Phase 10 (line 5002+)
+- src/services/ThumbnailService.ts - tested service
+- test/services/ThumbnailService.test.ts - new test file
+```
+
+## Git Commit Message
+
+```
+test(phase-9.5): ThumbnailService unit tests
+
+- Install fake-indexeddb for in-memory IndexedDB testing in jsdom
+- Create test/services/ThumbnailService.test.ts with 27 tests
+- Cache key generation: vaultId/path/mtime inclusion, mtime change detection
+- Security gates: disabled thumbnails, unresolvable paths, extension allowlist
+- Concurrency: request deduplication, MAX_CONCURRENT respect, signal cancellation
+- Cache operations: IDB hit/miss, in-memory blob URL reuse
+- LRU eviction: bounds verification, rate-limit behavior, access time updates
+- Feature detection: OffscreenCanvas available/unavailable, WebP PNG fallback
+- Cleanup: clearCache revokes URLs, destroy closes DB, in-flight map clearing
+- Graceful degradation: IndexedDB unavailable sets disabled state
+- 476 tests passing across 31 files, zero regressions
+```
+

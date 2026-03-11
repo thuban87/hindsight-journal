@@ -236,6 +236,83 @@ export class HindsightSettingTab extends PluginSettingTab {
                 });
         }
 
+        // Thumbnails section
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Thumbnails');
+
+        new Setting(containerEl)
+            .setName('Enable thumbnails')
+            .setDesc('Generate and cache image thumbnails for calendar cells, timeline cards, and gallery view.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.thumbnailsEnabled)
+                .onChange(async (value) => {
+                    this.plugin.settings.thumbnailsEnabled = value;
+                    await this.plugin.saveSettings();
+                    // Note: requires plugin reload to fully initialize/teardown ThumbnailService
+                    new Notice(value
+                        ? 'Thumbnails enabled — reload the plugin to start generating thumbnails.'
+                        : 'Thumbnails disabled — reload the plugin to complete teardown.');
+                }));
+
+        new Setting(containerEl)
+            .setName('Maximum cached thumbnails')
+            .setDesc('Maximum number of thumbnails to store in the browser cache (50–2000).')
+            .addText(text => {
+                text.setPlaceholder('500')
+                    .setValue(String(this.plugin.settings.maxThumbnailCount));
+                text.inputEl.type = 'number';
+                text.inputEl.min = '50';
+                text.inputEl.max = '2000';
+                text.inputEl.addEventListener('blur', () => {
+                    void (async () => {
+                        const parsed = parseInt(text.inputEl.value, 10);
+                        if (!isNaN(parsed) && parsed >= 50 && parsed <= 2000) {
+                            if (parsed !== this.plugin.settings.maxThumbnailCount) {
+                                this.plugin.settings.maxThumbnailCount = parsed;
+                                await this.plugin.saveSettings();
+                            }
+                        } else {
+                            text.inputEl.value = String(this.plugin.settings.maxThumbnailCount);
+                        }
+                    })();
+                });
+            });
+
+        new Setting(containerEl)
+            .setName('Thumbnail size')
+            .setDesc('Pixel dimensions for generated thumbnails (larger = sharper but more storage).')
+            .addDropdown(dropdown => {
+                dropdown
+                    .addOption('80', 'Small (80px)')
+                    .addOption('120', 'Medium (120px)')
+                    .addOption('160', 'Large (160px)')
+                    .setValue(String(this.plugin.settings.thumbnailSize))
+                    .onChange(async (value) => {
+                        this.plugin.settings.thumbnailSize = parseInt(value, 10);
+                        await this.plugin.saveSettings();
+                    });
+            });
+
+        new Setting(containerEl)
+            .setName('Clear thumbnail cache')
+            .setDesc('Delete all cached thumbnails to free storage space.')
+            .addButton(btn => {
+                btn.setButtonText('Clear cache')
+                    .onClick(() => {
+                        void (async () => {
+                            const service = this.plugin.services.thumbnailService;
+                            if (service) {
+                                const stats = await service.getCacheStats();
+                                await service.clearCache();
+                                new Notice(`Cleared ${stats.count} cached thumbnails (${stats.estimatedSizeMB} MB freed).`);
+                            } else {
+                                new Notice('Thumbnail service is not active. Enable thumbnails and reload first.');
+                            }
+                        })();
+                    });
+            });
+
         new Setting(containerEl)
             .setHeading()
             .setName('Advanced');
