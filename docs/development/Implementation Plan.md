@@ -4340,7 +4340,7 @@ All tests pass. Approximately 30-35 new tests.
 ## Phase 8: Threads + Section Reader (~2-3 sessions)
 
 > **Note:** This phase is split into three sub-phases for incremental testing:
-> - **Phase 8a:** Threads panel with tag analytics (plain text) + `sectionUtils.ts` for `findSectionBoundaries()`
+> - **Phase 8a:** ✅ COMPLETE (2026-03-10) — Threads panel with tag analytics (frequency chart, co-occurrence matrix, tag timeline, section trends). `sectionUtils.ts` skipped — `SectionParserService` covers needed functionality.
 > - **Phase 8b:** Section Reader with MarkdownRenderer integration
 > - **Phase 8c:** Performance optimizations (observer architecture, fast-scroll throttling, concurrent render cap)
 >

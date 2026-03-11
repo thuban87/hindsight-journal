@@ -2688,3 +2688,286 @@
     color: var(--text-muted);
     font-style: italic;
 }
+/* Threads Panel Styles */
+/* Panel container */
+.hindsight-threads-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 12px;
+}
+/* Tag frequency chart container */
+.hindsight-tag-frequency {
+    position: relative;
+    min-height: 200px;
+}
+.hindsight-tag-frequency canvas {
+    width: 100% !important;
+}
+/* Tag frequency tooltip */
+.hindsight-tag-frequency-tooltip {
+    position: absolute;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    pointer-events: none;
+    z-index: 10;
+    white-space: nowrap;
+    border: 1px solid var(--background-modifier-border);
+    left: var(--hindsight-tooltip-x, 0);
+    top: var(--hindsight-tooltip-y, 0);
+    transform: translate(-50%, -130%);
+}
+/* Co-occurrence matrix */
+.hindsight-tag-cooccurrence {
+    overflow: auto;
+    position: relative;
+}
+.hindsight-tag-cooccurrence svg {
+    display: block;
+    margin: 0 auto;
+}
+.hindsight-tag-cooccurrence-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.hindsight-tag-cooccurrence-controls select {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+}
+.hindsight-tag-cooccurrence-controls .hindsight-cooccurrence-notice {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    font-style: italic;
+}
+.hindsight-tag-cooccurrence-tooltip {
+    position: absolute;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    pointer-events: none;
+    z-index: 10;
+    white-space: nowrap;
+    border: 1px solid var(--background-modifier-border);
+    display: none;
+}
+/* Tag timeline */
+.hindsight-tag-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.hindsight-tag-timeline-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85em;
+    color: var(--text-muted);
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+.hindsight-tag-metric-avg {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+}
+/* Section trends */
+.hindsight-section-trends {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.hindsight-section-trend-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+}
+.hindsight-section-trend-label {
+    min-width: 120px;
+    font-size: 0.85em;
+    color: var(--text-normal);
+    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.hindsight-section-trend-sparkline {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+/* Section insight cards */
+.hindsight-section-insight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    background: var(--background-secondary);
+    border-left: 3px solid var(--background-modifier-border);
+}
+.hindsight-section-insight.growth {
+    border-left-color: var(--text-success, #4caf50);
+}
+.hindsight-section-insight.decline {
+    border-left-color: var(--text-warning, #ff9800);
+}
+.hindsight-section-insight.inactive {
+    border-left-color: var(--text-muted);
+}
+.hindsight-section-insight-icon {
+    font-size: 1em;
+    flex-shrink: 0;
+}
+.hindsight-section-insight-text {
+    color: var(--text-normal);
+}
+/* Thread controls */
+.hindsight-threads-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.hindsight-threads-controls select {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    min-height: 44px;
+    min-width: 44px;
+}
+.hindsight-threads-controls label {
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+/* Reuse collapsible section pattern from pulse */
+.hindsight-threads-section {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.hindsight-threads-section-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    background: var(--background-secondary);
+    border: none;
+    width: 100%;
+    text-align: left;
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--text-normal);
+    min-height: 44px;
+}
+.hindsight-threads-section-header:hover {
+    background: var(--background-modifier-hover);
+}
+.hindsight-threads-section-arrow {
+    display: inline-block;
+    transition: transform 0.15s ease;
+    font-size: 0.7em;
+}
+.hindsight-threads-section-arrow.collapsed {
+    transform: rotate(-90deg);
+}
+.hindsight-threads-section-content {
+    padding: 12px;
+}
+.hindsight-threads-section-content.collapsed {
+    display: none;
+}
+/* Empty tag timeline */
+.hindsight-tag-timeline-empty {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    padding: 12px 0;
+    text-align: center;
+}
+/* Pagination controls */
+.hindsight-tag-timeline-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-top: 1px solid var(--background-modifier-border);
+    margin-top: 8px;
+}
+.hindsight-tag-timeline-pagination button {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    cursor: pointer;
+    min-height: 44px;
+}
+.hindsight-tag-timeline-pagination button:hover:not(:disabled) {
+    background: var(--background-modifier-hover);
+}
+.hindsight-tag-timeline-pagination button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.hindsight-tag-timeline-page {
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+/* Tag clear button */
+.hindsight-tag-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border);
+    cursor: pointer;
+    margin-bottom: 8px;
+    min-height: 44px;
+}
+.hindsight-tag-clear-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+/* Tag metric selector in timeline header */
+.hindsight-tag-metric-avg select {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    margin: 0 4px;
+}
+/* Section trends description */
+.hindsight-section-trends-description {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin: 0 0 8px 0;
+    font-style: italic;
+}

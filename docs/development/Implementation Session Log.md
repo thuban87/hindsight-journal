@@ -1987,3 +1987,107 @@ HighlightText tests confirmed complete (7 existing tests cover all plan cases)
 29 test files, 416 tests passing, lint and build clean
 ```
 
+
+---
+
+# Phase 8a: Threads Panel — 2026-03-10
+
+## Summary
+Implemented the Threads panel (Explore → Threads tab) with tag analytics, co-occurrence matrix, tag timeline with pagination, and section word count trends.
+
+## What Was Done
+
+### Implementation
+1. **`src/services/ThreadsService.ts`** — 6 pure functions: `getTagFrequency`, `getTagCoOccurrence`, `getMetricAveragesByTag`, `getTagTimeline`, `getSectionWordCounts`, `getSectionInsights`
+2. **`src/components/threads/TagFrequencyChart.tsx`** — Chart.js horizontal bar chart (top 20 tags), ref-based tooltip to prevent re-render loop, theme reactivity via css-change
+3. **`src/components/threads/TagCoOccurrence.tsx`** — SVG co-occurrence matrix with configurable size (5-20), hover tooltips positioned via container-relative coords, `textAnchor="start"` for upward label rotation
+4. **`src/components/threads/TagTimeline.tsx`** — Paginated entry list (10/page) for a selected tag, integrated metric picker with per-tag averages
+5. **`src/components/threads/SectionTrends.tsx`** — Sparkline per section heading using existing Sparkline component, section usage insights (growth/decline/inactive)
+6. **`src/components/threads/ThreadsPanel.tsx`** — Layout container with collapsible sections, tag selection state, empty state handling
+7. **`src/styles/threads.css`** — All Threads styles (panel, chart, matrix, timeline, trends, pagination, controls)
+8. **`src/components/MainApp.tsx`** — Replaced Threads stub with `<ThreadsPanel />`
+9. **`src/styles/index.css`** — Added `threads.css` import
+
+### Bug Fixes
+- **TagFrequencyChart re-render loop**: Hover was triggering React state update → re-render → Chart.js destroy/recreate cycle. Fixed by managing tooltip via DOM refs instead of useState.
+- **TagCoOccurrence tooltip offset**: Container was missing `position: relative`, so absolute tooltip anchored to a distant ancestor. Fixed by adding `position: relative` to container CSS.
+- **TagCoOccurrence label overlap**: SVG painter's model renders later elements on top. Labels rendered before cells, so cells painted over them. Fixed by rendering cells first, then labels. Column labels also needed `textAnchor="start"` (not `"end"`) so -45° rotation extends text upward instead of swinging downward into the grid.
+- **Tag timeline too long**: Added 10-per-page pagination with Previous/Next controls.
+- **Metric picker not visible**: Moved metric selector directly into the TagTimeline header component.
+
+### Files Changed
+
+**New Files (8):**
+- `src/services/ThreadsService.ts`
+- `src/components/threads/ThreadsPanel.tsx`
+- `src/components/threads/TagFrequencyChart.tsx`
+- `src/components/threads/TagCoOccurrence.tsx`
+- `src/components/threads/TagTimeline.tsx`
+- `src/components/threads/SectionTrends.tsx`
+- `src/styles/threads.css`
+
+**Modified Files (2):**
+- `src/components/MainApp.tsx` — replaced Threads stub with ThreadsPanel
+- `src/styles/index.css` — added threads.css import
+
+### Testing Notes:
+- ✅ All 416 unit tests passing across 29 test files
+- ✅ `npm run lint` passes — zero errors
+- ✅ `npm run build` passes — lint + CSS + TypeScript + esbuild clean
+- ✅ Grep gates clean: zero innerHTML, zero style={{}}, zero console.log in src/
+- ✅ Manual testing confirmed by Brad: tag frequency chart, co-occurrence matrix, tag timeline with pagination, section trends all working
+
+### Blockers/Issues:
+- React error #300 observed in console on plugin load. Error caught by ErrorBoundary but does not affect functionality (all tabs still render and work). May be pre-existing — needs investigation with dev build in a future session.
+- `sectionUtils.ts` (mentioned in plan as Phase 8a) was skipped per Brad's direction — existing `SectionParserService` already covers the needed functionality.
+
+---
+
+## Next Session Prompt
+
+```
+Phase 8a complete. Threads Panel implemented and manually verified:
+- ThreadsService: 6 pure functions (tag frequency, co-occurrence, metric
+  averages, tag timeline, section word counts, section insights)
+- 5 UI components: TagFrequencyChart (Chart.js), TagCoOccurrence (SVG matrix),
+  TagTimeline (paginated), SectionTrends (sparklines), ThreadsPanel (layout)
+- All integrated into Explore → Threads tab
+- 416 tests passing, lint clean, build clean
+
+Continue with Phase 8b: Section Reader with MarkdownRenderer integration.
+
+Outstanding: React error #300 in console (caught by ErrorBoundary, doesn't block
+functionality) — investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 8b (line 4340+)
+- src/services/ThreadsService.ts — threads service pattern
+- src/components/threads/ — threads panel components
+```
+
+## Git Commit Message
+
+```
+feat(phase-8a): threads panel with tag analytics and section trends
+
+ThreadsService (6 pure functions):
+- getTagFrequency: top tags by count with percentages
+- getTagCoOccurrence: co-occurrence matrix limited to top N tags
+- getMetricAveragesByTag: field averages per tag (min 5 occurrences)
+- getTagTimeline: chronological entries for a selected tag
+- getSectionWordCounts: per-section word count time series
+- getSectionInsights: growth/decline/inactive detection
+
+UI components:
+- TagFrequencyChart: Chart.js horizontal bar with ref-based tooltip
+- TagCoOccurrence: SVG matrix with configurable size and hover tooltip
+- TagTimeline: paginated entry list (10/page) with integrated metric picker
+- SectionTrends: sparklines per section heading with insight cards
+- ThreadsPanel: layout container with collapsible sections
+
+Bug fixes: chart re-render loop, SVG tooltip offset, label overlap via
+textAnchor start rotation, timeline pagination, metric picker visibility
+
+416 tests passing, lint clean, build clean
+```
+
