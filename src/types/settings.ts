@@ -33,6 +33,12 @@ export interface HindsightSettings {
     enableSidebar: boolean;
     /** Whether to generate and cache image thumbnails */
     thumbnailsEnabled: boolean;
+    /** Maximum number of thumbnails to cache in IndexedDB */
+    maxThumbnailCount: number;
+    /** Thumbnail size in pixels (width, height scales proportionally) */
+    thumbnailSize: number;
+    /** Unique vault identifier for thumbnail cache key namespacing */
+    thumbnailVaultId: string;
     /** Whether to show the morning briefing panel in the sidebar */
     morningBriefingEnabled: boolean;
     /** Sections whose checkboxes count toward productivity score (whitelist) */
@@ -70,6 +76,9 @@ export const DEFAULT_SETTINGS: HindsightSettings = {
     weeklyReviewFolder: '',
     enableSidebar: true,
     thumbnailsEnabled: false,
+    maxThumbnailCount: 500,
+    thumbnailSize: 120,
+    thumbnailVaultId: '',
     morningBriefingEnabled: false,
     productivitySections: [],
     excludedSections: ['Meds'],

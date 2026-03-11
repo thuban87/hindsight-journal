@@ -17,6 +17,7 @@ import { useJournalStore } from '../../store/journalStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { getPolarityColor } from '../../utils/statsUtils';
 import { isNumericField, getNumericValue } from '../../services/FrontmatterService';
+import { Thumbnail } from '../shared/Thumbnail';
 
 interface EntryCardProps {
     entry: JournalEntry;
@@ -149,6 +150,7 @@ function BadgeSpan({ color, children }: { color?: string; children: React.ReactN
 export function EntryCard({ entry, detectedFields, sectionKey, onClick }: EntryCardProps): React.ReactElement {
     const isUnloading = useAppStore(s => s.isUnloading);
     const fieldPolarity = useSettingsStore(s => s.settings.fieldPolarity);
+    const thumbnailsEnabled = useSettingsStore(s => s.settings.thumbnailsEnabled);
 
     // Track the loaded version of the entry (may have lazy-loaded sections)
     const [loadedEntry, setLoadedEntry] = useState<JournalEntry>(entry);
@@ -225,8 +227,22 @@ export function EntryCard({ entry, detectedFields, sectionKey, onClick }: EntryC
                 )}
             </div>
 
-            {excerpt && (
-                <p className="hindsight-entry-card-excerpt">{excerpt}</p>
+            {(excerpt || (thumbnailsEnabled && entry.imagePaths.length > 0)) && (
+                <div className="hindsight-entry-card-body">
+                    {excerpt && (
+                        <p className="hindsight-entry-card-excerpt">{excerpt}</p>
+                    )}
+                    {thumbnailsEnabled && entry.imagePaths.length > 0 && (
+                        <div className="hindsight-entry-thumbnail">
+                            <Thumbnail
+                                imagePath={entry.imagePaths[0]}
+                                sourceFilePath={entry.filePath}
+                                mtime={entry.mtime}
+                                size={90}
+                            />
+                        </div>
+                    )}
+                </div>
             )}
 
             {tags && tags.length > 0 && (

@@ -25,6 +25,7 @@ import { TaskVolatility } from './dashboard/TaskVolatility';
 import { FrontmatterDash } from './dashboard/FrontmatterDash';
 import { LensPanel } from './lens/LensPanel';
 import { ThreadsPanel } from './threads/ThreadsPanel';
+import { GalleryView } from './gallery/GalleryView';
 import { useAppStore } from '../store/appStore';
 
 /** Tab group definitions for the two-tier navigation */
@@ -108,7 +109,7 @@ function MainContent({ activeTab }: { activeTab: string }): React.ReactElement {
         case 'threads':
             return <ThreadsPanel />;
         case 'gallery':
-            return <EmptyState message="Gallery — coming in Phase 9" />;
+            return <GalleryView />;
         default:
             return <CalendarContent />;
     }

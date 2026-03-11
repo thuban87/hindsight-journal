@@ -1,0 +1,211 @@
+/* Gallery Styles */
+
+/* Entry card body: flex layout for excerpt + thumbnail side-by-side */
+.hindsight-entry-card-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.hindsight-entry-card-body .hindsight-entry-card-excerpt {
+    flex: 1;
+    min-width: 0;
+}
+
+.hindsight-gallery-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.hindsight-gallery-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.hindsight-gallery-count {
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+.hindsight-gallery-row {
+    display: flex;
+    gap: 8px;
+    padding: 4px 12px;
+}
+
+.hindsight-gallery-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.hindsight-gallery-date {
+    font-size: 0.7em;
+    color: var(--text-muted);
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Thumbnail shared styles */
+.hindsight-thumbnail {
+    border-radius: 6px;
+    object-fit: cover;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hindsight-thumbnail:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.hindsight-thumbnail[role="button"] {
+    cursor: pointer;
+}
+
+.hindsight-thumbnail-skeleton {
+    width: 120px;
+    height: 120px;
+    background: linear-gradient(90deg,
+            var(--background-secondary) 25%,
+            var(--background-modifier-border) 50%,
+            var(--background-secondary) 75%);
+    background-size: 200% 100%;
+    animation: hindsight-skeleton-pulse 1.5s ease-in-out infinite;
+    border-radius: 6px;
+}
+
+@keyframes hindsight-skeleton-pulse {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.hindsight-thumbnail-placeholder {
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--background-secondary);
+    border-radius: 6px;
+    color: var(--text-muted);
+}
+
+/* Calendar cell thumbnail — fills entire cell background */
+.hindsight-calendar-thumbnail {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    z-index: 0;
+}
+
+.hindsight-calendar-thumbnail .hindsight-thumbnail {
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    object-fit: cover;
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+}
+
+.hindsight-calendar-cell:hover .hindsight-calendar-thumbnail .hindsight-thumbnail {
+    opacity: 0.6;
+}
+
+.hindsight-calendar-thumbnail .hindsight-thumbnail-skeleton {
+    width: 100%;
+    height: 100%;
+}
+
+.hindsight-calendar-thumbnail .hindsight-thumbnail-placeholder {
+    display: none;
+}
+
+/* Ensure day number + indicator sit above the background image */
+.hindsight-calendar-day-number,
+.hindsight-calendar-indicator {
+    position: relative;
+    z-index: 1;
+}
+
+/* Entry card thumbnail */
+.hindsight-entry-thumbnail {
+    flex-shrink: 0;
+    margin-left: 12px;
+}
+
+.hindsight-entry-thumbnail .hindsight-thumbnail {
+    width: 90px;
+    height: 90px;
+    border-radius: 6px;
+}
+
+.hindsight-entry-thumbnail .hindsight-thumbnail-skeleton {
+    width: 90px;
+    height: 90px;
+}
+
+.hindsight-entry-thumbnail .hindsight-thumbnail-placeholder {
+    width: 90px;
+    height: 90px;
+}
+
+/* Lightbox styles */
+.hindsight-lightbox-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    min-height: 300px;
+}
+
+.hindsight-lightbox-img {
+    max-width: var(--hindsight-lightbox-max-w, 90vw);
+    max-height: var(--hindsight-lightbox-max-h, 75vh);
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.hindsight-lightbox-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-muted);
+}
+
+.hindsight-lightbox-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--background-modifier-border);
+    border-top-color: var(--interactive-accent);
+    border-radius: 50%;
+    animation: hindsight-spin 0.8s linear infinite;
+}
+
+@keyframes hindsight-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.hindsight-lightbox-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    padding: 40px;
+}

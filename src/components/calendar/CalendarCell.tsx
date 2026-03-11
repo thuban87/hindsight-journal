@@ -13,6 +13,7 @@ import { getPolarityColor, mapBooleanToColor } from '../../utils/statsUtils';
 import { useUIStore } from '../../store/uiStore';
 import { useAppStore } from '../../store/appStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { Thumbnail } from '../shared/Thumbnail';
 
 interface CalendarCellProps {
     date: Date;
@@ -59,6 +60,7 @@ export function CalendarCell({
     const setTimelineScrollToDate = useUIStore(state => state.setTimelineScrollToDate);
     const fieldPolarity = useSettingsStore(s => s.settings.fieldPolarity);
     const calendarColorTheme = useSettingsStore(s => s.settings.calendarColorTheme);
+    const thumbnailsEnabled = useSettingsStore(s => s.settings.thumbnailsEnabled);
     const cellRef = useRef<HTMLDivElement>(null);
 
     // Compute background color
@@ -160,8 +162,17 @@ export function CalendarCell({
             {entry && !selectedMetric && (
                 <span className="hindsight-calendar-indicator" />
             )}
-            {/* Placeholder for Phase 9 image thumbnails */}
-            <div className="hindsight-calendar-thumbnail" />
+            {/* Thumbnail: show first image when entry has images and thumbnails enabled */}
+            <div className="hindsight-calendar-thumbnail">
+                {thumbnailsEnabled && entry && entry.imagePaths.length > 0 && (
+                    <Thumbnail
+                        imagePath={entry.imagePaths[0]}
+                        sourceFilePath={entry.filePath}
+                        mtime={entry.mtime}
+                        size={120}
+                    />
+                )}
+            </div>
         </div>
     );
 }

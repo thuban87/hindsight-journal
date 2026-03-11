@@ -7,6 +7,7 @@ import { HindsightSidebarView } from './src/views/HindsightSidebarView';
 import { HindsightMainView } from './src/views/HindsightMainView';
 import { JournalIndexService } from './src/services/JournalIndexService';
 import { FileWatcherService } from './src/services/FileWatcherService';
+import { ThumbnailService } from './src/services/ThumbnailService';
 import { useSettingsStore } from './src/store/settingsStore';
 import { useAppStore } from './src/store/appStore';
 import { registerCommands } from './src/commands';
@@ -20,6 +21,7 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
     settings: HindsightSettings = DEFAULT_SETTINGS;
     journalIndex: JournalIndexService | null = null;
     private fileWatcher: FileWatcherService | null = null;
+    private thumbnailService: ThumbnailService | null = null;
 
     /** Cross-store subscriptions — unsubscribed FIRST in onunload() */
     private storeSubscriptions: (() => void)[] = [];
@@ -30,6 +32,7 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
     get services(): ServiceRegistry {
         return {
             journalIndex: this.journalIndex,
+            thumbnailService: this.thumbnailService,
         };
     }
 
@@ -60,6 +63,19 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
         this.app.workspace.onLayoutReady(async () => {
             await this.journalIndex?.initialize();
             this.fileWatcher?.registerFileWatchers();
+
+            // === Thumbnail Service (conditional) ===
+            if (this.settings.thumbnailsEnabled) {
+                // Generate vaultId UUID on first run
+                if (!this.settings.thumbnailVaultId) {
+                    this.settings.thumbnailVaultId = crypto.randomUUID();
+                    await this.saveSettings();
+                }
+                this.thumbnailService = new ThumbnailService(
+                    this.app, this.settings, this.settings.thumbnailVaultId
+                );
+                await this.thumbnailService.initialize();
+            }
         });
 
         // === Sidebar View ===
@@ -103,6 +119,8 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
         // 2. Destroy services
         this.journalIndex?.destroy();
         this.fileWatcher?.destroy();
+        void this.thumbnailService?.destroy();
+        this.thumbnailService = null;
 
         // 3. Run general cleanup (timers, observers, listeners)
         this.cleanupRegistry.forEach(fn => fn());

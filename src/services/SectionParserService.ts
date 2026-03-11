@@ -59,23 +59,37 @@ export function extractSection(content: string, heading: string): string | null 
 
 /**
  * Extract all image embed paths from markdown content.
- * Handles both ![[image.png]] (wikilink) and ![alt](path.png) (standard) syntax.
+ * Supports:
+ *   - ![[image.png]]                     (wikilink embed)
+ *   - ![[image.jpg|500]]                 (wikilink with size)
+ *   - ![alt](path/image.jpg)            (standard markdown embed)
+ *   - [![alt](path/image.jpg)](link)    (linked image — image inside a link)
+ * URL-encoded paths (e.g. %20 for spaces) are decoded before returning.
  * Returns vault-relative paths.
  */
 export function extractImagePaths(content: string): string[] {
     const paths: string[] = [];
+    const imgExtPattern = '(?:\\.png|\\.jpg|\\.jpeg|\\.gif|\\.bmp|\\.svg|\\.webp|\\.avif)';
 
-    // Wikilink embeds: ![[image.png]] or ![[folder/image.png]]
-    const wikiRegex = /!\[\[([^\]]+?(?:\.png|\.jpg|\.jpeg|\.gif|\.bmp|\.svg|\.webp))\]\]/gi;
+    // Wikilink embeds: ![[image.png]], ![[folder/image.png]], ![[image.jpg|500]]
+    // The optional (?:\|[^\]]*)? handles Obsidian's size/display parameter syntax
+    const wikiRegex = new RegExp('!\\[\\[([^\\]|]+?' + imgExtPattern + ')(?:\\|[^\\]]*)?\\]\\]', 'gi');
     let match: RegExpExecArray | null;
     while ((match = wikiRegex.exec(content)) !== null) {
         paths.push(match[1]);
     }
 
     // Standard markdown embeds: ![alt](path.png)
-    const mdRegex = /!\[[^\]]*\]\(([^)]+?(?:\.png|\.jpg|\.jpeg|\.gif|\.bmp|\.svg|\.webp))\)/gi;
+    // Also catches linked images [![alt](path.jpg)](url) — the inner ![alt](path) part
+    const mdRegex = new RegExp('!\\[[^\\]]*\\]\\(([^)]+?' + imgExtPattern + ')\\)', 'gi');
     while ((match = mdRegex.exec(content)) !== null) {
-        paths.push(match[1]);
+        // URL-decode paths — plugins like obsidian-google-photos encode spaces as %20
+        try {
+            paths.push(decodeURIComponent(match[1]));
+        } catch {
+            // If decoding fails (malformed URI), use the raw path
+            paths.push(match[1]);
+        }
     }
 
     return paths;

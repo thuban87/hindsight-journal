@@ -6,6 +6,7 @@
  */
 
 import type { JournalIndexService } from '../services/JournalIndexService';
+import type { ThumbnailService } from '../services/ThumbnailService';
 import type { HindsightSettings } from './settings';
 
 /**
@@ -15,6 +16,7 @@ import type { HindsightSettings } from './settings';
  */
 export interface ServiceRegistry {
     journalIndex: JournalIndexService | null;
+    thumbnailService: ThumbnailService | null;
 }
 
 /**

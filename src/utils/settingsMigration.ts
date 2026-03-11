@@ -14,7 +14,7 @@ import { validateVaultRelativePath } from './vaultUtils';
 import { debugLog } from './debugLog';
 
 /** Current settings schema version */
-const CURRENT_MAX_VERSION = 6;
+const CURRENT_MAX_VERSION = 7;
 
 /**
  * Normalize a path-type setting value.
@@ -68,6 +68,28 @@ export function validateSettings(settings: unknown): HindsightSettings {
     // thumbnailsEnabled: boolean
     if (typeof s['thumbnailsEnabled'] === 'boolean') {
         result.thumbnailsEnabled = s['thumbnailsEnabled'];
+    }
+
+    // maxThumbnailCount: number (range: 50-2000)
+    if (
+        typeof s['maxThumbnailCount'] === 'number' &&
+        s['maxThumbnailCount'] >= 50 &&
+        s['maxThumbnailCount'] <= 2000
+    ) {
+        result.maxThumbnailCount = s['maxThumbnailCount'];
+    }
+
+    // thumbnailSize: number (allowed: 80, 120, 160)
+    if (
+        typeof s['thumbnailSize'] === 'number' &&
+        [80, 120, 160].includes(s['thumbnailSize'])
+    ) {
+        result.thumbnailSize = s['thumbnailSize'];
+    }
+
+    // thumbnailVaultId: string (UUID)
+    if (typeof s['thumbnailVaultId'] === 'string') {
+        result.thumbnailVaultId = s['thumbnailVaultId'];
     }
 
     // morningBriefingEnabled: boolean
@@ -274,6 +296,9 @@ export function migrateSettings(loaded: Record<string, unknown> | null): Hindsig
     if (version < 6) {
         migrated = migrateV5ToV6(migrated);
     }
+    if (version < 7) {
+        migrated = migrateV6ToV7(migrated);
+    }
 
     // 4. Validate all fields
     const validated = validateSettings(migrated);
@@ -425,6 +450,27 @@ function migrateV5ToV6(data: Record<string, unknown>): Record<string, unknown> {
     // Add savedFilters with empty default if missing
     if (!Array.isArray(result['savedFilters'])) {
         result['savedFilters'] = [];
+    }
+
+    return result;
+}
+
+/**
+ * Migration: v6 → v7
+ * - Adds maxThumbnailCount for IndexedDB cache size limit
+ * - Adds thumbnailSize for thumbnail pixel dimensions
+ */
+function migrateV6ToV7(data: Record<string, unknown>): Record<string, unknown> {
+    const result = { ...data };
+
+    result['settingsVersion'] = 7;
+
+    // Add thumbnail cache settings with defaults if missing
+    if (typeof result['maxThumbnailCount'] !== 'number') {
+        result['maxThumbnailCount'] = DEFAULT_SETTINGS.maxThumbnailCount;
+    }
+    if (typeof result['thumbnailSize'] !== 'number') {
+        result['thumbnailSize'] = DEFAULT_SETTINGS.thumbnailSize;
     }
 
     return result;
