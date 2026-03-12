@@ -3007,3 +3007,82 @@ Infrastructure:
 518 tests passing, zero regressions
 ```
 
+---
+
+## 2026-03-11 - Phase 11.5: Quick-Edit & Wizard Tests
+
+**Focus:** Unit and integration tests for NoteCreationService, sectionUtils, weekly summary computation, and field type mapping — all features shipped in Phase 11.
+
+### Completed:
+
+#### Phase 11.5: Quick-Edit & Wizard Tests (23 new tests, 541 total passing)
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `test/services/NoteCreationService.test.ts` | 5 | createDailyNote (filename format, section headings in template, journal folder path), createWeeklyReview (folder placement, date range filename) |
+| `test/utils/sectionUtils.test.ts` | 13 | findSectionBoundaries (heading detection, code block awareness, duplicate occurrence index). replaceSectionContent (basic replacement, preserve before/after, emoji headings, heading not found, empty sections, code block awareness, EOF boundary, CRLF normalization, whitespace content, nested ### inside ## sections) |
+| `test/integration/wizard-integration.test.ts` | 5 | Weekly summary computation (numeric averages, boolean completion rates, best/worst day by quality score, empty entries handling), field type mapping (number/numeric-text→slider, boolean→toggle, string→text, string[]→tags, date→picker) |
+
+### Files Changed:
+
+**New Files (3):**
+- `test/services/NoteCreationService.test.ts`
+- `test/utils/sectionUtils.test.ts`
+- `test/integration/wizard-integration.test.ts`
+
+### Testing Notes:
+- ✅ All 541 tests passing across 37 test files (23 new, zero regressions)
+- ✅ Two tests fixed during development: `toEndWith` replaced with `toMatch(/\.md$/)` (not a built-in Vitest matcher), and code block replacement test restructured for correct section boundary semantics
+
+### Blockers/Issues:
+- None
+- Outstanding from previous sessions: React error #300 in console (caught by ErrorBoundary, does not block functionality)
+
+---
+
+## Next Session Prompt
+
+```
+Phase 11.5 complete. Quick-Edit & Wizard tests all passing:
+- NoteCreationService.test.ts (5 tests): filename generation, template content, folder placement
+- sectionUtils.test.ts (13 tests): findSectionBoundaries + replaceSectionContent
+- wizard-integration.test.ts (5 tests): weekly summary computation, field type mapping
+- 541 tests passing, zero regressions
+- Branch: feat/phase-11
+
+Outstanding: React error #300 in console — investigate with dev build.
+
+Continue with Phase 12: Time Machine Slider (evaluate after all views).
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 12 (line 5776+)
+- src/store/timeMachineStore.ts — to be created
+- src/components/shared/TimeMachineSlider.tsx — to be created
+```
+
+## Git Commit Message
+
+```
+test(phase-11.5): Quick-Edit, Wizard, and Section Utils tests
+
+NoteCreationService (5 tests):
+- createDailyNote: filename format YYYY-MM-DD DayName, section headings
+  in template, journal folder path placement
+- createWeeklyReview: weekly review folder placement, date range filename
+
+Section Utils (13 tests):
+- findSectionBoundaries: heading detection, code block awareness,
+  duplicate heading occurrence index tracking
+- replaceSectionContent: basic replacement, preserve surrounding content,
+  emoji headings, missing heading fallback, empty sections, code block
+  awareness, EOF boundary, CRLF normalization, whitespace content,
+  nested headings (### inside ## sections)
+
+Wizard Integration (5 tests):
+- Weekly summary: numeric field averages, boolean completion rates,
+  best/worst day by quality score, empty entries graceful handling
+- Field type mapping: all 6 FrontmatterField types mapped correctly
+
+541 tests passing across 37 test files, zero regressions
+```
+
