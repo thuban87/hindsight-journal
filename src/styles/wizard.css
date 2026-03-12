@@ -1,0 +1,524 @@
+/* ==========================================================================
+   Wizard + Quick Edit styles
+   All classes prefixed with hindsight- per plugin guidelines.
+   ========================================================================== */
+
+/* ---------- Quick Edit Modal ---------- */
+
+.hindsight-quick-edit-modal {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+.hindsight-quick-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.hindsight-quick-edit-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.hindsight-quick-edit-title {
+    margin: 0;
+    font-size: 1.1em;
+    color: var(--text-normal);
+}
+
+.hindsight-quick-edit-datepicker {
+    padding: 4px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.9em;
+}
+
+.hindsight-quick-edit-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 0;
+    color: var(--text-muted);
+}
+
+.hindsight-quick-edit-create-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--interactive-accent);
+    border-radius: 6px;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.hindsight-quick-edit-create-btn:hover {
+    opacity: 0.9;
+}
+
+.hindsight-quick-edit-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.hindsight-quick-edit-no-fields {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* ---------- Field Input ---------- */
+
+.hindsight-field-input {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.hindsight-field-label {
+    min-width: 100px;
+    font-weight: 500;
+    color: var(--text-normal);
+    font-size: 0.9em;
+    flex-shrink: 0;
+}
+
+.hindsight-field-text,
+.hindsight-field-date {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.9em;
+}
+
+/* Toggle Switch */
+.hindsight-field-toggle {
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: var(--background-modifier-border);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s ease;
+}
+
+.hindsight-field-toggle.is-enabled {
+    background: var(--interactive-accent);
+}
+
+.hindsight-field-toggle-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--background-primary);
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: left 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.hindsight-field-toggle.is-enabled .hindsight-field-toggle-thumb {
+    left: 22px;
+}
+
+/* ---------- Slider Input ---------- */
+
+.hindsight-slider-input {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.hindsight-slider-range {
+    flex: 1;
+    accent-color: var(--interactive-accent);
+}
+
+.hindsight-slider-number {
+    width: 60px;
+    padding: 4px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.85em;
+    text-align: center;
+}
+
+.hindsight-slider-label {
+    min-width: 30px;
+    text-align: right;
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+
+/* ---------- Tag Input ---------- */
+
+.hindsight-tag-input {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+
+.hindsight-tag-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.hindsight-tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    font-size: 0.8em;
+}
+
+.hindsight-tag-pill-remove {
+    background: none;
+    border: none;
+    color: var(--text-on-accent);
+    cursor: pointer;
+    font-size: 1em;
+    padding: 0 2px;
+    line-height: 1;
+    opacity: 0.7;
+}
+
+.hindsight-tag-pill-remove:hover {
+    opacity: 1;
+}
+
+.hindsight-tag-input-field {
+    padding: 6px 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.9em;
+}
+
+/* ---------- Saved Indicator ---------- */
+
+.hindsight-saved-indicator {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    animation: hindsight-fade-in 0.2s ease;
+}
+
+.hindsight-saved-indicator.is-saved {
+    color: var(--text-success);
+}
+
+@keyframes hindsight-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* ---------- Wizard (Guided Entry + Weekly Review) ---------- */
+
+.hindsight-wizard,
+.hindsight-weekly-review {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 16px;
+    padding: 16px;
+}
+
+.hindsight-wizard-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.hindsight-wizard-title {
+    margin: 0;
+    font-size: 1.1em;
+    color: var(--text-normal);
+}
+
+.hindsight-wizard-datepicker {
+    padding: 4px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.9em;
+}
+
+.hindsight-wizard-progress {
+    margin-left: auto;
+    font-size: 0.8em;
+    color: var(--text-muted);
+}
+
+.hindsight-wizard-page {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+}
+
+.hindsight-wizard-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.hindsight-wizard-section-label {
+    font-weight: 500;
+    color: var(--text-normal);
+    font-size: 0.9em;
+}
+
+.hindsight-wizard-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.hindsight-wizard-section-remove {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 2px 6px;
+}
+
+.hindsight-wizard-section-remove:hover {
+    color: var(--text-error);
+}
+
+.hindsight-wizard-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-family: inherit;
+    font-size: 0.9em;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.hindsight-wizard-textarea:focus {
+    border-color: var(--interactive-accent);
+    outline: none;
+}
+
+/* Wizard Navigation */
+.hindsight-wizard-nav {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.hindsight-wizard-btn {
+    padding: 8px 20px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 0.9em;
+    min-height: 36px;
+}
+
+.hindsight-wizard-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.hindsight-wizard-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.hindsight-wizard-btn-primary {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.hindsight-wizard-btn-primary:hover {
+    opacity: 0.9;
+}
+
+/* Weekly Summary Cards */
+.hindsight-weekly-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.hindsight-weekly-summary-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.hindsight-weekly-summary-card-label {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    text-transform: capitalize;
+}
+
+.hindsight-weekly-summary-card-value {
+    font-size: 1.3em;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.hindsight-weekly-summary-card-sublabel {
+    font-size: 0.7em;
+    color: var(--text-muted);
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.hindsight-weekly-summary-empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+/* Add custom section */
+.hindsight-wizard-add-section {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.hindsight-wizard-add-section-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.9em;
+}
+
+.hindsight-wizard-template-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin-top: 8px;
+    cursor: pointer;
+}
+
+/* Today status quick edit button */
+.hindsight-today-quick-edit-btn {
+    padding: 8px 14px;
+    min-height: 44px;
+    border: 1px solid var(--interactive-accent);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--interactive-accent);
+    cursor: pointer;
+    font-size: 0.85em;
+}
+
+.hindsight-today-quick-edit-btn:hover {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.hindsight-today-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.hindsight-today-actions .hindsight-today-open-btn,
+.hindsight-today-actions .hindsight-today-quick-edit-btn {
+    flex: 1;
+    text-align: center;
+}
+
+/* ---------- Mobile Layout ---------- */
+
+.hindsight-mobile.hindsight-quick-edit .hindsight-field-input,
+.hindsight-mobile.hindsight-wizard .hindsight-field-input,
+.hindsight-mobile.hindsight-weekly-review .hindsight-field-input {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.hindsight-mobile .hindsight-wizard-textarea {
+    min-height: 120px;
+}
+
+.hindsight-mobile .hindsight-wizard-btn {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+.hindsight-mobile .hindsight-weekly-summary {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.hindsight-mobile .hindsight-today-quick-edit-btn {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+.hindsight-mobile .hindsight-field-toggle {
+    min-width: 44px;
+    min-height: 44px;
+}
+
+.hindsight-mobile .hindsight-tag-pill-remove {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

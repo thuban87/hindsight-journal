@@ -13,6 +13,7 @@ import { GoalTracker } from '../pulse/GoalTracker';
 import { GapAlerts } from './GapAlerts';
 import { MorningBriefing } from './MorningBriefing';
 import { WidgetContainer } from './WidgetContainer';
+import { QuickEditModal } from '../../modals/QuickEditModal';
 
 /**
  * Format the time difference between now and a date as a relative string.
@@ -33,6 +34,7 @@ function formatRelativeTime(date: Date): string {
 
 export function TodayStatus(): React.ReactElement | null {
     const app = useAppStore(s => s.app);
+    const plugin = useAppStore(s => s.plugin);
     const todayEntry = useTodayEntry();
     const { detectedFields, loading } = useJournalEntries();
     const allEntries = useJournalStore(state => state.getAllEntriesSorted());
@@ -131,6 +133,17 @@ export function TodayStatus(): React.ReactElement | null {
                     <EmptyState message="No journal entries found. Start journaling!" />
                 )}
 
+                <button
+                    className="hindsight-today-quick-edit-btn"
+                    onClick={() => {
+                        if (plugin) {
+                            new QuickEditModal(app, plugin).open();
+                        }
+                    }}
+                >
+                    Create & edit
+                </button>
+
                 <WidgetContainer widgets={widgets} />
             </div>
         );
@@ -171,14 +184,26 @@ export function TodayStatus(): React.ReactElement | null {
                 Last edited: {formatRelativeTime(new Date(todayEntry.mtime))}
             </p>
 
-            <button
-                className="hindsight-today-open-btn"
-                onClick={() => {
-                    void app.workspace.openLinkText(todayEntry.filePath, '');
-                }}
-            >
-                Open today's note
-            </button>
+            <div className="hindsight-today-actions">
+                <button
+                    className="hindsight-today-open-btn"
+                    onClick={() => {
+                        void app.workspace.openLinkText(todayEntry.filePath, '');
+                    }}
+                >
+                    Open today's note
+                </button>
+                <button
+                    className="hindsight-today-quick-edit-btn"
+                    onClick={() => {
+                        if (plugin) {
+                            new QuickEditModal(app, plugin).open();
+                        }
+                    }}
+                >
+                    Quick edit
+                </button>
+            </div>
 
             {/* Reorderable widget sections */}
             <WidgetContainer widgets={widgets} />

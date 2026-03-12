@@ -8,6 +8,8 @@
 import { Notice } from 'obsidian';
 import type HindsightPlugin from '../main';
 import { SectionReaderModal } from './modals/SectionReaderModal';
+import { EntryWizardModal } from './modals/EntryWizardModal';
+import { WeeklyReviewModal } from './modals/WeeklyReviewModal';
 import { useJournalStore } from './store/journalStore';
 
 /**
@@ -72,6 +74,22 @@ export function registerCommands(plugin: HindsightPlugin): void {
             }
 
             new Notice(`Logged ${fields.length} detected fields to console (Ctrl+Shift+I).`);
+        },
+    });
+
+    plugin.addCommand({
+        id: 'open-guided-entry',
+        name: 'Open guided entry',
+        callback: () => {
+            new EntryWizardModal(plugin.app, plugin).open();
+        },
+    });
+
+    plugin.addCommand({
+        id: 'open-weekly-review',
+        name: 'Open weekly review',
+        callback: () => {
+            new WeeklyReviewModal(plugin.app, plugin).open();
         },
     });
 }

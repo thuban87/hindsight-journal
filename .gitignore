@@ -33,6 +33,10 @@ deploy-output.txt
 diff-output.txt
 lint-output.txt
 session-format.txt
+diff-stat.txt
+build-output2.txt
+test-output2.txt
+lint-json.txt
 
 #Test Coverage
 coverage/
