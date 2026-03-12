@@ -2890,3 +2890,199 @@ Annotation Service (16 tests):
 518 tests passing across 34 test files, zero regressions
 ```
 
+---
+
+# Phase 11: Frontmatter Quick-Edit + Guided Entry Wizard
+
+**Date:** 2026-03-11
+**Duration:** ~1 session
+**Status:** Complete — all features implemented, tested, and deployed to test vault
+
+## What Was Done
+
+Implemented Phase 11 in full: three modal-based features for quick frontmatter editing, guided daily entry creation, and weekly review generation.
+
+### Quick-Edit Modal (sidebar-triggered)
+- `QuickEditModal.ts` — canonical Obsidian modal with React root
+- `QuickEditApp.tsx` — date picker, dynamic field inputs, single debounced save queue (1s), stale-save mtime guard, Saving/Saved indicator
+- `FieldInput.tsx` — dynamic input renderer: number → SliderInput, boolean → toggle, string → text, string[] → TagInput, date → date picker
+- `SliderInput.tsx` — synced range slider + number input
+- `TagInput.tsx` — tag pills with remove buttons, text input adds on Enter/blur
+- "Quick edit" / "Create & edit" button added to `TodayStatus.tsx`
+
+### Guided Entry Wizard
+- `EntryWizardModal.ts` — fullscreen modal with ErrorBoundary
+- `WizardApp.tsx` — 2-page wizard (Page 1: frontmatter fields via FieldInput, Page 2: body section text areas), sequential save via `processFrontMatter()` then `vault.process()` with `getFrontMatterInfo()`, tracks changedFields/changedSections for surgical writes, staleness check, mtime guard between steps, double-submit guard
+
+### Weekly Review Wizard
+- `WeeklyReviewModal.ts` — fullscreen modal
+- `WeeklyReviewApp.tsx` — Page 1: read-only stat cards (WeeklySummaryCards), Page 2: reflection text areas + custom sections (add/remove, dedup, label sanitization, 10-section cap, save-as-template)
+- `WeeklySummaryCards.tsx` — numeric averages, boolean completion rates, writing volume, best/worst day, streak
+
+### Infrastructure
+- `sectionUtils.ts` — `findSectionBoundaries()` (code-block-aware heading detection) + `replaceSectionContent()` (CRLF normalization, same/higher-level boundary logic)
+- `wizard.css` — all CSS classes per plan, mobile layout with 44px touch targets
+- `weeklyReviewCustomSections: string[]` added to settings type, DEFAULT_SETTINGS, validation, and v8→v9 migration
+- Two commands added to `commands.ts`: `open-guided-entry`, `open-weekly-review`
+
+## Files Changed
+
+### New Files (12)
+- `src/utils/sectionUtils.ts`
+- `src/modals/QuickEditModal.ts`
+- `src/modals/EntryWizardModal.ts`
+- `src/modals/WeeklyReviewModal.ts`
+- `src/components/quickedit/QuickEditApp.tsx`
+- `src/components/quickedit/FieldInput.tsx`
+- `src/components/quickedit/SliderInput.tsx`
+- `src/components/quickedit/TagInput.tsx`
+- `src/components/wizard/WizardApp.tsx`
+- `src/components/wizard/WeeklyReviewApp.tsx`
+- `src/components/wizard/WeeklySummaryCards.tsx`
+- `src/styles/wizard.css`
+
+### Modified Files (6)
+- `src/commands.ts` — added wizard commands
+- `src/components/sidebar/TodayStatus.tsx` — Quick Edit button
+- `src/types/settings.ts` — weeklyReviewCustomSections field
+- `src/utils/settingsMigration.ts` — v8→v9 migration
+- `src/styles/index.css` — wizard.css import
+- `test/utils/settingsMigration.test.ts` — version 8→9 expectations
+
+## Test Results
+
+- 518 tests passing across 34 test files
+- Zero regressions
+- Build: 0 lint errors, 6 warnings (all pre-existing)
+- Bundle: main.js at 585KB
+
+## Issues Discovered
+
+- React error #300 still present in console (pre-existing, does not affect functionality)
+- The 6 pre-existing lint warnings should be cleaned up in a future session
+
+## Next Session Prompt
+
+```
+Continue with Phase 11.5: Quick-Edit + Wizard Tests.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 11.5 (line 5728+)
+- src/utils/sectionUtils.ts — test findSectionBoundaries + replaceSectionContent
+- src/components/quickedit/* — test FieldInput type mapping
+- src/components/wizard/* — test WizardApp save logic
+
+All Phase 11 features are implemented and manually verified.
+518 tests currently pass. Settings version is now 9.
+```
+
+## Git Commit Message
+
+```
+feat(phase-11): Frontmatter Quick-Edit + Guided Entry Wizard
+
+Quick-Edit Modal:
+- QuickEditModal with sidebar Quick Edit button on Today tab
+- QuickEditApp with date picker, debounced save queue (1s), stale-save mtime guard
+- FieldInput dynamic renderer: SliderInput, toggle, TagInput, text, date
+- Saving/Saved indicator with fade animation
+
+Guided Entry Wizard:
+- EntryWizardModal with 2-page wizard (frontmatter fields + body sections)
+- Sequential save: processFrontMatter then vault.process with getFrontMatterInfo
+- Tracks changedFields/changedSections for surgical writes
+- Staleness check, mtime guard between steps, double-submit guard
+
+Weekly Review Wizard:
+- WeeklyReviewModal with stat cards and reflection text areas
+- WeeklySummaryCards: numeric averages, boolean rates, writing volume, best/worst day
+- Custom sections: add/remove, dedup, label sanitization, 10-section cap, save-as-template
+
+Infrastructure:
+- sectionUtils.ts: findSectionBoundaries + replaceSectionContent
+- wizard.css: all CSS classes with mobile layout and 44px touch targets
+- Settings v8-v9 migration: weeklyReviewCustomSections
+- Two commands: open-guided-entry, open-weekly-review
+
+518 tests passing, zero regressions
+```
+
+---
+
+## 2026-03-11 - Phase 11.5: Quick-Edit & Wizard Tests
+
+**Focus:** Unit and integration tests for NoteCreationService, sectionUtils, weekly summary computation, and field type mapping — all features shipped in Phase 11.
+
+### Completed:
+
+#### Phase 11.5: Quick-Edit & Wizard Tests (23 new tests, 541 total passing)
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `test/services/NoteCreationService.test.ts` | 5 | createDailyNote (filename format, section headings in template, journal folder path), createWeeklyReview (folder placement, date range filename) |
+| `test/utils/sectionUtils.test.ts` | 13 | findSectionBoundaries (heading detection, code block awareness, duplicate occurrence index). replaceSectionContent (basic replacement, preserve before/after, emoji headings, heading not found, empty sections, code block awareness, EOF boundary, CRLF normalization, whitespace content, nested ### inside ## sections) |
+| `test/integration/wizard-integration.test.ts` | 5 | Weekly summary computation (numeric averages, boolean completion rates, best/worst day by quality score, empty entries handling), field type mapping (number/numeric-text→slider, boolean→toggle, string→text, string[]→tags, date→picker) |
+
+### Files Changed:
+
+**New Files (3):**
+- `test/services/NoteCreationService.test.ts`
+- `test/utils/sectionUtils.test.ts`
+- `test/integration/wizard-integration.test.ts`
+
+### Testing Notes:
+- ✅ All 541 tests passing across 37 test files (23 new, zero regressions)
+- ✅ Two tests fixed during development: `toEndWith` replaced with `toMatch(/\.md$/)` (not a built-in Vitest matcher), and code block replacement test restructured for correct section boundary semantics
+
+### Blockers/Issues:
+- None
+- Outstanding from previous sessions: React error #300 in console (caught by ErrorBoundary, does not block functionality)
+
+---
+
+## Next Session Prompt
+
+```
+Phase 11.5 complete. Quick-Edit & Wizard tests all passing:
+- NoteCreationService.test.ts (5 tests): filename generation, template content, folder placement
+- sectionUtils.test.ts (13 tests): findSectionBoundaries + replaceSectionContent
+- wizard-integration.test.ts (5 tests): weekly summary computation, field type mapping
+- 541 tests passing, zero regressions
+- Branch: feat/phase-11
+
+Outstanding: React error #300 in console — investigate with dev build.
+
+Continue with Phase 12: Time Machine Slider (evaluate after all views).
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 12 (line 5776+)
+- src/store/timeMachineStore.ts — to be created
+- src/components/shared/TimeMachineSlider.tsx — to be created
+```
+
+## Git Commit Message
+
+```
+test(phase-11.5): Quick-Edit, Wizard, and Section Utils tests
+
+NoteCreationService (5 tests):
+- createDailyNote: filename format YYYY-MM-DD DayName, section headings
+  in template, journal folder path placement
+- createWeeklyReview: weekly review folder placement, date range filename
+
+Section Utils (13 tests):
+- findSectionBoundaries: heading detection, code block awareness,
+  duplicate heading occurrence index tracking
+- replaceSectionContent: basic replacement, preserve surrounding content,
+  emoji headings, missing heading fallback, empty sections, code block
+  awareness, EOF boundary, CRLF normalization, whitespace content,
+  nested headings (### inside ## sections)
+
+Wizard Integration (5 tests):
+- Weekly summary: numeric field averages, boolean completion rates,
+  best/worst day by quality score, empty entries graceful handling
+- Field type mapping: all 6 FrontmatterField types mapped correctly
+
+541 tests passing across 37 test files, zero regressions
+```
+

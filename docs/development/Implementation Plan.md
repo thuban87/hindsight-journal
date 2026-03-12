@@ -5469,7 +5469,7 @@ All tests pass. Approximately 30-35 new tests.
 
 ---
 
-## Phase 11: Frontmatter Quick-Edit + Guided Entry Wizard (~3 sessions)
+## Phase 11: Frontmatter Quick-Edit + Guided Entry Wizard (~3 sessions) ✅ COMPLETE
 
 **Goal:** A sidebar-triggered modal for instant frontmatter editing and multi-page guided wizards for daily entries and weekly reviews.
 
@@ -5727,7 +5727,7 @@ plugin.addCommand({
 
 ---
 
-## Phase 11.5: Quick-Edit & Wizard Tests
+## Phase 11.5: Quick-Edit & Wizard Tests ✅ COMPLETE
 
 **PREREQUISITE:** Brad confirms Phase 11 works correctly in Obsidian.
 

@@ -75,6 +75,8 @@ export interface HindsightSettings {
     annotationPresets: string[];
     /** Custom export folder path (empty string = vault root) */
     exportFolder: string;
+    /** Custom section labels persisted as template for weekly reviews */
+    weeklyReviewCustomSections: string[];
 }
 
 export const DEFAULT_SETTINGS: HindsightSettings = {
@@ -111,4 +113,5 @@ export const DEFAULT_SETTINGS: HindsightSettings = {
     annotationStorage: 'plugin',
     annotationPresets: ['breakthrough therapy session', 'flare started', 'started new med', 'life event'],
     exportFolder: '',
+    weeklyReviewCustomSections: [],
 };

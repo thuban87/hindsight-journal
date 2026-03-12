@@ -14,7 +14,7 @@ import { validateVaultRelativePath } from './vaultUtils';
 import { debugLog } from './debugLog';
 
 /** Current settings schema version */
-const CURRENT_MAX_VERSION = 8;
+const CURRENT_MAX_VERSION = 9;
 
 /**
  * Normalize a path-type setting value.
@@ -256,6 +256,13 @@ export function validateSettings(settings: unknown): HindsightSettings {
         result.savedFilters = cleaned.slice(0, 25) as HindsightSettings['savedFilters'];
     }
 
+    // weeklyReviewCustomSections: string[]
+    if (Array.isArray(s['weeklyReviewCustomSections'])) {
+        result.weeklyReviewCustomSections = (s['weeklyReviewCustomSections'] as unknown[]).filter(
+            (v: unknown) => typeof v === 'string' && (v as string).trim() !== ''
+        ).slice(0, 10) as string[];
+    }
+
     return result;
 }
 
@@ -318,6 +325,9 @@ export function migrateSettings(loaded: Record<string, unknown> | null): Hindsig
     }
     if (version < 8) {
         migrated = migrateV7ToV8(migrated);
+    }
+    if (version < 9) {
+        migrated = migrateV8ToV9(migrated);
     }
 
     // 4. Validate all fields
@@ -516,6 +526,23 @@ function migrateV7ToV8(data: Record<string, unknown>): Record<string, unknown> {
     }
     if (typeof result['exportFolder'] !== 'string') {
         result['exportFolder'] = DEFAULT_SETTINGS.exportFolder;
+    }
+
+    return result;
+}
+
+/**
+ * Migration: v8 → v9
+ * - Adds weeklyReviewCustomSections for weekly review wizard custom section templates
+ */
+function migrateV8ToV9(data: Record<string, unknown>): Record<string, unknown> {
+    const result = { ...data };
+
+    result['settingsVersion'] = 9;
+
+    // Add weeklyReviewCustomSections with empty default if missing
+    if (!Array.isArray(result['weeklyReviewCustomSections'])) {
+        result['weeklyReviewCustomSections'] = [];
     }
 
     return result;
