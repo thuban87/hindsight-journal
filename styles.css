@@ -2045,6 +2045,33 @@
     padding: 1rem;
     font-style: italic;
 }
+/* Hidden widget — shown in edit mode with reduced presence */
+.hindsight-widget-hidden {
+    opacity: 0.5;
+    border-style: dashed;
+}
+.hindsight-widget-hidden .hindsight-widget-header {
+    background: transparent;
+}
+/* Edit layout / Done button */
+.hindsight-widget-edit-btn {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    padding: var(--hindsight-spacing-sm) var(--hindsight-spacing-md);
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.hindsight-widget-edit-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
 /* Dashboard Components — Quality, TaskVolatility, FrontmatterDash */
 /* Quality Dashboard */
 .hindsight-quality-dashboard {
@@ -4357,4 +4384,83 @@
 /* Configure button styling on main settings page */
 .hindsight-settings-configure-btn {
     cursor: pointer;
+}
+/* Command Menu Modal — quick-access command grid */
+/* Modal sizing — smaller than fullscreen, centered */
+.modal.hindsight-command-menu-modal {
+    width: 90vw;
+    max-width: 480px;
+    min-height: 20rem;
+}
+.modal.hindsight-command-menu-modal .modal-content {
+    padding: 0;
+}
+/* Container */
+.hindsight-command-menu {
+    padding: var(--hindsight-spacing-lg);
+}
+/* Title */
+.hindsight-command-menu-title {
+    margin: 0 0 var(--hindsight-spacing-md) 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-normal);
+    text-align: center;
+}
+/* Grid of command cards */
+.hindsight-command-menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--hindsight-spacing-md);
+}
+/* Individual command card */
+.hindsight-command-menu-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--hindsight-spacing-sm);
+    padding: var(--hindsight-spacing-lg) var(--hindsight-spacing-md);
+    min-height: 5rem;
+    justify-content: center;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--hindsight-radius-md, 8px);
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.hindsight-command-menu-card:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+    transform: translateY(-1px);
+}
+.hindsight-command-menu-card:active {
+    transform: translateY(0);
+}
+/* Icon container — Obsidian setIcon renders an SVG here */
+.hindsight-command-menu-card-icon {
+    color: var(--interactive-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.hindsight-command-menu-card-icon svg {
+    width: 1.75rem;
+    height: 1.75rem;
+}
+/* Text block */
+.hindsight-command-menu-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.hindsight-command-menu-card-label {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+.hindsight-command-menu-card-desc {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    line-height: 1.3;
 }

@@ -9,6 +9,7 @@ import type HindsightPlugin from '../main';
 import { SectionReaderModal } from './modals/SectionReaderModal';
 import { EntryWizardModal } from './modals/EntryWizardModal';
 import { WeeklyReviewModal } from './modals/WeeklyReviewModal';
+import { CommandMenuModal } from './modals/CommandMenuModal';
 
 /**
  * Register all plugin commands.
@@ -52,6 +53,14 @@ export function registerCommands(plugin: HindsightPlugin): void {
         name: 'Open weekly review',
         callback: () => {
             new WeeklyReviewModal(plugin.app, plugin).open();
+        },
+    });
+
+    plugin.addCommand({
+        id: 'open-command-menu',
+        name: 'Open command menu',
+        callback: () => {
+            new CommandMenuModal(plugin.app, plugin).open();
         },
     });
 }

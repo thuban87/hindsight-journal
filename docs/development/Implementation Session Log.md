@@ -3258,3 +3258,111 @@ Settings Sub-Modal Refactor:
 
 541 tests passing, 0 lint warnings
 ```
+
+---
+
+## 2026-03-12 - Adjustments Round 3: Widget Edit Mode & Command Menu Modal
+
+**Focus:** Declutter sidebar by gating widget controls behind an edit mode toggle. Replace ribbon icon direct-open with a command menu modal for quick access to all Hindsight features.
+
+### Completed:
+
+#### Task 1: Sidebar Widget Edit Mode
+- ✅ Added `editMode` state to `WidgetContainer.tsx` — controls (↑↓, 👁, ⋮) hidden by default
+- ✅ In edit mode, hidden widgets appear grayed out (dashed border, reduced opacity) so users can re-enable them
+- ✅ "Edit layout" / "Done" button at the bottom of the widget container toggles the mode
+- ✅ Updated empty state message with an "Edit layout" button for recovery
+- ✅ Added `hindsight-widget-hidden` and `hindsight-widget-edit-btn` styles to `widgets.css`
+
+#### Task 2: Command Menu Modal
+- ✅ Created `CommandMenuModal.ts` — canonical modal pattern (isUnloading guard, ErrorBoundary, React root cleanup)
+- ✅ Created `CommandMenuApp.tsx` — 2×3 grid of command cards with Lucide icons via Obsidian's `setIcon()`
+- ✅ Cards: Journal view, Sidebar, Section reader, Guided entry, Weekly review, Settings
+- ✅ Created `command-menu.css` — grid layout, card hover effects, accent-colored icons, rem-based sizing
+- ✅ Changed ribbon icon in `main.ts` to open CommandMenuModal instead of activateMainView()
+- ✅ Added `open-command-menu` command to `commands.ts`
+- ✅ Added `activateMainView()` and `activateSidebarView()` to `HindsightPluginInterface`
+
+#### CSS Polish (post-review)
+- ✅ Increased card `min-height` from 44px to 5rem for better spacing
+- ✅ Added `min-height: 20rem` to modal container
+- ✅ Increased grid gap and icon size (1.75rem) for visual balance
+
+### Files Changed:
+
+**New Files (3):**
+- `src/modals/CommandMenuModal.ts`
+- `src/components/CommandMenuApp.tsx`
+- `src/styles/command-menu.css`
+
+**Modified Files (6):**
+- `main.ts` — Ribbon icon opens CommandMenuModal, import added
+- `src/commands.ts` — Added `open-command-menu` command, import added
+- `src/components/sidebar/WidgetContainer.tsx` — Edit mode toggle, hidden widget rendering
+- `src/styles/widgets.css` — Hidden widget + edit button styles
+- `src/styles/index.css` — Added command-menu.css import
+- `src/types/plugin.ts` — Added activateMainView/activateSidebarView to interface
+
+### Testing Notes:
+- ✅ All 541 tests pass (37 test files, zero regressions)
+- ✅ `npm run lint` passes — zero errors, zero warnings
+- ✅ `npm run build` passes (lint + CSS + TypeScript + esbuild)
+- ✅ `npm run deploy:test` successful
+- ✅ Brad confirmed: sidebar edit mode works, command menu modal looks good after spacing fix
+
+### Blockers/Issues:
+- None
+
+### Design Notes:
+- **Widget edit mode:** Hidden widgets render with `opacity: 0.5` and `border-style: dashed` in edit mode. Widget content is not rendered for hidden widgets (only the header with controls), keeping the edit mode view compact.
+- **Command menu icons:** Uses Obsidian's `setIcon()` via React refs — no innerHTML. Each card renders the icon imperatively in a `useEffect`.
+- **Settings access:** The settings card uses `app.setting.open()` and `app.setting.openTabById()` — undocumented but stable Obsidian APIs. Cast through `unknown` first for TypeScript safety.
+- **Rem-based sizing:** Used rem units for card heights and icon sizes instead of px, so the modal scales properly with different font size settings and screen sizes.
+
+---
+
+## Next Session Prompt
+
+```
+Adjustments round 3 complete. Widget edit mode and command menu modal both shipped:
+- Sidebar widget controls hidden by default, revealed via Edit layout button
+- Ribbon icon opens a 2x3 command menu modal instead of direct main view
+- 541 tests passing, all lint/build gates clean
+
+All adjustments from the original backlog list are now complete.
+The enableSidebar setting is still in types/settings.ts and settingsMigration.ts
+but has no UI or functional code — can be cleaned up in a future session.
+
+Key files:
+- src/components/sidebar/WidgetContainer.tsx — Widget edit mode
+- src/modals/CommandMenuModal.ts — Command menu modal
+- src/components/CommandMenuApp.tsx — Command menu React component
+- docs/development/Implementation Plan.md
+```
+
+## Git Commit Message
+
+```
+feat(adjustments): widget edit mode toggle and command menu modal - round 3
+
+Widget Edit Mode:
+- WidgetContainer controls (arrows, visibility, menu) hidden by default
+- Edit layout / Done button at bottom toggles edit mode
+- Hidden widgets shown grayed out (dashed border, reduced opacity) in edit mode
+- Empty state includes Edit layout button for recovery
+
+Command Menu Modal:
+- Create CommandMenuModal following canonical modal pattern
+- Create CommandMenuApp with 2x3 grid of command cards
+- Cards: Journal view, Sidebar, Section reader, Guided entry, Weekly review, Settings
+- Icons rendered via Obsidian setIcon() (no innerHTML)
+- Ribbon icon opens command menu instead of direct main view
+- Add open-command-menu command to command palette
+
+Interface Updates:
+- Add activateMainView and activateSidebarView to HindsightPluginInterface
+- Add command-menu.css import to styles index
+
+541 tests passing, 0 lint warnings
+```
+
