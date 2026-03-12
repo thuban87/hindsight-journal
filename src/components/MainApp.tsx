@@ -26,6 +26,7 @@ import { FrontmatterDash } from './dashboard/FrontmatterDash';
 import { LensPanel } from './lens/LensPanel';
 import { ThreadsPanel } from './threads/ThreadsPanel';
 import { GalleryView } from './gallery/GalleryView';
+import { DigestPanel } from './digest/DigestPanel';
 import { useAppStore } from '../store/appStore';
 
 /** Tab group definitions for the two-tier navigation */
@@ -170,6 +171,7 @@ function DigestContent(): React.ReactElement {
 
     return (
         <div className="hindsight-digest-container">
+            <DigestPanel />
             <TaskVolatility />
             <FrontmatterDash entries={entryArray} fields={detectedFields} />
         </div>

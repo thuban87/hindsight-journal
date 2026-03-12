@@ -313,6 +313,108 @@ export class HindsightSettingTab extends PluginSettingTab {
                     });
             });
 
+        // Annotations section
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Annotations');
+
+        new Setting(containerEl)
+            .setName('Storage mode')
+            .setDesc('Plugin: stored in plugin data (safer, won\'t modify notes). Frontmatter: stored in note YAML (searchable, survives vault migration).')
+            .addDropdown(dropdown => {
+                dropdown
+                    .addOption('plugin', 'Plugin data')
+                    .addOption('frontmatter', 'Frontmatter')
+                    .setValue(this.plugin.settings.annotationStorage)
+                    .onChange(async (value) => {
+                        const newMode = value as 'plugin' | 'frontmatter';
+                        if (newMode !== this.plugin.settings.annotationStorage) {
+                            const oldMode = this.plugin.settings.annotationStorage;
+                            this.plugin.settings.annotationStorage = newMode;
+                            await this.plugin.saveSettings();
+
+                            // Trigger migration if there are existing annotations
+                            const service = this.plugin.services.annotationService;
+                            if (service) {
+                                const existing = await service.getAllAnnotated();
+                                if (existing.length > 0) {
+                                    new Notice(`Migrating ${existing.length} annotated entries from ${oldMode} to ${newMode}...`);
+                                    void service.migrateStorage(oldMode, newMode);
+                                }
+                            }
+                        }
+                    });
+            });
+
+        // Annotation presets
+        const presetsContainer = containerEl.createDiv('hindsight-annotation-presets-settings');
+        new Setting(presetsContainer)
+            .setName('Annotation presets')
+            .setDesc('Suggested annotations shown when adding markers to entries.');
+
+        for (const [idx, preset] of this.plugin.settings.annotationPresets.entries()) {
+            new Setting(presetsContainer)
+                .setName(`  ${preset}`)
+                .addButton(btn => {
+                    btn.setButtonText('✕')
+                        .onClick(async () => {
+                            const updated = [...this.plugin.settings.annotationPresets];
+                            updated.splice(idx, 1);
+                            this.plugin.settings.annotationPresets = updated;
+                            await this.plugin.saveSettings();
+                            this.display();
+                        });
+                });
+        }
+
+        new Setting(presetsContainer)
+            .addText(text => {
+                text.setPlaceholder('Add a preset...');
+                text.inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
+                    if (e.key === 'Enter') {
+                        const val = text.inputEl.value.trim();
+                        if (val) {
+                            this.plugin.settings.annotationPresets = [
+                                ...this.plugin.settings.annotationPresets,
+                                val,
+                            ];
+                            void this.plugin.saveSettings().then(() => {
+                                this.display();
+                            });
+                        }
+                    }
+                });
+            });
+
+        // Export section
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Export');
+
+        new Setting(containerEl)
+            .setName('Export folder')
+            .setDesc('Folder for exported reports (leave empty for vault root).')
+            .addText(text => {
+                text.setPlaceholder('e.g., Exports')
+                    .setValue(this.plugin.settings.exportFolder);
+                new FolderSuggest(this.app, text.inputEl);
+                text.inputEl.addEventListener('blur', () => {
+                    void (async () => {
+                        const raw = text.inputEl.value.trim();
+                        const normalized = normalizePathSetting(raw);
+                        if (normalized !== this.plugin.settings.exportFolder) {
+                            if (normalized !== '' && !validateVaultRelativePath(normalized)) {
+                                new Notice('Invalid folder path — must be a relative path within the vault.');
+                                text.inputEl.value = this.plugin.settings.exportFolder;
+                                return;
+                            }
+                            this.plugin.settings.exportFolder = normalized;
+                            await this.plugin.saveSettings();
+                        }
+                    })();
+                });
+            });
+
         new Setting(containerEl)
             .setHeading()
             .setName('Advanced');

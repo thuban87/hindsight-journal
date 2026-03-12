@@ -2653,3 +2653,148 @@ test(phase-9.5): ThumbnailService unit tests
 - 476 tests passing across 31 files, zero regressions
 ```
 
+
+---
+
+# Phase 10: Digest View + Reports + Annotations + Export
+
+## Date: 2026-03-11
+
+### What Was Done:
+Implemented the full Phase 10 feature set: Digest dashboard, Export (CSV/JSON/Markdown), Annotation system (dual-storage with migration), Note Creation service, and all supporting UI components.
+
+**Session 1 — Foundation Utilities and Services:**
+- Created `src/utils/csvSafety.ts` — `sanitizeValue()` and `sanitizeCsvCell()` with formula injection prevention, numeric bypass, array element sanitization, mid-cell tab/CR stripping
+- Created `src/services/ExportService.ts` — `generateCSV()` (UTF-8 BOM, sanitized), `generateJSON()`, `generateMarkdownReport()`
+- Created `src/services/AnnotationService.ts` — dual-storage (plugin data/frontmatter), per-file write locks, validation (500 char max, 20 per entry, dedup, newline replacement), migration with progress, orphan cleanup, rename handling
+- Created `src/services/NoteCreationService.ts` — `createDailyNote()` and `createWeeklyReview()` with path validation and dedup
+- Updated `src/utils/vaultUtils.ts` — recursive `ensureFolderExists()` and `sanitizeFileName()`
+- Updated `src/types/settings.ts` — added `annotationStorage`, `annotationPresets`, `exportFolder`
+- Updated `src/types/plugin.ts` — added `annotationService` to `ServiceRegistry`
+- Updated `src/utils/settingsMigration.ts` — v7 to v8 migration, validation for new fields, bumped `CURRENT_MAX_VERSION`
+- Updated `main.ts` — AnnotationService initialization and cleanup
+
+**Session 2 — UI Components:**
+- Created `src/components/digest/DigestPanel.tsx` — period summary dashboard with numeric averages, boolean completion rates (bar charts), best/worst day highlights, tag frequencies, writing volume stats
+- Created `src/components/digest/PeriodSelector.tsx` — preset buttons (this/last week/month) with `aria-pressed`, custom date range with apply
+- Created `src/components/digest/ExportButton.tsx` — dropdown export (CSV/JSON/Markdown) via `vault.create()`, retry logic, read-only detection, path validation
+- Created `src/components/annotations/AnnotationInput.tsx` — text input, preset suggestions, existing annotation list with remove, count indicator near limit
+- Created `src/components/annotations/AnnotationMarker.tsx` — compact badge with hover tooltip, full pill display mode
+- Created `src/styles/digest.css` and `src/styles/annotations.css`
+
+**Session 3 — Integration and Wiring:**
+- Updated `src/styles/index.css` — added CSS imports for digest and annotations
+- Updated `src/components/MainApp.tsx` — DigestPanel integrated above existing TaskVolatility + FrontmatterDash
+- Updated `src/settings.ts` — Annotations section (storage mode dropdown, preset list with add/remove), Export section (folder path with FolderSuggest + validation)
+- Updated `src/components/charts/MetricChart.tsx` — annotation dots at annotated dates (warning-colored), tooltip shows annotation text with pin emoji
+- Updated `src/components/timeline/EntryCard.tsx` — compact AnnotationMarker badge, expandable annotation section with toggle button (stopPropagation)
+- Updated `test/utils/settingsMigration.test.ts` — settingsVersion 7 to 8, added Phase 10 field assertions
+
+### Files Changed:
+
+**New files (8):**
+- `src/utils/csvSafety.ts`
+- `src/services/ExportService.ts`
+- `src/services/AnnotationService.ts`
+- `src/services/NoteCreationService.ts`
+- `src/components/digest/DigestPanel.tsx`
+- `src/components/digest/PeriodSelector.tsx`
+- `src/components/digest/ExportButton.tsx`
+- `src/components/annotations/AnnotationInput.tsx`
+- `src/components/annotations/AnnotationMarker.tsx`
+- `src/styles/digest.css`
+- `src/styles/annotations.css`
+
+**Modified files (12):**
+- `main.ts` — AnnotationService init/cleanup (+9 lines)
+- `src/components/MainApp.tsx` — DigestPanel import + integration (+2 lines)
+- `src/components/charts/MetricChart.tsx` — annotation loading, marker dots, tooltip enrichment (+69 lines)
+- `src/components/timeline/EntryCard.tsx` — annotation badges, expandable section (+55 lines)
+- `src/settings.ts` — Annotations + Export settings sections (+102 lines)
+- `src/styles/index.css` — digest.css + annotations.css imports (+4 lines)
+- `src/types/plugin.ts` — annotationService in ServiceRegistry (+2 lines)
+- `src/types/settings.ts` — 3 new settings fields (+9 lines)
+- `src/utils/settingsMigration.ts` — v7 to v8 migration (+47 lines)
+- `src/utils/vaultUtils.ts` — recursive ensureFolderExists + sanitizeFileName (+59 lines)
+- `test/utils/settingsMigration.test.ts` — updated version expectations (+12 lines)
+- `styles.css` — compiled CSS output (+453 lines)
+
+### Testing Notes:
+- ✅ All 476 tests passing across 31 test files, zero regressions
+- ✅ Lint clean (0 errors, 6 warnings — all pre-existing unused eslint-disable directives)
+- ✅ TypeScript compilation clean
+- ✅ Manual testing confirmed by Brad: Digest panel, export functionality, annotation settings, chart markers, timeline badges, expandable annotation input
+
+### Blockers/Issues:
+- None
+- Outstanding from previous sessions: React error #300 in console (caught by ErrorBoundary, does not block functionality) — investigate with dev build
+
+### Design Notes:
+- **Annotation storage defaults to plugin mode** (data.json) for safety — does not modify user notes. Frontmatter mode stores annotations as `annotations: string[]` in note YAML.
+- **CSV sanitization** follows the canonical rule from plan-wide rules: coerce to string, numeric bypass, dangerous prefix check, mid-cell tab/CR stripping, quote-escape.
+- **Export uses vault.create()** instead of Blob URLs — mobile WebView compatible. Retry logic with random hex suffix for filename conflicts.
+- **MetricChart annotations** use a scatter-like dataset (showLine: false) with warning-colored dots at yMax for annotated dates — avoids the Chart.js annotation plugin entirely.
+- **EntryCard expandable section** uses stopPropagation on both click and keydown events to prevent opening the note when interacting with annotations.
+- **Notice.hide() does not exist** in Obsidian API — used auto-dismissing Notices with 3-second timeout instead of tracking and hiding progress notices.
+
+---
+
+## Next Session Prompt
+
+```
+Phase 10 complete. Digest View + Reports + Annotations + Export all shipped:
+- DigestPanel with period summaries (averages, completion rates, highlights, tags, volume)
+- Export to CSV/JSON/Markdown via vault.create()
+- AnnotationService with dual-storage, write locks, migration, cleanup
+- Annotation markers on MetricChart (warning-colored dots + tooltip text)
+- Annotation badges on EntryCard with expandable AnnotationInput section
+- NoteCreationService for daily/weekly review note templates
+- Settings: annotation storage mode, presets, export folder
+- 476 tests passing, lint clean, build clean
+- Branch: feat/phase-9 (or whatever Brad merged to)
+
+Outstanding: React error #300 in console — investigate with dev build.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 10 (line 5002+)
+- src/services/AnnotationService.ts — dual-storage annotation system
+- src/services/ExportService.ts — CSV/JSON/Markdown export
+- src/components/digest/DigestPanel.tsx — period summary dashboard
+- src/components/annotations/AnnotationInput.tsx — annotation UI
+```
+
+## Git Commit Message
+
+```
+feat(phase-10): Digest View, Export, Annotations, Note Creation
+
+Digest Dashboard:
+- DigestPanel with period summaries: numeric averages, boolean completion
+  rates, best/worst day highlights, tag frequencies, writing volume
+- PeriodSelector with preset buttons and custom date range
+- ExportButton dropdown with CSV, JSON, and Markdown export via vault.create
+
+Annotation System:
+- AnnotationService with dual-storage (plugin data or frontmatter YAML)
+- Per-file write locks for concurrent processFrontMatter safety
+- Validation: 500 char max, 20 per entry, dedup, newline replacement
+- Migration between storage modes with progress tracking
+- Orphan cleanup and file rename handling
+- AnnotationInput with text input, preset suggestions, remove buttons
+- AnnotationMarker compact badges on timeline EntryCards
+- Expandable annotation section on EntryCard with stopPropagation
+- Chart.js annotation marker dots on MetricChart with tooltip enrichment
+
+Export and Safety:
+- csvSafety.ts with formula injection prevention and numeric bypass
+- ExportService generates UTF-8 BOM CSV, structured JSON, formatted Markdown
+- sanitizeFileName for safe export file naming
+- Recursive ensureFolderExists for user-configured export paths
+
+Infrastructure:
+- NoteCreationService for daily and weekly review note templates
+- Settings v7 to v8 migration: annotationStorage, annotationPresets, exportFolder
+- ServiceRegistry updated with annotationService
+- Settings tab: Annotations section and Export section
+- 476 tests passing, zero regressions
+```

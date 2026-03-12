@@ -69,6 +69,12 @@ export interface HindsightSettings {
     calendarColorTheme: 'default' | 'monochrome' | 'warm' | 'cool' | 'colorblind';
     /** Saved filter configurations for Lens (persists across reloads) */
     savedFilters: { name: string; config: FilterConfig }[];
+    /** Where to store annotations: 'plugin' = data.json, 'frontmatter' = note YAML */
+    annotationStorage: 'plugin' | 'frontmatter';
+    /** Suggested annotation presets (user-configurable) */
+    annotationPresets: string[];
+    /** Custom export folder path (empty string = vault root) */
+    exportFolder: string;
 }
 
 export const DEFAULT_SETTINGS: HindsightSettings = {
@@ -102,4 +108,7 @@ export const DEFAULT_SETTINGS: HindsightSettings = {
     ],
     calendarColorTheme: 'default',
     savedFilters: [],
+    annotationStorage: 'plugin',
+    annotationPresets: ['breakthrough therapy session', 'flare started', 'started new med', 'life event'],
+    exportFolder: '',
 };

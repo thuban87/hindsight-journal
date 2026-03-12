@@ -9,7 +9,7 @@
  * via ensureSectionsLoaded() on mount — same pattern as EchoCard.
  */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import type { JournalEntry, FrontmatterField } from '../../types';
 import { stripMarkdown } from '../../services/SectionParserService';
 import { useAppStore } from '../../store/appStore';
@@ -18,6 +18,8 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { getPolarityColor } from '../../utils/statsUtils';
 import { isNumericField, getNumericValue } from '../../services/FrontmatterService';
 import { Thumbnail } from '../shared/Thumbnail';
+import { AnnotationMarker } from '../annotations/AnnotationMarker';
+import { AnnotationInput } from '../annotations/AnnotationInput';
 
 interface EntryCardProps {
     entry: JournalEntry;
@@ -151,9 +153,23 @@ export function EntryCard({ entry, detectedFields, sectionKey, onClick }: EntryC
     const isUnloading = useAppStore(s => s.isUnloading);
     const fieldPolarity = useSettingsStore(s => s.settings.fieldPolarity);
     const thumbnailsEnabled = useSettingsStore(s => s.settings.thumbnailsEnabled);
+    const plugin = useAppStore(s => s.plugin);
 
     // Track the loaded version of the entry (may have lazy-loaded sections)
     const [loadedEntry, setLoadedEntry] = useState<JournalEntry>(entry);
+
+    // Load annotations for this entry
+    const [annotations, setAnnotations] = useState<string[]>([]);
+    useEffect(() => {
+        const annotationService = plugin?.services.annotationService;
+        if (!annotationService) return;
+
+        let cancelled = false;
+        void annotationService.getAnnotations(entry.filePath).then(anns => {
+            if (!cancelled) setAnnotations(anns);
+        });
+        return () => { cancelled = true; };
+    }, [plugin, entry.filePath]);
 
     // Lazy-load sections for cold-tier entries (same pattern as EchoCard)
     useEffect(() => {
@@ -182,6 +198,19 @@ export function EntryCard({ entry, detectedFields, sectionKey, onClick }: EntryC
     const badgeFields = detectedFields.filter(
         f => (isNumericField(f) || f.type === 'boolean') && entry.frontmatter[f.key] != null
     );
+
+    // Annotation expand/collapse
+    const [showAnnotations, setShowAnnotations] = useState(false);
+    const toggleAnnotations = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation(); // Don't open the note
+        setShowAnnotations(prev => !prev);
+        // Refresh annotations when opening
+        if (!showAnnotations && plugin?.services.annotationService) {
+            void plugin.services.annotationService.getAnnotations(entry.filePath).then(anns => {
+                setAnnotations(anns);
+            });
+        }
+    }, [showAnnotations, plugin, entry.filePath]);
 
     return (
         <div
@@ -225,6 +254,18 @@ export function EntryCard({ entry, detectedFields, sectionKey, onClick }: EntryC
                         {entry.imagePaths.length} image{entry.imagePaths.length > 1 ? 's' : ''}
                     </span>
                 )}
+                {annotations.length > 0 && (
+                    <AnnotationMarker annotations={annotations} compact />
+                )}
+                <button
+                    className="hindsight-entry-card-annotate-btn"
+                    onClick={toggleAnnotations}
+                    aria-label={showAnnotations ? 'Hide annotations' : 'Add annotation'}
+                    aria-expanded={showAnnotations}
+                    title={showAnnotations ? 'Hide annotations' : 'Annotate this entry'}
+                >
+                    📌
+                </button>
             </div>
 
             {(excerpt || (thumbnailsEnabled && entry.imagePaths.length > 0)) && (
@@ -252,6 +293,18 @@ export function EntryCard({ entry, detectedFields, sectionKey, onClick }: EntryC
                             {tag}
                         </span>
                     ))}
+                </div>
+            )}
+
+            {showAnnotations && (
+                <div
+                    className="hindsight-entry-card-annotation-section"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    role="region"
+                    aria-label="Annotations"
+                >
+                    <AnnotationInput filePath={entry.filePath} />
                 </div>
             )}
         </div>
