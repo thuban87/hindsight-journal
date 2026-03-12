@@ -34,23 +34,58 @@ export function validateVaultRelativePath(path: string): string | null {
 }
 
 /**
- * Ensure a folder exists in the vault, creating parent directories as needed.
- * Validates the path internally (defense-in-depth per A9).
+ * Ensure all parent folders in a path exist, creating them if needed.
+ * Must be called before vault.create() for any user-configured path
+ * (export folders, weekly review folder, etc.) since vault.create()
+ * throws if parent directories don't exist.
+ *
+ * Uses getFolderByPath() (not getAbstractFileByPath()) for type safety.
+ * Wraps createFolder() in try/catch to handle race conditions where
+ * a sync service (Obsidian Sync, iCloud) creates the folder between
+ * the existence check and the create call.
  *
  * @param vault - Obsidian Vault instance
  * @param folderPath - Vault-relative folder path
- * @throws If the path is invalid (path traversal, absolute path, etc.)
+ * @throws If the path is invalid or folder creation fails
  */
 export async function ensureFolderExists(vault: Vault, folderPath: string): Promise<void> {
-    const validated = validateVaultRelativePath(folderPath);
-    if (!validated) {
-        throw new Error(`Invalid folder path: ${folderPath}`);
+    const normalized = normalizePath(folderPath);
+    const parts = normalized.split('/');
+    let current = '';
+    for (const part of parts) {
+        current = current === '' ? part : `${current}/${part}`;
+        if (!vault.getFolderByPath(current)) {
+            try {
+                await vault.createFolder(current);
+            } catch {
+                // Folder may have been created by sync — verify it exists now
+                if (!vault.getFolderByPath(current)) {
+                    throw new Error(`Failed to create folder: ${current}`);
+                }
+            }
+        }
     }
+}
 
-    // Check if folder already exists
-    const existing = vault.getFolderByPath(validated);
-    if (existing) return;
-
-    // Create folder (and parents) recursively
-    await vault.createFolder(validated);
+/**
+ * Sanitize a filename for safe file creation across all operating systems.
+ * Strips illegal characters, trims whitespace, and enforces max length.
+ *
+ * @param name - Raw filename (without extension)
+ * @returns Sanitized filename
+ */
+export function sanitizeFileName(name: string): string {
+    // Strip characters illegal on any OS: / \ : * ? " < > |
+    let sanitized = name.replace(/[/\\:*?"<>|]/g, '');
+    // Trim whitespace
+    sanitized = sanitized.trim();
+    // Enforce max length of 200 characters
+    if (sanitized.length > 200) {
+        sanitized = sanitized.substring(0, 200);
+    }
+    // Fallback if completely empty
+    if (sanitized === '') {
+        sanitized = 'export';
+    }
+    return sanitized;
 }

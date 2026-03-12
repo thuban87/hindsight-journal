@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { validateVaultRelativePath } from '../../src/utils/vaultUtils';
+import { describe, it, expect, vi } from 'vitest';
+import { validateVaultRelativePath, ensureFolderExists } from '../../src/utils/vaultUtils';
+import { Vault } from 'obsidian';
 
 describe('validateVaultRelativePath', () => {
     it('accepts valid relative paths', () => {
@@ -51,5 +52,71 @@ describe('validateVaultRelativePath', () => {
         // doesn't reject paths with trailing slashes (they're valid).
         const result = validateVaultRelativePath('folder/');
         expect(result).toBeTruthy();
+    });
+});
+
+describe('ensureFolderExists', () => {
+    it('creates nested folders that do not exist', async () => {
+        const vault = new Vault();
+        vault.getFolderByPath = vi.fn().mockReturnValue(null);
+        vault.createFolder = vi.fn().mockResolvedValue(undefined);
+
+        await ensureFolderExists(vault, 'exports/weekly/reports');
+
+        expect(vault.createFolder).toHaveBeenCalledTimes(3);
+        expect(vault.createFolder).toHaveBeenCalledWith('exports');
+        expect(vault.createFolder).toHaveBeenCalledWith('exports/weekly');
+        expect(vault.createFolder).toHaveBeenCalledWith('exports/weekly/reports');
+    });
+
+    it('skips folders that already exist', async () => {
+        const vault = new Vault();
+        vault.getFolderByPath = vi.fn().mockImplementation((path: string) => {
+            // First two segments exist, third does not
+            if (path === 'exports' || path === 'exports/weekly') return { path };
+            return null;
+        });
+        vault.createFolder = vi.fn().mockResolvedValue(undefined);
+
+        await ensureFolderExists(vault, 'exports/weekly/reports');
+
+        expect(vault.createFolder).toHaveBeenCalledTimes(1);
+        expect(vault.createFolder).toHaveBeenCalledWith('exports/weekly/reports');
+    });
+
+    it('handles race condition — createFolder throws but folder now exists', async () => {
+        const vault = new Vault();
+        let callCount = 0;
+        vault.getFolderByPath = vi.fn().mockImplementation((path: string) => {
+            // First call returns null (doesn't exist), subsequent calls for same path return truthy
+            if (path === 'exports') {
+                callCount++;
+                return callCount > 1 ? { path } : null;
+            }
+            return null;
+        });
+        vault.createFolder = vi.fn().mockImplementation((path: string) => {
+            if (path === 'exports') {
+                throw new Error('Folder already exists');
+            }
+            return Promise.resolve();
+        });
+
+        // Should not throw — race condition is handled gracefully
+        await expect(ensureFolderExists(vault, 'exports/data')).resolves.toBeUndefined();
+    });
+
+    it('uses forward-slash paths (normalizePath applied)', async () => {
+        const vault = new Vault();
+        vault.getFolderByPath = vi.fn().mockReturnValue(null);
+        vault.createFolder = vi.fn().mockResolvedValue(undefined);
+
+        await ensureFolderExists(vault, 'exports\\weekly');
+
+        // normalizePath converts backslashes to forward slashes
+        const calls = (vault.createFolder as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0]);
+        for (const callPath of calls) {
+            expect(callPath).not.toContain('\\');
+        }
     });
 });

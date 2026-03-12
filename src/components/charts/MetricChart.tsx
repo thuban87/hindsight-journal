@@ -65,6 +65,10 @@ export function MetricChart({
         content: string;
     }>({ visible: false, x: 0, y: 0, content: '' });
     const chartDateRange = useChartUiStore(s => s.chartDateRange);
+    const plugin = useAppStore(s => s.plugin);
+
+    // Annotation data for x-axis markers
+    const [annotationMap, setAnnotationMap] = useState<Map<string, string[]>>(new Map());
 
     // Get chart data for each field
     const fieldDataMap = new Map<string, ReturnType<typeof useChartData>>();
@@ -74,6 +78,32 @@ export function MetricChart({
     if (fields[0]) {
         fieldDataMap.set(fields[0], firstFieldData);
     }
+
+    // Load annotations for all visible entries
+    useEffect(() => {
+        const annotationService = plugin?.services.annotationService;
+        if (!annotationService) return;
+
+        let cancelled = false;
+        void annotationService.getAllAnnotated().then(allAnnotated => {
+            if (cancelled) return;
+            const map = new Map<string, string[]>();
+            for (const { filePath, annotations } of allAnnotated) {
+                // Find the entry to get its date label
+                const entries = useJournalStore.getState().entries;
+                for (const entry of entries.values()) {
+                    if (entry.filePath === filePath) {
+                        const label = `${entry.date.getMonth() + 1}/${entry.date.getDate()}`;
+                        map.set(label, annotations);
+                        break;
+                    }
+                }
+            }
+            setAnnotationMap(map);
+        });
+
+        return () => { cancelled = true; };
+    }, [plugin]);
 
     // Handle clicking a data point — show excerpt popover
     const handleDataPointClick = useCallback((dateLabel: string) => {
@@ -205,6 +235,37 @@ export function MetricChart({
             }
         }
 
+        // Add annotation marker dots at annotated dates
+        const annotationLabels = Array.from(annotationMap.keys());
+        if (annotationLabels.length > 0) {
+            // Find the y-axis range for marker placement
+            const allValues = datasets
+                .flatMap((ds: { data: (number | null)[] }) => ds.data)
+                .filter((v: number | null): v is number => v !== null);
+            const yMax = allValues.length > 0 ? Math.max(...allValues) : 10;
+
+            // Create annotation marker data — null for non-annotated, yMax for annotated
+            const annotLineData = labels.map(label =>
+                annotationLabels.includes(label) ? yMax : null
+            );
+
+            datasets.push({
+                label: '📌 Annotations',
+                data: annotLineData,
+                borderColor: 'transparent',
+                backgroundColor: getCSSVar('--text-warning', '#e5c07b'),
+                borderWidth: 0,
+                pointRadius: 5,
+                pointBackgroundColor: getCSSVar('--text-warning', '#e5c07b'),
+                pointBorderColor: getCSSVar('--text-warning', '#e5c07b'),
+                pointHoverRadius: 7,
+                fill: false,
+                spanGaps: false,
+                showLine: false,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any);
+        }
+
         const scales: Record<string, unknown> = {
             x: {
                 ticks: { color: mutedColor, maxTicksLimit: 10 },
@@ -262,16 +323,20 @@ export function MetricChart({
                     const nativeEvent = event.native as MouseEvent | undefined;
                     if (!nativeEvent) return;
 
+                    // Check if this date has annotations
+                    const annotTexts = annotationMap.get(label);
+                    const annotStr = annotTexts ? `\n📌 ${annotTexts.join(', ')}` : '';
+
                     setTooltip({
                         visible: true,
                         x: nativeEvent.offsetX,
                         y: nativeEvent.offsetY,
-                        content: `${label}: ${value !== null && value !== undefined ? String(value) : 'N/A'}`,
+                        content: `${label}: ${value !== null && value !== undefined ? String(value) : 'N/A'}${annotStr}`,
                     });
                 },
             },
         } as unknown as Record<string, unknown>;
-    }, [fields, firstFieldData.data, showRolling, showTrend, handleDataPointClick, chartDateRange]);
+    }, [fields, firstFieldData.data, showRolling, showTrend, handleDataPointClick, chartDateRange, annotationMap]);
 
 
     // Chart.js lifecycle: create, theme-react, destroy

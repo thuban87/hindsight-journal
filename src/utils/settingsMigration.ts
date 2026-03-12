@@ -14,7 +14,7 @@ import { validateVaultRelativePath } from './vaultUtils';
 import { debugLog } from './debugLog';
 
 /** Current settings schema version */
-const CURRENT_MAX_VERSION = 7;
+const CURRENT_MAX_VERSION = 8;
 
 /**
  * Normalize a path-type setting value.
@@ -221,6 +221,23 @@ export function validateSettings(settings: unknown): HindsightSettings {
         result.calendarColorTheme = s['calendarColorTheme'] as HindsightSettings['calendarColorTheme'];
     }
 
+    // annotationStorage: 'plugin' | 'frontmatter'
+    if (s['annotationStorage'] === 'plugin' || s['annotationStorage'] === 'frontmatter') {
+        result.annotationStorage = s['annotationStorage'];
+    }
+
+    // annotationPresets: string[]
+    if (Array.isArray(s['annotationPresets'])) {
+        result.annotationPresets = (s['annotationPresets'] as unknown[]).filter(
+            (v: unknown) => typeof v === 'string' && (v as string).trim() !== ''
+        ) as string[];
+    }
+
+    // exportFolder: string (can be empty)
+    if (typeof s['exportFolder'] === 'string') {
+        result.exportFolder = normalizePathSetting(s['exportFolder']);
+    }
+
     // savedFilters: { name: string; config: FilterConfig }[]
     if (Array.isArray(s['savedFilters'])) {
         const cleaned = (s['savedFilters'] as unknown[]).filter((f: unknown) => {
@@ -298,6 +315,9 @@ export function migrateSettings(loaded: Record<string, unknown> | null): Hindsig
     }
     if (version < 7) {
         migrated = migrateV6ToV7(migrated);
+    }
+    if (version < 8) {
+        migrated = migrateV7ToV8(migrated);
     }
 
     // 4. Validate all fields
@@ -471,6 +491,31 @@ function migrateV6ToV7(data: Record<string, unknown>): Record<string, unknown> {
     }
     if (typeof result['thumbnailSize'] !== 'number') {
         result['thumbnailSize'] = DEFAULT_SETTINGS.thumbnailSize;
+    }
+
+    return result;
+}
+
+/**
+ * Migration: v7 → v8
+ * - Adds annotationStorage for dual-storage annotation system
+ * - Adds annotationPresets for suggested annotations
+ * - Adds exportFolder for custom export location
+ */
+function migrateV7ToV8(data: Record<string, unknown>): Record<string, unknown> {
+    const result = { ...data };
+
+    result['settingsVersion'] = 8;
+
+    // Add annotation settings with defaults if missing
+    if (result['annotationStorage'] !== 'plugin' && result['annotationStorage'] !== 'frontmatter') {
+        result['annotationStorage'] = DEFAULT_SETTINGS.annotationStorage;
+    }
+    if (!Array.isArray(result['annotationPresets'])) {
+        result['annotationPresets'] = [...DEFAULT_SETTINGS.annotationPresets];
+    }
+    if (typeof result['exportFolder'] !== 'string') {
+        result['exportFolder'] = DEFAULT_SETTINGS.exportFolder;
     }
 
     return result;

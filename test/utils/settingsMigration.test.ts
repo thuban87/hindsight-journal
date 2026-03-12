@@ -105,7 +105,7 @@ describe('migrateSettings', () => {
             // No settingsVersion field
         };
         const result = migrateSettings(v0);
-        expect(result.settingsVersion).toBe(7);
+        expect(result.settingsVersion).toBe(8);
         expect(result.journalFolder).toBe('Journal');
         // Should also have chart settings from v2 migration
         expect(result.selectedChartFields).toEqual([]);
@@ -123,6 +123,10 @@ describe('migrateSettings', () => {
         // Should have Phase 9 settings from v7 migration
         expect(result.maxThumbnailCount).toBe(500);
         expect(result.thumbnailSize).toBe(120);
+        // Should have Phase 10 settings from v8 migration
+        expect(result.annotationStorage).toBe('plugin');
+        expect(result.annotationPresets).toEqual(DEFAULT_SETTINGS.annotationPresets);
+        expect(result.exportFolder).toBe('');
     });
 
     it('preserves existing valid settings during migration', () => {
@@ -187,7 +191,7 @@ describe('migrateSettings', () => {
         };
         const result = migrateSettings(minimal);
         expect(result.hotTierDays).toBe(DEFAULT_SETTINGS.hotTierDays);
-        expect(result.settingsVersion).toBe(7);
+        expect(result.settingsVersion).toBe(8);
         expect(result.selectedChartFields).toEqual([]);
         expect(result.rollingWindow).toBe(7);
         expect(result.thumbnailsEnabled).toBe(DEFAULT_SETTINGS.thumbnailsEnabled);
@@ -201,5 +205,9 @@ describe('migrateSettings', () => {
         // Phase 9 fields
         expect(result.maxThumbnailCount).toBe(500);
         expect(result.thumbnailSize).toBe(120);
+        // Phase 10 fields
+        expect(result.annotationStorage).toBe('plugin');
+        expect(result.annotationPresets).toEqual(DEFAULT_SETTINGS.annotationPresets);
+        expect(result.exportFolder).toBe('');
     });
 });

@@ -8,6 +8,7 @@ import { HindsightMainView } from './src/views/HindsightMainView';
 import { JournalIndexService } from './src/services/JournalIndexService';
 import { FileWatcherService } from './src/services/FileWatcherService';
 import { ThumbnailService } from './src/services/ThumbnailService';
+import { AnnotationService } from './src/services/AnnotationService';
 import { useSettingsStore } from './src/store/settingsStore';
 import { useAppStore } from './src/store/appStore';
 import { registerCommands } from './src/commands';
@@ -22,6 +23,7 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
     journalIndex: JournalIndexService | null = null;
     private fileWatcher: FileWatcherService | null = null;
     private thumbnailService: ThumbnailService | null = null;
+    private annotationService: AnnotationService | null = null;
 
     /** Cross-store subscriptions — unsubscribed FIRST in onunload() */
     private storeSubscriptions: (() => void)[] = [];
@@ -33,6 +35,7 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
         return {
             journalIndex: this.journalIndex,
             thumbnailService: this.thumbnailService,
+            annotationService: this.annotationService,
         };
     }
 
@@ -62,6 +65,11 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
 
         this.app.workspace.onLayoutReady(async () => {
             await this.journalIndex?.initialize();
+
+            // === Annotation Service ===
+            this.annotationService = new AnnotationService(
+                this.app, this, this.settings.annotationStorage
+            );
             this.fileWatcher?.registerFileWatchers();
 
             // === Thumbnail Service (conditional) ===
@@ -120,6 +128,7 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
         this.journalIndex?.destroy();
         this.fileWatcher?.destroy();
         void this.thumbnailService?.destroy();
+        this.annotationService = null;
         this.thumbnailService = null;
 
         // 3. Run general cleanup (timers, observers, listeners)
