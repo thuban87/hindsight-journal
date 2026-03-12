@@ -2798,3 +2798,95 @@ Infrastructure:
 - Settings tab: Annotations section and Export section
 - 476 tests passing, zero regressions
 ```
+
+---
+
+## 2026-03-11 - Phase 10.5: Digest & Export Tests
+
+**Focus:** Unit tests for CSV safety, export service, vault utilities, and annotation service — all features shipped in Phase 10.
+
+### Completed:
+
+#### Phase 10.5: Digest & Export Tests (42 new tests, 518 total passing)
+
+| Test File | Tests | Description |
+|-----------|-------|-------------|
+| `test/utils/csvSafety.test.ts` | 12 | sanitizeCsvCell: dangerous prefixes (=, +, -, @), normal text, commas, multi-line (tab/CR), leading whitespace formulas, numeric bypass (-3.5), null/undefined, arrays with formula elements, objects |
+| `test/services/ExportService.test.ts` | 10 | generateCSV (header row, column values, comma escaping, null handling, BOM + quote-wrapping), generateJSON (valid output, correct fields), generateMarkdownReport (period header, averages, best/worst highlights) |
+| `test/utils/vaultUtils.test.ts` | +4 | ensureFolderExists: creates nested folders, skips existing, handles race condition (sync creates folder between check and create), normalizePath forward-slash |
+| `test/services/AnnotationService.test.ts` | 16 | Plugin mode: add/get/remove/getAllAnnotated, 500 char limit, 20 annotation limit, empty rejection, newline replacement, deduplication. Frontmatter mode: corrupted field reset, YAML-special chars. Rename: key update, skip outside journal folder. Migration: plugin→frontmatter copy, skip inaccessible files, count verification |
+
+### Files Changed:
+
+**New Files (3):**
+- `test/utils/csvSafety.test.ts`
+- `test/services/ExportService.test.ts`
+- `test/services/AnnotationService.test.ts`
+
+**Modified Files (1):**
+- `test/utils/vaultUtils.test.ts` — Added ensureFolderExists describe block (4 tests)
+
+### Testing Notes:
+- ✅ All 518 tests passing across 34 test files (42 new, zero regressions)
+- ✅ One timezone fix during development: DateRange dates in ExportService test needed `T00:00:00` suffix to match local-time `formatDateForExport()` — without it, UTC midnight shifted back a day in CDT
+
+### Blockers/Issues:
+- None
+- Outstanding from previous sessions: React error #300 in console (caught by ErrorBoundary, does not block functionality)
+
+---
+
+## Next Session Prompt
+
+```
+Phase 10.5 complete. Digest & Export tests all passing:
+- csvSafety.test.ts (12 tests): formula injection prevention, numeric bypass, arrays, objects
+- ExportService.test.ts (10 tests): CSV/JSON/Markdown generation
+- vaultUtils.test.ts (+4 tests): ensureFolderExists with race condition handling
+- AnnotationService.test.ts (16 tests): dual-storage CRUD, validation, migration
+- 518 tests passing, zero regressions
+- Branch: feat/phase-10
+
+Outstanding: React error #300 in console — investigate with dev build.
+
+Continue with Phase 11: Frontmatter Quick-Edit + Guided Entry Wizard.
+
+Key files to reference:
+- docs/development/Implementation Plan.md — Phase 11 (line 5472+)
+- src/services/NoteCreationService.ts — daily/weekly note creation
+- src/utils/sectionUtils.ts — section content replacement
+```
+
+## Git Commit Message
+
+```
+test(phase-10.5): Digest, Export, CSV Safety, and Annotation Service tests
+
+CSV Safety (12 tests):
+- sanitizeCsvCell: dangerous prefix sanitization (=, +, -, @, |, tab, CR, LF)
+- Numeric bypass: negative numbers like -3.5 pass through unsanitized
+- Array element individual sanitization before joining
+- Null/undefined coercion, object JSON stringification
+- Mid-cell tab/CR replacement, leading whitespace formula detection
+
+Export Service (10 tests):
+- generateCSV: header row structure, column value placement, comma escaping,
+  null/undefined handling, UTF-8 BOM prefix and quote-wrapping verification
+- generateJSON: valid parseable output, all entries with correct fields
+- generateMarkdownReport: period header, numeric averages, best/worst highlights
+
+Vault Utils (+4 tests):
+- ensureFolderExists: nested folder creation, skip existing, race condition
+  handling (sync creates folder between check and create), normalizePath
+
+Annotation Service (16 tests):
+- Plugin mode: add, get, remove, getAllAnnotated CRUD operations
+- Validation: 500 char limit, 20 per entry cap, empty rejection,
+  newline replacement, deduplication (idempotent add)
+- Frontmatter mode: corrupted non-array field reset, YAML-special chars
+- Rename handling: key update on rename, skip outside journal folder
+- Migration: plugin-to-frontmatter copy, skip inaccessible files, count verify
+
+518 tests passing across 34 test files, zero regressions
+```
+
