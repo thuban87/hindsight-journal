@@ -30,4 +30,6 @@ export interface HindsightPluginInterface {
     settings: HindsightSettings;
     saveSettings(): Promise<void>;
     services: ServiceRegistry;
+    activateMainView(): Promise<void>;
+    activateSidebarView(): Promise<void>;
 }

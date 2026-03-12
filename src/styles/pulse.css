@@ -94,6 +94,7 @@
 .hindsight-heatmap {
     position: relative;
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -364,7 +365,7 @@
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
-    border-width: 0;
+    border: 0;
 }
 
 /* Mobile date pickers for heatmap */

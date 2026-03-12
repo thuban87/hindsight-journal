@@ -28,6 +28,9 @@ import { ThreadsPanel } from './threads/ThreadsPanel';
 import { GalleryView } from './gallery/GalleryView';
 import { DigestPanel } from './digest/DigestPanel';
 import { useAppStore } from '../store/appStore';
+import { useSettingsStore } from '../store/settingsStore';
+import { getWeekBounds } from '../utils/periodUtils';
+import type { DateRange } from '../types';
 
 /** Tab group definitions for the two-tier navigation */
 const TAB_GROUPS = [
@@ -160,20 +163,33 @@ function CalendarContent(): React.ReactElement {
 }
 
 /**
- * Digest content wrapper — composes TaskVolatility + FrontmatterDash.
+ * Digest content wrapper — composes DigestPanel + TaskVolatility + FrontmatterDash.
+ * Owns the shared dateRange state so all three sections respond to the PeriodSelector.
  */
 function DigestContent(): React.ReactElement {
     const { entries, detectedFields } = useJournalEntries();
+    const weekStartDay = useSettingsStore(s => s.settings.weekStartDay);
     const entryArray = React.useMemo(
         () => Array.from(entries.values()),
         [entries]
     );
 
+    // Shared date range state — default to "this week"
+    const defaultRange = React.useMemo(
+        () => getWeekBounds(new Date(), weekStartDay),
+        [weekStartDay]
+    );
+    const [dateRange, setDateRange] = React.useState<DateRange>(defaultRange);
+
+    const handlePeriodChange = React.useCallback((range: DateRange) => {
+        setDateRange(range);
+    }, []);
+
     return (
         <div className="hindsight-digest-container">
-            <DigestPanel />
-            <TaskVolatility />
-            <FrontmatterDash entries={entryArray} fields={detectedFields} />
+            <DigestPanel dateRange={dateRange} onPeriodChange={handlePeriodChange} />
+            <TaskVolatility dateRange={dateRange} />
+            <FrontmatterDash entries={entryArray} fields={detectedFields} dateRange={dateRange} />
         </div>
     );
 }

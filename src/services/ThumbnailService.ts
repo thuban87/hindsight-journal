@@ -133,13 +133,11 @@ export class ThumbnailService {
             await this.openDatabase();
         } catch (err) {
             // Corruption recovery: delete and re-create
-            // eslint-disable-next-line no-console
             console.warn('[Hindsight] Thumbnail DB corrupted, resetting:', err);
             try {
                 await this.deleteDatabase();
                 await this.openDatabase();
             } catch (retryErr) {
-                // eslint-disable-next-line no-console
                 console.warn('[Hindsight] IndexedDB unavailable, thumbnails disabled:', retryErr);
                 this.cacheState = 'disabled';
                 this.dbReadyResolve();
@@ -361,7 +359,6 @@ export class ThumbnailService {
             this.urlLastAccessed.set(cacheKey, Date.now());
             return url;
         } catch (err) {
-            // eslint-disable-next-line no-console
             console.error('[Hindsight] Thumbnail generation failed:', err);
             return null;
         } finally {
@@ -461,7 +458,6 @@ export class ThumbnailService {
 
             return resultBlob;
         } catch (err) {
-            // eslint-disable-next-line no-console
             console.error('[Hindsight] Thumbnail generation error:', err);
             return null;
         }
@@ -545,7 +541,6 @@ export class ThumbnailService {
         } catch (err) {
             if (this.isQuotaError(err)) {
                 this.cacheState = 'disabled';
-                // eslint-disable-next-line no-console
                 console.warn('[Hindsight] Thumbnail cache disabled — quota exhausted after eviction retries');
             }
         }

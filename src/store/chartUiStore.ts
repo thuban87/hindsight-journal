@@ -16,6 +16,14 @@ import { create } from 'zustand';
 /** Maximum dismissed alert IDs to store (FIFO eviction beyond this) */
 const MAX_DISMISSED_ALERTS = 500;
 
+/** Default chart date range: last 30 days */
+function defaultDateRange(): { start: Date; end: Date } {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    return { start, end };
+}
+
 interface ChartUiState {
     /** Selected fields for the Charts tab */
     selectedChartFields: string[];
@@ -45,7 +53,7 @@ interface ChartUiActions {
 
 export const useChartUiStore = create<ChartUiState & ChartUiActions>((set) => ({
     selectedChartFields: [],
-    chartDateRange: null,
+    chartDateRange: defaultDateRange(),
     rollingWindow: 7,
     dismissedAlertIds: [],
     analyzeAllFields: false,
@@ -70,7 +78,7 @@ export const useChartUiStore = create<ChartUiState & ChartUiActions>((set) => ({
 
     reset: () => set({
         selectedChartFields: [],
-        chartDateRange: null,
+        chartDateRange: defaultDateRange(),
         rollingWindow: 7,
         dismissedAlertIds: [],
         analyzeAllFields: false,

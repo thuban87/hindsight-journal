@@ -3086,3 +3086,283 @@ Wizard Integration (5 tests):
 541 tests passing across 37 test files, zero regressions
 ```
 
+---
+
+## 2026-03-12 - Adjustments Round 1: Quick Fixes & Cleanup
+
+**Focus:** Five quick fixes on branch `refactor/adjustments-round-1`.
+
+### Completed:
+
+- ✅ Removed `debug-fields` command from `commands.ts` + unused `useJournalStore` and `Notice` imports
+- ✅ Centered main view tab labels — `justify-content: center` on `.hindsight-tab-group-bar`, `justify-content: space-evenly` on `.hindsight-tab-sub-bar` + black bottom border
+- ✅ Deleted sidebar auto-open block from `main.ts` (lines 95–100) — users open via `open-sidebar` command
+- ✅ Default chart range changed from "All" to 30 days — `defaultDateRange()` factory in `chartUiStore.ts`
+- ✅ Cleared all 6 build warnings — removed unused `eslint-disable` directives in `SectionReader.tsx` (1) and `ThumbnailService.ts` (5)
+
+### Files Changed:
+
+- `main.ts` — Removed auto-open sidebar block
+- `src/commands.ts` — Removed debug-fields command + unused imports
+- `src/store/chartUiStore.ts` — Default chartDateRange to 30 days
+- `src/styles/charts.css` — Centered tab bars, sub-bar border
+- `src/components/sections/SectionReader.tsx` — Removed unused eslint-disable
+- `src/services/ThumbnailService.ts` — Removed 5 unused eslint-disables
+
+### Testing Notes:
+- ✅ 541 tests passing (37 files), 0 lint warnings, clean build
+- ✅ Deployed to test vault, Brad confirmed all changes
+
+---
+
+## Next Session Prompt
+
+```
+Adjustments Round 1 complete (branch: refactor/adjustments-round-1).
+5 quick fixes done: removed debug command, centered tabs,
+deleted sidebar auto-open, defaulted charts to 30 days, cleared warnings.
+
+Continue with Adjustments Round 2 — remaining items from the adjustments list:
+- Clean up settings menu
+- Tie task/field completion to selected timeframe on digest
+- Sidebar widget edit layout button
+- Heatmap scrolling fix on pulse page
+- Any other items from the adjustments backlog
+
+Key files: docs/development/Implementation Plan.md
+```
+
+## Git Commit Message
+
+```
+refactor(adjustments): quick fixes and cleanup - round 1
+
+- Remove debug-fields command and unused imports from commands.ts
+- Center main view tab labels (group bar: center, sub-bar: space-evenly)
+- Delete sidebar auto-open block from main.ts
+- Default chart date range to 30 days instead of all time
+- Clear 6 build warnings (unused eslint-disable directives)
+
+541 tests passing, 0 lint warnings
+```
+
+---
+
+## 2026-03-12 - Adjustments Round 2: Digest Timeframe, Heatmap Fixes, & Settings Sub-Modals
+
+**Focus:** Unify digest page timeframe, fix heatmap scroll and year nav bugs, and refactor settings into sub-modal architecture.
+
+### Completed:
+
+#### Task 1: Digest Timeframe Unification
+- ✅ Lifted `dateRange` state from `DigestPanel` into `DigestContent()` in `MainApp.tsx`
+- ✅ `DigestPanel` now accepts `dateRange` and `onPeriodChange` props (controlled component)
+- ✅ `TaskVolatility` accepts `dateRange` prop, replaces hardcoded 90-day filter
+- ✅ `FrontmatterDash` accepts `dateRange` prop, replaces hardcoded 30-day column generation
+
+#### Task 2: Heatmap Scroll Fix
+- ✅ Fixed `.sr-only` class in `pulse.css` (`border-width: 0` → `border: 0`)
+- ✅ Added `overflow-y: hidden` to `.hindsight-heatmap` to clip the sr-only table vertically
+
+#### Task 3: Heatmap Year Navigation Fix
+- ✅ Moved empty data check inside JSX, after year nav buttons always render
+- ✅ Shows "No entries for [year]" instead of generic empty state that hid nav controls
+- ✅ Removed unused `EmptyState` import from `Heatmap.tsx`
+
+#### Task 4: Settings Sub-Modal Refactor
+- ✅ Created `FieldConfigModal.ts` — polarity dropdowns for numeric fields
+- ✅ Created `GoalsModal.ts` — goal add/edit/remove (moved from settings.ts)
+- ✅ Created `AnnotationsModal.ts` — storage mode + annotation presets
+- ✅ Created `AdvancedModal.ts` — priority heading, hot tier, thumbnail size/max, debug mode
+- ✅ Created `settingsModals.css` — shared modal sizing + goal row layout
+- ✅ Refactored `settings.ts` from 614 lines to ~280 lines with "Configure..." buttons
+- ✅ Removed "Open sidebar on startup" setting (functionality already deleted in Round 1)
+- ✅ Moved Calendar theme to Appearance section
+- ✅ Moved Export folder under Journal section
+
+### Files Changed:
+
+**New Files (5):**
+- `src/modals/FieldConfigModal.ts`
+- `src/modals/GoalsModal.ts`
+- `src/modals/AnnotationsModal.ts`
+- `src/modals/AdvancedModal.ts`
+- `src/styles/settingsModals.css`
+
+**Modified Files (9):**
+- `src/components/MainApp.tsx` — Lifted dateRange state, added imports
+- `src/components/charts/Heatmap.tsx` — Year nav always visible, inline "no entries" message
+- `src/components/dashboard/FrontmatterDash.tsx` — dateRange prop replaces hardcoded 30d
+- `src/components/dashboard/TaskVolatility.tsx` — dateRange prop replaces hardcoded 90d
+- `src/components/digest/DigestPanel.tsx` — Controlled via dateRange/onPeriodChange props
+- `src/settings.ts` — Gutted from 614→280 lines, 4 sections moved to sub-modals
+- `src/styles/index.css` — Added settingsModals.css import
+- `src/styles/pulse.css` — sr-only border fix + overflow-y: hidden on heatmap
+- `styles.css` — Compiled output with new styles
+
+### Testing Notes:
+- ✅ 541 tests passing (37 files), 0 lint warnings, clean build
+- ✅ Deployed to test vault, Brad confirmed all 4 tasks working
+
+### Blockers/Issues:
+- None
+
+### Design Notes:
+- **Heatmap scroll root cause:** `position: absolute` elements in an `overflow: auto` container still contribute to scroll dimensions. Adding `overflow-y: hidden` constrains the sr-only table while preserving horizontal scroll for narrow viewports.
+- **Settings sub-modals:** Used native Obsidian `Setting` API in modals (no React), keeping them consistent with the main settings tab and avoiding unnecessary React root lifecycle management.
+
+---
+
+## Next Session Prompt
+
+```
+Adjustments Round 2 complete (branch: refactor/adjustments-round-1).
+Done: digest timeframe unification, heatmap scroll+nav fixes, settings sub-modals.
+
+Remaining adjustments from the original list:
+- Sidebar widget edit layout button (single Edit layout button
+  instead of per-widget move arrows)
+- Any other items from the adjustments backlog
+
+The enableSidebar setting is still in types/settings.ts and settingsMigration.ts
+but has no UI or functional code — can be cleaned up in a future session.
+
+Key files:
+- src/settings.ts — Main settings page (~280 lines)
+- src/modals/ — 4 new settings sub-modals
+- docs/development/Implementation Plan.md
+```
+
+## Git Commit Message
+
+```
+refactor(adjustments): digest timeframe, heatmap fixes, settings sub-modals - round 2
+
+Digest Timeframe Unification:
+- Lift dateRange state to DigestContent in MainApp.tsx
+- DigestPanel accepts dateRange/onPeriodChange props (controlled)
+- TaskVolatility respects selected period (was hardcoded 90d)
+- FrontmatterDash respects selected period (was hardcoded 30d)
+
+Heatmap Fixes:
+- Fix sr-only table causing scroll overflow (overflow-y: hidden)
+- Year nav buttons always visible even with no data for selected year
+- Show No entries for [year] instead of hiding navigation
+
+Settings Sub-Modal Refactor:
+- Create FieldConfigModal, GoalsModal, AnnotationsModal, AdvancedModal
+- Refactor settings.ts from 614 to 280 lines with Configure buttons
+- Remove Open sidebar on startup setting
+- Move Calendar theme to Appearance section
+- Move Export folder under Journal section
+
+541 tests passing, 0 lint warnings
+```
+
+---
+
+## 2026-03-12 - Adjustments Round 3: Widget Edit Mode & Command Menu Modal
+
+**Focus:** Declutter sidebar by gating widget controls behind an edit mode toggle. Replace ribbon icon direct-open with a command menu modal for quick access to all Hindsight features.
+
+### Completed:
+
+#### Task 1: Sidebar Widget Edit Mode
+- ✅ Added `editMode` state to `WidgetContainer.tsx` — controls (↑↓, 👁, ⋮) hidden by default
+- ✅ In edit mode, hidden widgets appear grayed out (dashed border, reduced opacity) so users can re-enable them
+- ✅ "Edit layout" / "Done" button at the bottom of the widget container toggles the mode
+- ✅ Updated empty state message with an "Edit layout" button for recovery
+- ✅ Added `hindsight-widget-hidden` and `hindsight-widget-edit-btn` styles to `widgets.css`
+
+#### Task 2: Command Menu Modal
+- ✅ Created `CommandMenuModal.ts` — canonical modal pattern (isUnloading guard, ErrorBoundary, React root cleanup)
+- ✅ Created `CommandMenuApp.tsx` — 2×3 grid of command cards with Lucide icons via Obsidian's `setIcon()`
+- ✅ Cards: Journal view, Sidebar, Section reader, Guided entry, Weekly review, Settings
+- ✅ Created `command-menu.css` — grid layout, card hover effects, accent-colored icons, rem-based sizing
+- ✅ Changed ribbon icon in `main.ts` to open CommandMenuModal instead of activateMainView()
+- ✅ Added `open-command-menu` command to `commands.ts`
+- ✅ Added `activateMainView()` and `activateSidebarView()` to `HindsightPluginInterface`
+
+#### CSS Polish (post-review)
+- ✅ Increased card `min-height` from 44px to 5rem for better spacing
+- ✅ Added `min-height: 20rem` to modal container
+- ✅ Increased grid gap and icon size (1.75rem) for visual balance
+
+### Files Changed:
+
+**New Files (3):**
+- `src/modals/CommandMenuModal.ts`
+- `src/components/CommandMenuApp.tsx`
+- `src/styles/command-menu.css`
+
+**Modified Files (6):**
+- `main.ts` — Ribbon icon opens CommandMenuModal, import added
+- `src/commands.ts` — Added `open-command-menu` command, import added
+- `src/components/sidebar/WidgetContainer.tsx` — Edit mode toggle, hidden widget rendering
+- `src/styles/widgets.css` — Hidden widget + edit button styles
+- `src/styles/index.css` — Added command-menu.css import
+- `src/types/plugin.ts` — Added activateMainView/activateSidebarView to interface
+
+### Testing Notes:
+- ✅ All 541 tests pass (37 test files, zero regressions)
+- ✅ `npm run lint` passes — zero errors, zero warnings
+- ✅ `npm run build` passes (lint + CSS + TypeScript + esbuild)
+- ✅ `npm run deploy:test` successful
+- ✅ Brad confirmed: sidebar edit mode works, command menu modal looks good after spacing fix
+
+### Blockers/Issues:
+- None
+
+### Design Notes:
+- **Widget edit mode:** Hidden widgets render with `opacity: 0.5` and `border-style: dashed` in edit mode. Widget content is not rendered for hidden widgets (only the header with controls), keeping the edit mode view compact.
+- **Command menu icons:** Uses Obsidian's `setIcon()` via React refs — no innerHTML. Each card renders the icon imperatively in a `useEffect`.
+- **Settings access:** The settings card uses `app.setting.open()` and `app.setting.openTabById()` — undocumented but stable Obsidian APIs. Cast through `unknown` first for TypeScript safety.
+- **Rem-based sizing:** Used rem units for card heights and icon sizes instead of px, so the modal scales properly with different font size settings and screen sizes.
+
+---
+
+## Next Session Prompt
+
+```
+Adjustments round 3 complete. Widget edit mode and command menu modal both shipped:
+- Sidebar widget controls hidden by default, revealed via Edit layout button
+- Ribbon icon opens a 2x3 command menu modal instead of direct main view
+- 541 tests passing, all lint/build gates clean
+
+All adjustments from the original backlog list are now complete.
+The enableSidebar setting is still in types/settings.ts and settingsMigration.ts
+but has no UI or functional code — can be cleaned up in a future session.
+
+Key files:
+- src/components/sidebar/WidgetContainer.tsx — Widget edit mode
+- src/modals/CommandMenuModal.ts — Command menu modal
+- src/components/CommandMenuApp.tsx — Command menu React component
+- docs/development/Implementation Plan.md
+```
+
+## Git Commit Message
+
+```
+feat(adjustments): widget edit mode toggle and command menu modal - round 3
+
+Widget Edit Mode:
+- WidgetContainer controls (arrows, visibility, menu) hidden by default
+- Edit layout / Done button at bottom toggles edit mode
+- Hidden widgets shown grayed out (dashed border, reduced opacity) in edit mode
+- Empty state includes Edit layout button for recovery
+
+Command Menu Modal:
+- Create CommandMenuModal following canonical modal pattern
+- Create CommandMenuApp with 2x3 grid of command cards
+- Cards: Journal view, Sidebar, Section reader, Guided entry, Weekly review, Settings
+- Icons rendered via Obsidian setIcon() (no innerHTML)
+- Ribbon icon opens command menu instead of direct main view
+- Add open-command-menu command to command palette
+
+Interface Updates:
+- Add activateMainView and activateSidebarView to HindsightPluginInterface
+- Add command-menu.css import to styles index
+
+541 tests passing, 0 lint warnings
+```
+

@@ -58,7 +58,6 @@ export function SectionReader(): React.ReactElement {
     useEffect(() => {
         if (Platform.isMobile && filteredEntries.length > 100 && !simpleView) {
             setSimpleView(true);
-            // eslint-disable-next-line no-new
             new Notice('Using simple view for performance. Toggle rich rendering in the header.');
         }
     }, [filteredEntries.length, simpleView, setSimpleView]);

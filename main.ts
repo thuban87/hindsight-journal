@@ -14,6 +14,7 @@ import { useAppStore } from './src/store/appStore';
 import { registerCommands } from './src/commands';
 import { wireStoreSubscriptions, resetAllStores } from './src/storeWiring';
 import { migrateSettings } from './src/utils/settingsMigration';
+import { CommandMenuModal } from './src/modals/CommandMenuModal';
 import { debugLog } from './src/utils/debugLog';
 import './src/utils/chartSetup'; // Side-effect: registers Chart.js components
 import { useChartUiStore } from './src/store/chartUiStore';
@@ -92,22 +93,15 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
             (leaf) => new HindsightSidebarView(leaf)
         );
 
-        // Auto-open sidebar if enabled
-        if (this.settings.enableSidebar) {
-            this.app.workspace.onLayoutReady(() => {
-                void this.activateSidebarView();
-            });
-        }
-
         // === Main Full-Page View ===
         this.registerView(
             HINDSIGHT_MAIN_VIEW_TYPE,
             (leaf) => new HindsightMainView(leaf)
         );
 
-        // Ribbon icon for quick access
+        // Ribbon icon for quick access — opens command menu
         this.addRibbonIcon('book-open', 'Open Hindsight', () => {
-            void this.activateMainView();
+            new CommandMenuModal(this.app, this).open();
         });
 
         // === Commands ===

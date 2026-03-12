@@ -8,14 +8,17 @@
  * Uses processWithYielding for large entry sets (>200 entries).
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useJournalEntries } from '../../hooks/useJournalEntries';
-import { useSettingsStore } from '../../store/settingsStore';
 import { PeriodSelector } from './PeriodSelector';
 import { ExportButton } from './ExportButton';
-import { getWeekBounds } from '../../utils/periodUtils';
 import { startOfDay } from '../../utils/dateUtils';
 import type { DateRange, JournalEntry, FrontmatterField } from '../../types';
+
+interface DigestPanelProps {
+    dateRange: DateRange;
+    onPeriodChange: (range: DateRange) => void;
+}
 
 interface DigestStats {
     numericAverages: { key: string; avg: number; min: number; max: number }[];
@@ -28,16 +31,8 @@ interface DigestStats {
     entryCount: number;
 }
 
-export function DigestPanel(): React.ReactElement {
+export function DigestPanel({ dateRange, onPeriodChange }: DigestPanelProps): React.ReactElement {
     const { entries, detectedFields } = useJournalEntries();
-    const weekStartDay = useSettingsStore(s => s.settings.weekStartDay);
-
-    // Default to "this week"
-    const defaultRange = useMemo(
-        () => getWeekBounds(new Date(), weekStartDay),
-        [weekStartDay]
-    );
-    const [dateRange, setDateRange] = useState<DateRange>(defaultRange);
     const [stats, setStats] = useState<DigestStats | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -148,14 +143,12 @@ export function DigestPanel(): React.ReactElement {
         return () => clearTimeout(timer);
     }, [periodEntries, detectedFields]);
 
-    const handlePeriodChange = useCallback((range: DateRange) => {
-        setDateRange(range);
-    }, []);
+
 
     return (
         <div className="hindsight-digest-panel">
             <div className="hindsight-digest-header">
-                <PeriodSelector onPeriodChange={handlePeriodChange} />
+                <PeriodSelector onPeriodChange={onPeriodChange} />
                 <ExportButton entries={periodEntries} fields={detectedFields} dateRange={dateRange} />
             </div>
 

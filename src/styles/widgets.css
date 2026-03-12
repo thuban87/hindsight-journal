@@ -106,3 +106,34 @@
     padding: 1rem;
     font-style: italic;
 }
+
+/* Hidden widget — shown in edit mode with reduced presence */
+.hindsight-widget-hidden {
+    opacity: 0.5;
+    border-style: dashed;
+}
+
+.hindsight-widget-hidden .hindsight-widget-header {
+    background: transparent;
+}
+
+/* Edit layout / Done button */
+.hindsight-widget-edit-btn {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    padding: var(--hindsight-spacing-sm) var(--hindsight-spacing-md);
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hindsight-widget-edit-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
