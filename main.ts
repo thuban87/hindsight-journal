@@ -92,13 +92,6 @@ export default class HindsightPlugin extends Plugin implements HindsightPluginIn
             (leaf) => new HindsightSidebarView(leaf)
         );
 
-        // Auto-open sidebar if enabled
-        if (this.settings.enableSidebar) {
-            this.app.workspace.onLayoutReady(() => {
-                void this.activateSidebarView();
-            });
-        }
-
         // === Main Full-Page View ===
         this.registerView(
             HINDSIGHT_MAIN_VIEW_TYPE,

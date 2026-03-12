@@ -1011,6 +1011,7 @@
 /* Top bar: group switcher */
 .hindsight-tab-group-bar {
     display: flex;
+    justify-content: center;
     gap: 0;
     border-bottom: 1px solid var(--background-modifier-border);
     padding: 0 var(--size-4-2);
@@ -1038,8 +1039,10 @@
 /* Secondary bar: sub-tabs */
 .hindsight-tab-sub-bar {
     display: flex;
+    justify-content: space-evenly;
     gap: 0;
     padding: 0 var(--size-4-2);
+    border-bottom: 1px black;
 }
 .hindsight-tab-sub {
     padding: var(--size-2-2) var(--size-4-3);

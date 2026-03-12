@@ -3086,3 +3086,62 @@ Wizard Integration (5 tests):
 541 tests passing across 37 test files, zero regressions
 ```
 
+---
+
+## 2026-03-12 - Adjustments Round 1: Quick Fixes & Cleanup
+
+**Focus:** Five quick fixes on branch `refactor/adjustments-round-1`.
+
+### Completed:
+
+- ✅ Removed `debug-fields` command from `commands.ts` + unused `useJournalStore` and `Notice` imports
+- ✅ Centered main view tab labels — `justify-content: center` on `.hindsight-tab-group-bar`, `justify-content: space-evenly` on `.hindsight-tab-sub-bar` + black bottom border
+- ✅ Deleted sidebar auto-open block from `main.ts` (lines 95–100) — users open via `open-sidebar` command
+- ✅ Default chart range changed from "All" to 30 days — `defaultDateRange()` factory in `chartUiStore.ts`
+- ✅ Cleared all 6 build warnings — removed unused `eslint-disable` directives in `SectionReader.tsx` (1) and `ThumbnailService.ts` (5)
+
+### Files Changed:
+
+- `main.ts` — Removed auto-open sidebar block
+- `src/commands.ts` — Removed debug-fields command + unused imports
+- `src/store/chartUiStore.ts` — Default chartDateRange to 30 days
+- `src/styles/charts.css` — Centered tab bars, sub-bar border
+- `src/components/sections/SectionReader.tsx` — Removed unused eslint-disable
+- `src/services/ThumbnailService.ts` — Removed 5 unused eslint-disables
+
+### Testing Notes:
+- ✅ 541 tests passing (37 files), 0 lint warnings, clean build
+- ✅ Deployed to test vault, Brad confirmed all changes
+
+---
+
+## Next Session Prompt
+
+```
+Adjustments Round 1 complete (branch: refactor/adjustments-round-1).
+5 quick fixes done: removed debug command, centered tabs,
+deleted sidebar auto-open, defaulted charts to 30 days, cleared warnings.
+
+Continue with Adjustments Round 2 — remaining items from the adjustments list:
+- Clean up settings menu
+- Tie task/field completion to selected timeframe on digest
+- Sidebar widget edit layout button
+- Heatmap scrolling fix on pulse page
+- Any other items from the adjustments backlog
+
+Key files: docs/development/Implementation Plan.md
+```
+
+## Git Commit Message
+
+```
+refactor(adjustments): quick fixes and cleanup - round 1
+
+- Remove debug-fields command and unused imports from commands.ts
+- Center main view tab labels (group bar: center, sub-bar: space-evenly)
+- Delete sidebar auto-open block from main.ts
+- Default chart date range to 30 days instead of all time
+- Clear 6 build warnings (unused eslint-disable directives)
+
+541 tests passing, 0 lint warnings
+```
