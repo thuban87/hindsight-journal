@@ -7,26 +7,28 @@
  */
 
 import React, { useMemo } from 'react';
-import type { JournalEntry, FrontmatterField } from '../../types';
+import { startOfDay } from '../../utils/dateUtils';
+import type { JournalEntry, FrontmatterField, DateRange } from '../../types';
 
 interface FrontmatterDashProps {
     entries: JournalEntry[];
     fields: FrontmatterField[];
+    dateRange: DateRange;
 }
 
-export function FrontmatterDash({ entries, fields }: FrontmatterDashProps): React.ReactElement | null {
-    // Generate last 30 days as date strings
+export function FrontmatterDash({ entries, fields, dateRange }: FrontmatterDashProps): React.ReactElement | null {
+    // Generate day columns from dateRange
     const days = useMemo(() => {
         const result: Date[] = [];
-        const now = new Date();
-        for (let i = 29; i >= 0; i--) {
-            const d = new Date(now);
-            d.setDate(d.getDate() - i);
-            d.setHours(0, 0, 0, 0);
-            result.push(d);
+        const start = startOfDay(dateRange.start);
+        const end = startOfDay(dateRange.end);
+        const current = new Date(start);
+        while (current <= end) {
+            result.push(new Date(current));
+            current.setDate(current.getDate() + 1);
         }
         return result;
-    }, []);
+    }, [dateRange]);
 
     // Build lookup: dateKey → entry
     const entryByDate = useMemo(() => {
@@ -84,7 +86,7 @@ export function FrontmatterDash({ entries, fields }: FrontmatterDashProps): Reac
                     width={svgWidth}
                     height={svgHeight}
                     role="img"
-                    aria-label="Field completion grid for the last 30 days"
+                    aria-label={`Field completion grid from ${dateRange.start.toLocaleDateString()} to ${dateRange.end.toLocaleDateString()}`}
                 >
                     {/* Day labels (every 5th day) */}
                     {days.map((day, col) => {

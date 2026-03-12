@@ -22,7 +22,6 @@ import { useChartUiStore } from '../../store/chartUiStore';
 import { getHeatmapData } from '../../services/PulseService';
 import { getPolarityColor } from '../../utils/statsUtils';
 import { formatDateISO, startOfDay } from '../../utils/dateUtils';
-import { EmptyState } from '../shared/EmptyState';
 
 interface HeatmapProps {
     fieldKey: string;
@@ -365,10 +364,6 @@ export const Heatmap = React.memo(function Heatmap({
         });
     }, [gridData, openNote]);
 
-    if (gridData.length === 0) {
-        return <EmptyState message="No journal entries indexed yet. Check your journal folder in settings." />;
-    }
-
     return (
         <div className="hindsight-heatmap" ref={svgContainerRef}>
             {/* Year Navigation */}
@@ -389,137 +384,143 @@ export const Heatmap = React.memo(function Heatmap({
                 </button>
             </div>
 
-            {/* SVG Heatmap */}
-            <div
-                tabIndex={0}
-                onKeyDown={handleKeyDown}
-                role="application"
-                aria-labelledby="hindsight-heatmap-label"
-            >
-                <span id="hindsight-heatmap-label" className="sr-only">
-                    Heatmap showing {fieldKey} over {displayYear}
-                </span>
-                <svg
-                    width={svgWidth}
-                    height={svgHeight}
-                    aria-hidden="true"
-                    onClick={handleClick}
-                    onMouseMove={handleMouseMove}
-                    onMouseLeave={handleMouseLeave}
-                    onPointerDown={isMobile ? undefined : handlePointerDown}
-                    onPointerMove={isMobile ? undefined : handlePointerMove}
-                    onPointerUp={isMobile ? undefined : handlePointerUp}
-                    onPointerCancel={isMobile ? undefined : handlePointerCancel}
-                >
-                    {/* Day-of-week labels */}
-                    {DAY_LABELS.map((label, i) => (
-                        label && (
-                            <text
-                                key={i}
-                                x={0}
-                                y={TOP_PADDING + i * CELL_TOTAL + CELL_SIZE - 2}
-                                className="hindsight-heatmap-day-label"
-                            >
-                                {label}
-                            </text>
-                        )
-                    ))}
-
-                    {/* Cells */}
-                    {gridData.map(cell => {
-                        const x = LABEL_WIDTH + cell.col * CELL_TOTAL;
-                        const y = TOP_PADDING + cell.row * CELL_TOTAL;
-                        const color = cell.value !== null
-                            ? getPolarityColor(
-                                cell.value,
-                                min,
-                                max,
-                                polarity as 'higher-is-better' | 'lower-is-better' | 'neutral'
-                            )
-                            : 'var(--background-modifier-border)';
-
-                        return (
-                            <rect
-                                key={cell.date}
-                                ref={el => cellRefCallback(el, cell.date)}
-                                data-date={cell.date}
-                                x={x}
-                                y={y}
-                                width={CELL_SIZE}
-                                height={CELL_SIZE}
-                                fill={color}
-                                className="hindsight-heatmap-cell"
-                            />
-                        );
-                    })}
-                </svg>
-
-                {/* Tooltip */}
-                {tooltip && (
+            {gridData.length === 0 ? (
+                <div className="hindsight-digest-empty">No entries for {displayYear}</div>
+            ) : (
+                <>
+                    {/* SVG Heatmap */}
                     <div
-                        className="hindsight-heatmap-tooltip"
-                        ref={el => {
-                            if (el) {
-                                el.style.setProperty('left', `${tooltip.x}px`);
-                                el.style.setProperty('top', `${tooltip.y}px`);
-                            }
-                        }}
+                        tabIndex={0}
+                        onKeyDown={handleKeyDown}
+                        role="application"
+                        aria-labelledby="hindsight-heatmap-label"
                     >
-                        <span className="hindsight-heatmap-tooltip-date">{tooltip.date}</span>
-                        <span className="hindsight-heatmap-tooltip-value">
-                            {tooltip.value !== null ? tooltip.value : '—'}
+                        <span id="hindsight-heatmap-label" className="sr-only">
+                            Heatmap showing {fieldKey} over {displayYear}
+                        </span>
+                        <svg
+                            width={svgWidth}
+                            height={svgHeight}
+                            aria-hidden="true"
+                            onClick={handleClick}
+                            onMouseMove={handleMouseMove}
+                            onMouseLeave={handleMouseLeave}
+                            onPointerDown={isMobile ? undefined : handlePointerDown}
+                            onPointerMove={isMobile ? undefined : handlePointerMove}
+                            onPointerUp={isMobile ? undefined : handlePointerUp}
+                            onPointerCancel={isMobile ? undefined : handlePointerCancel}
+                        >
+                            {/* Day-of-week labels */}
+                            {DAY_LABELS.map((label, i) => (
+                                label && (
+                                    <text
+                                        key={i}
+                                        x={0}
+                                        y={TOP_PADDING + i * CELL_TOTAL + CELL_SIZE - 2}
+                                        className="hindsight-heatmap-day-label"
+                                    >
+                                        {label}
+                                    </text>
+                                )
+                            ))}
+
+                            {/* Cells */}
+                            {gridData.map(cell => {
+                                const x = LABEL_WIDTH + cell.col * CELL_TOTAL;
+                                const y = TOP_PADDING + cell.row * CELL_TOTAL;
+                                const color = cell.value !== null
+                                    ? getPolarityColor(
+                                        cell.value,
+                                        min,
+                                        max,
+                                        polarity as 'higher-is-better' | 'lower-is-better' | 'neutral'
+                                    )
+                                    : 'var(--background-modifier-border)';
+
+                                return (
+                                    <rect
+                                        key={cell.date}
+                                        ref={el => cellRefCallback(el, cell.date)}
+                                        data-date={cell.date}
+                                        x={x}
+                                        y={y}
+                                        width={CELL_SIZE}
+                                        height={CELL_SIZE}
+                                        fill={color}
+                                        className="hindsight-heatmap-cell"
+                                    />
+                                );
+                            })}
+                        </svg>
+
+                        {/* Tooltip */}
+                        {tooltip && (
+                            <div
+                                className="hindsight-heatmap-tooltip"
+                                ref={el => {
+                                    if (el) {
+                                        el.style.setProperty('left', `${tooltip.x}px`);
+                                        el.style.setProperty('top', `${tooltip.y}px`);
+                                    }
+                                }}
+                            >
+                                <span className="hindsight-heatmap-tooltip-date">{tooltip.date}</span>
+                                <span className="hindsight-heatmap-tooltip-value">
+                                    {tooltip.value !== null ? tooltip.value : '—'}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Color Legend */}
+                    <div className="hindsight-heatmap-legend">
+                        <span className="hindsight-heatmap-legend-label">Less</span>
+                        <div className="hindsight-heatmap-legend-gradient">
+                            {[0, 0.25, 0.5, 0.75, 1].map(ratio => {
+                                const val = min + ratio * (max - min);
+                                const color = getPolarityColor(
+                                    val, min, max,
+                                    polarity as 'higher-is-better' | 'lower-is-better' | 'neutral'
+                                );
+                                return (
+                                    <div
+                                        key={ratio}
+                                        className="hindsight-heatmap-legend-swatch"
+                                        ref={el => {
+                                            if (el) el.style.setProperty('background-color', color);
+                                        }}
+                                    />
+                                );
+                            })}
+                        </div>
+                        <span className="hindsight-heatmap-legend-label">More</span>
+                        <span className="hindsight-heatmap-legend-range">
+                            {fieldKey}: {min}–{max}
                         </span>
                     </div>
-                )}
-            </div>
 
-            {/* Color Legend */}
-            <div className="hindsight-heatmap-legend">
-                <span className="hindsight-heatmap-legend-label">Less</span>
-                <div className="hindsight-heatmap-legend-gradient">
-                    {[0, 0.25, 0.5, 0.75, 1].map(ratio => {
-                        const val = min + ratio * (max - min);
-                        const color = getPolarityColor(
-                            val, min, max,
-                            polarity as 'higher-is-better' | 'lower-is-better' | 'neutral'
-                        );
-                        return (
-                            <div
-                                key={ratio}
-                                className="hindsight-heatmap-legend-swatch"
-                                ref={el => {
-                                    if (el) el.style.setProperty('background-color', color);
-                                }}
-                            />
-                        );
-                    })}
-                </div>
-                <span className="hindsight-heatmap-legend-label">More</span>
-                <span className="hindsight-heatmap-legend-range">
-                    {fieldKey}: {min}–{max}
-                </span>
-            </div>
-
-            {/* Visually-hidden table for screen readers */}
-            <table className="sr-only">
-                <caption>
-                    {fieldKey} values over {displayYear}
-                </caption>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {yearData.map(d => (
-                        <tr key={d.date}>
-                            <td>{d.date}</td>
-                            <td>{d.value !== null ? d.value : 'No data'}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+                    {/* Visually-hidden table for screen readers */}
+                    <table className="sr-only">
+                        <caption>
+                            {fieldKey} values over {displayYear}
+                        </caption>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {yearData.map(d => (
+                                <tr key={d.date}>
+                                    <td>{d.date}</td>
+                                    <td>{d.value !== null ? d.value : 'No data'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </>
+            )}
         </div>
     );
 });

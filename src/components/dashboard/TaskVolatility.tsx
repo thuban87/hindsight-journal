@@ -9,14 +9,17 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { Chart } from 'chart.js';
 import { useJournalStore } from '../../store/journalStore';
-import { useSettingsStore } from '../../store/settingsStore';
 import { useAppStore } from '../../store/appStore';
-import { getEntriesInPeriod } from '../../utils/periodUtils';
+import { startOfDay } from '../../utils/dateUtils';
+import type { DateRange } from '../../types';
 
-export function TaskVolatility(): React.ReactElement | null {
+interface TaskVolatilityProps {
+    dateRange: DateRange;
+}
+
+export function TaskVolatility({ dateRange }: TaskVolatilityProps): React.ReactElement | null {
     const app = useAppStore(s => s.app);
     const allEntries = useJournalStore(state => state.getAllEntriesSorted());
-    const settings = useSettingsStore(s => s.settings);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [chartError, setChartError] = useState(false);
 
@@ -26,42 +29,28 @@ export function TaskVolatility(): React.ReactElement | null {
         [allEntries]
     );
 
-    // Productivity score per entry (last 90 days)
+    // Productivity score per entry (filtered by dateRange)
     const productivityData = useMemo(() => {
-        const now = Date.now();
-        const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
+        const startTime = startOfDay(dateRange.start).getTime();
+        const endTime = startOfDay(dateRange.end).getTime();
         return entriesWithTasks
-            .filter(e => e.date.getTime() >= ninetyDaysAgo)
+            .filter(e => {
+                const t = startOfDay(e.date).getTime();
+                return t >= startTime && t <= endTime;
+            })
             .sort((a, b) => a.date.getTime() - b.date.getTime())
             .map(e => ({
                 date: e.date,
                 score: Math.round((e.tasksCompleted / e.tasksTotal) * 100),
             }));
-    }, [entriesWithTasks]);
+    }, [entriesWithTasks, dateRange]);
 
-    // Weekly comparison: this week vs last week
-    const weeklyComparison = useMemo(() => {
-        const now = new Date();
-        const thisWeekEntries = getEntriesInPeriod(
-            entriesWithTasks, 'week', now, settings.weekStartDay
-        );
-        const lastWeekDate = new Date(now);
-        lastWeekDate.setDate(lastWeekDate.getDate() - 7);
-        const lastWeekEntries = getEntriesInPeriod(
-            entriesWithTasks, 'week', lastWeekDate, settings.weekStartDay
-        );
-
-        const calcRate = (entries: typeof entriesWithTasks) => {
-            const totalCompleted = entries.reduce((s, e) => s + e.tasksCompleted, 0);
-            const totalAll = entries.reduce((s, e) => s + e.tasksTotal, 0);
-            return totalAll > 0 ? Math.round((totalCompleted / totalAll) * 100) : null;
-        };
-
-        return {
-            thisWeek: calcRate(thisWeekEntries),
-            lastWeek: calcRate(lastWeekEntries),
-        };
-    }, [entriesWithTasks, settings.weekStartDay]);
+    // Period average completion rate
+    const periodAverage = useMemo(() => {
+        if (productivityData.length === 0) return null;
+        const sum = productivityData.reduce((s, d) => s + d.score, 0);
+        return Math.round(sum / productivityData.length);
+    }, [productivityData]);
 
     // Chart.js trend line
     useEffect(() => {
@@ -157,22 +146,22 @@ export function TaskVolatility(): React.ReactElement | null {
 
             <div className="hindsight-task-weekly-comparison">
                 <div className="hindsight-task-week-stat">
-                    <span className="hindsight-task-week-label">This week</span>
+                    <span className="hindsight-task-week-label">Period average</span>
                     <span className="hindsight-task-week-value">
-                        {weeklyComparison.thisWeek !== null ? `${weeklyComparison.thisWeek}%` : '—'}
+                        {periodAverage !== null ? `${periodAverage}%` : '—'}
                     </span>
                 </div>
                 <div className="hindsight-task-week-stat">
-                    <span className="hindsight-task-week-label">Last week</span>
+                    <span className="hindsight-task-week-label">Entries</span>
                     <span className="hindsight-task-week-value">
-                        {weeklyComparison.lastWeek !== null ? `${weeklyComparison.lastWeek}%` : '—'}
+                        {productivityData.length}
                     </span>
                 </div>
             </div>
 
             {productivityData.length >= 2 && (
                 <div className="hindsight-task-chart-container"
-                    aria-label="Line chart showing productivity score over the last 90 days">
+                    aria-label="Line chart showing productivity score for the selected period">
                     {chartError ? (
                         <p className="hindsight-chart-error">Could not render productivity chart.</p>
                     ) : (

@@ -3145,3 +3145,116 @@ refactor(adjustments): quick fixes and cleanup - round 1
 
 541 tests passing, 0 lint warnings
 ```
+
+---
+
+## 2026-03-12 - Adjustments Round 2: Digest Timeframe, Heatmap Fixes, & Settings Sub-Modals
+
+**Focus:** Unify digest page timeframe, fix heatmap scroll and year nav bugs, and refactor settings into sub-modal architecture.
+
+### Completed:
+
+#### Task 1: Digest Timeframe Unification
+- ✅ Lifted `dateRange` state from `DigestPanel` into `DigestContent()` in `MainApp.tsx`
+- ✅ `DigestPanel` now accepts `dateRange` and `onPeriodChange` props (controlled component)
+- ✅ `TaskVolatility` accepts `dateRange` prop, replaces hardcoded 90-day filter
+- ✅ `FrontmatterDash` accepts `dateRange` prop, replaces hardcoded 30-day column generation
+
+#### Task 2: Heatmap Scroll Fix
+- ✅ Fixed `.sr-only` class in `pulse.css` (`border-width: 0` → `border: 0`)
+- ✅ Added `overflow-y: hidden` to `.hindsight-heatmap` to clip the sr-only table vertically
+
+#### Task 3: Heatmap Year Navigation Fix
+- ✅ Moved empty data check inside JSX, after year nav buttons always render
+- ✅ Shows "No entries for [year]" instead of generic empty state that hid nav controls
+- ✅ Removed unused `EmptyState` import from `Heatmap.tsx`
+
+#### Task 4: Settings Sub-Modal Refactor
+- ✅ Created `FieldConfigModal.ts` — polarity dropdowns for numeric fields
+- ✅ Created `GoalsModal.ts` — goal add/edit/remove (moved from settings.ts)
+- ✅ Created `AnnotationsModal.ts` — storage mode + annotation presets
+- ✅ Created `AdvancedModal.ts` — priority heading, hot tier, thumbnail size/max, debug mode
+- ✅ Created `settingsModals.css` — shared modal sizing + goal row layout
+- ✅ Refactored `settings.ts` from 614 lines to ~280 lines with "Configure..." buttons
+- ✅ Removed "Open sidebar on startup" setting (functionality already deleted in Round 1)
+- ✅ Moved Calendar theme to Appearance section
+- ✅ Moved Export folder under Journal section
+
+### Files Changed:
+
+**New Files (5):**
+- `src/modals/FieldConfigModal.ts`
+- `src/modals/GoalsModal.ts`
+- `src/modals/AnnotationsModal.ts`
+- `src/modals/AdvancedModal.ts`
+- `src/styles/settingsModals.css`
+
+**Modified Files (9):**
+- `src/components/MainApp.tsx` — Lifted dateRange state, added imports
+- `src/components/charts/Heatmap.tsx` — Year nav always visible, inline "no entries" message
+- `src/components/dashboard/FrontmatterDash.tsx` — dateRange prop replaces hardcoded 30d
+- `src/components/dashboard/TaskVolatility.tsx` — dateRange prop replaces hardcoded 90d
+- `src/components/digest/DigestPanel.tsx` — Controlled via dateRange/onPeriodChange props
+- `src/settings.ts` — Gutted from 614→280 lines, 4 sections moved to sub-modals
+- `src/styles/index.css` — Added settingsModals.css import
+- `src/styles/pulse.css` — sr-only border fix + overflow-y: hidden on heatmap
+- `styles.css` — Compiled output with new styles
+
+### Testing Notes:
+- ✅ 541 tests passing (37 files), 0 lint warnings, clean build
+- ✅ Deployed to test vault, Brad confirmed all 4 tasks working
+
+### Blockers/Issues:
+- None
+
+### Design Notes:
+- **Heatmap scroll root cause:** `position: absolute` elements in an `overflow: auto` container still contribute to scroll dimensions. Adding `overflow-y: hidden` constrains the sr-only table while preserving horizontal scroll for narrow viewports.
+- **Settings sub-modals:** Used native Obsidian `Setting` API in modals (no React), keeping them consistent with the main settings tab and avoiding unnecessary React root lifecycle management.
+
+---
+
+## Next Session Prompt
+
+```
+Adjustments Round 2 complete (branch: refactor/adjustments-round-1).
+Done: digest timeframe unification, heatmap scroll+nav fixes, settings sub-modals.
+
+Remaining adjustments from the original list:
+- Sidebar widget edit layout button (single Edit layout button
+  instead of per-widget move arrows)
+- Any other items from the adjustments backlog
+
+The enableSidebar setting is still in types/settings.ts and settingsMigration.ts
+but has no UI or functional code — can be cleaned up in a future session.
+
+Key files:
+- src/settings.ts — Main settings page (~280 lines)
+- src/modals/ — 4 new settings sub-modals
+- docs/development/Implementation Plan.md
+```
+
+## Git Commit Message
+
+```
+refactor(adjustments): digest timeframe, heatmap fixes, settings sub-modals - round 2
+
+Digest Timeframe Unification:
+- Lift dateRange state to DigestContent in MainApp.tsx
+- DigestPanel accepts dateRange/onPeriodChange props (controlled)
+- TaskVolatility respects selected period (was hardcoded 90d)
+- FrontmatterDash respects selected period (was hardcoded 30d)
+
+Heatmap Fixes:
+- Fix sr-only table causing scroll overflow (overflow-y: hidden)
+- Year nav buttons always visible even with no data for selected year
+- Show No entries for [year] instead of hiding navigation
+
+Settings Sub-Modal Refactor:
+- Create FieldConfigModal, GoalsModal, AnnotationsModal, AdvancedModal
+- Refactor settings.ts from 614 to 280 lines with Configure buttons
+- Remove Open sidebar on startup setting
+- Move Calendar theme to Appearance section
+- Move Export folder under Journal section
+
+541 tests passing, 0 lint warnings
+```
