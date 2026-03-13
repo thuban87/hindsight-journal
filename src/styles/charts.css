@@ -9,9 +9,9 @@
     position: relative;
 }
 
-.hindsight-chart-container canvas {
-    width: 100% !important;
-    height: var(--hindsight-chart-height, 300px) !important;
+.hindsight-container .hindsight-chart-container canvas {
+    width: 100%;
+    height: var(--hindsight-chart-height, 300px);
 }
 
 .hindsight-chart-error {

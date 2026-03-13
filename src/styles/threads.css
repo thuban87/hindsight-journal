@@ -14,8 +14,8 @@
     min-height: 200px;
 }
 
-.hindsight-tag-frequency canvas {
-    width: 100% !important;
+.hindsight-container .hindsight-tag-frequency canvas {
+    width: 100%;
 }
 
 /* Tag frequency tooltip */

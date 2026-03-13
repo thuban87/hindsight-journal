@@ -1,7 +1,7 @@
 {
     "id": "hindsight-journal",
     "name": "Hindsight Journal",
-    "version": "0.1.0",
+    "version": "0.9.0",
     "minAppVersion": "1.6.5",
     "description": "Visualize and reflect on your journal entries with calendars, charts, and retrospective insights.",
     "author": "Brad Wales",

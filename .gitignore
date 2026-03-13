@@ -40,3 +40,12 @@ lint-json.txt
 
 #Test Coverage
 coverage/
+
+# Agent/AI config (not published)
+.agent/
+.agents/
+.claude/
+CLAUDE.md
+
+# Internal development docs
+docs/development/

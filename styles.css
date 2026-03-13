@@ -34,7 +34,6 @@
     text-align: center;
 }
 /* Chart evaluation styles */
-.hindsight-uplot-eval,
 .hindsight-chartjs-eval {
     padding: var(--hindsight-spacing-md);
     display: block;
@@ -46,29 +45,21 @@
     border: 1px solid var(--background-modifier-border);
     margin-bottom: var(--hindsight-spacing-lg);
 }
-.hindsight-chart-heading {
+.hindsight-container .hindsight-chart-heading {
     color: var(--text-normal);
     font-size: 1.1em;
-    margin-top: var(--hindsight-spacing-xl) !important;
-    margin-bottom: var(--hindsight-spacing-xs) !important;
+    margin-top: var(--hindsight-spacing-xl);
+    margin-bottom: var(--hindsight-spacing-xs);
     border-bottom: 1px solid var(--background-modifier-border);
     padding-bottom: var(--hindsight-spacing-xs);
 }
-.hindsight-chart-heading:first-of-type {
-    margin-top: 0 !important;
+.hindsight-container .hindsight-chart-heading:first-of-type {
+    margin-top: 0;
 }
 .hindsight-chart-desc {
     color: var(--text-muted);
     font-size: 0.85em;
     margin-bottom: var(--hindsight-spacing-md);
-}
-/* Style uPlot charts directly — no wrapper div needed */
-.hindsight-uplot-eval .uplot {
-    background: var(--background-secondary);
-    border-radius: var(--hindsight-radius-md);
-    padding: var(--hindsight-spacing-sm);
-    border: 1px solid var(--background-modifier-border);
-    margin-bottom: var(--hindsight-spacing-lg);
 }
 .hindsight-sparkline-row {
     display: flex;
@@ -815,9 +806,9 @@
     padding: var(--size-4-3);
     position: relative;
 }
-.hindsight-chart-container canvas {
-    width: 100% !important;
-    height: var(--hindsight-chart-height, 300px) !important;
+.hindsight-container .hindsight-chart-container canvas {
+    width: 100%;
+    height: var(--hindsight-chart-height, 300px);
 }
 .hindsight-chart-error {
     display: flex;
@@ -2732,8 +2723,8 @@
     position: relative;
     min-height: 200px;
 }
-.hindsight-tag-frequency canvas {
-    width: 100% !important;
+.hindsight-container .hindsight-tag-frequency canvas {
+    width: 100%;
 }
 /* Tag frequency tooltip */
 .hindsight-tag-frequency-tooltip {

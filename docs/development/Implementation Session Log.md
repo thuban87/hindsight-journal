@@ -3363,6 +3363,117 @@ Interface Updates:
 - Add activateMainView and activateSidebarView to HindsightPluginInterface
 - Add command-menu.css import to styles index
 
-541 tests passing, 0 lint warnings
 ```
 
+---
+
+## 2026-03-13 - BRAT Readiness Prep
+
+**Focus:** Prepare the plugin for BRAT distribution. Version bump, license, React production mode fix, documentation, and gitignore cleanup.
+
+### Completed:
+
+#### Version Bump
+- ✅ Bumped version to `0.9.0` in `manifest.json`, `package.json`, `versions.json`
+
+#### License
+- ✅ Created `LICENSE` (MIT, 2026 Brad Wales)
+
+#### React Production Mode
+- ✅ Added `define: { 'process.env.NODE_ENV': ... }` to `esbuild.config.mjs`
+- ✅ Verified: 0 React dev strings and 0 `__DEV__` references in production bundle
+
+#### Documentation
+- ✅ Created `README.md` with feature highlights, dark-mode screenshots, BRAT install instructions, privacy disclosure, and license section
+- ✅ Created `docs/Journal.md` (Calendar, Timeline, Index deep-dive)
+- ✅ Created `docs/Insights.md` (Charts, Pulse, Digest deep-dive)
+- ✅ Created `docs/Explore.md` (Lens, Threads, Gallery deep-dive)
+- ✅ Created `docs/Sidebar.md` (Today, Echoes deep-dive)
+- ✅ Created `docs/Commands.md` (Section Reader, Guided Entry, Weekly Review, Command Menu)
+
+#### Gitignore
+- ✅ Added `.agent/`, `.agents/`, `.claude/`, `CLAUDE.md`, `docs/development/` to `.gitignore`
+
+### Files Changed:
+
+**New Files (8):**
+- `LICENSE`
+- `README.md`
+- `assets/images/` (20 screenshots, 10 subjects in light/dark mode)
+- `docs/Journal.md`
+- `docs/Insights.md`
+- `docs/Explore.md`
+- `docs/Sidebar.md`
+- `docs/Commands.md`
+
+**Modified Files (5):**
+- `manifest.json` — Version 0.1.0 -> 0.9.0
+- `package.json` — Version 0.1.0 -> 0.9.0
+- `versions.json` — Added 0.9.0 -> 1.6.5 mapping
+- `esbuild.config.mjs` — Added process.env.NODE_ENV define for React production mode
+- `.gitignore` — Added agent dirs, CLAUDE.md, docs/development
+
+### Testing Notes:
+- ✅ `npm run lint` passes
+- ✅ `npm run build` passes
+- ✅ `npm run deploy:test` successful
+- ✅ All 541 tests still passing
+
+### Blockers/Issues:
+- **Deferred to next session (not BRAT blockers):**
+  - 4 `any` types in Chart.js event handlers (MetricChart.tsx, TagFrequencyChart.tsx)
+  - 6 `!important` uses in CSS (base.css, charts.css, threads.css)
+  - Stale uPlot CSS rules in base.css
+
+---
+
+## 2026-03-13 - BRAT Review Fixes
+
+**Focus:** Fix 3 deferred items from the BRAT readiness review before creating the GitHub release.
+
+### Completed:
+
+#### Fix `any` Types in Chart.js Event Handlers
+- ✅ `TagFrequencyChart.tsx` — Replaced `_event: any` with `ChartEvent`, `elements: any[]` with `ActiveElement[]` (onClick + onHover)
+- ✅ `MetricChart.tsx` — Same replacements for onClick + onHover handlers
+- ✅ Removed 4 associated `eslint-disable-next-line @typescript-eslint/no-explicit-any` comments
+- ✅ Added `ChartEvent` and `ActiveElement` to chart.js type imports in both files
+
+#### Remove `!important` from CSS
+- ✅ `base.css` — 3 `!important` removed from `.hindsight-chart-heading` rules; replaced with compound selector `.hindsight-container .hindsight-chart-heading` for specificity
+- ✅ `charts.css` — 2 `!important` removed from `.hindsight-chart-container canvas`; replaced with `.hindsight-container .hindsight-chart-container canvas`
+- ✅ `threads.css` — 1 `!important` removed from `.hindsight-tag-frequency canvas`; replaced with `.hindsight-container .hindsight-tag-frequency canvas`
+
+#### Remove Stale uPlot CSS
+- ✅ `base.css` — Deleted `.hindsight-uplot-eval` selector from chart evaluation styles (line 26-27)
+- ✅ `base.css` — Deleted `.hindsight-uplot-eval .uplot` rule block (lines 60-67)
+- ✅ uPlot was removed in Phase 5a but CSS was left behind
+
+### Files Changed:
+
+**Modified Files (6):**
+- `src/components/threads/TagFrequencyChart.tsx` — ChartEvent/ActiveElement types
+- `src/components/charts/MetricChart.tsx` — ChartEvent/ActiveElement types
+- `src/styles/base.css` — Removed uPlot CSS, compound selectors for chart heading
+- `src/styles/charts.css` — Compound selector for chart canvas
+- `src/styles/threads.css` — Compound selector for tag frequency canvas
+- `styles.css` — Compiled output
+
+### Testing Notes:
+- ✅ `npm run lint` passes
+- ✅ `npm run build` passes (lint + CSS + TypeScript + esbuild)
+- ✅ `npm run deploy:test` successful
+- ✅ `Select-String -Pattern "!important" src/styles/*.css` — zero results
+- ✅ `Select-String -Pattern "uplot" src/styles/*.css` — zero results
+- ✅ All 541 tests still passing
+
+### Blockers/Issues:
+- None — all BRAT review items resolved
+
+### Next Session Observations (noted by Brad, not blocking release):
+- Date range buttons on charts behave inconsistently
+- Chart trend/rolling average lines need distinct colors
+- Chart tooltip should include year in date
+- Long date ranges (365+ days) need data thinning or aggregation
+- Gallery needs sorting/grouping options
+- React minified errors on sidebar first load
