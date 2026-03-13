@@ -16,7 +16,7 @@
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Chart } from '../../utils/chartSetup';
-import type { ChartConfiguration } from 'chart.js';
+import type { ChartConfiguration, ChartEvent, ActiveElement } from 'chart.js';
 import { useAppStore } from '../../store/appStore';
 import type { TagFrequencyResult } from '../../services/ThreadsService';
 
@@ -121,15 +121,13 @@ export function TagFrequencyChart({ data, onTagClick }: TagFrequencyChartProps):
                         grid: { display: false },
                     },
                 },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                onClick: (_event: any, elements: any[]) => {
+                onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
                     if (elements.length > 0 && onTagClickRef.current) {
                         const idx = elements[0].index as number;
                         onTagClickRef.current(displayDataRef.current[idx].tag);
                     }
                 },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                onHover: (event: any, elements: any[]) => {
+                onHover: (event: ChartEvent, elements: ActiveElement[]) => {
                     if (elements.length === 0) {
                         updateTooltip(false, 0, 0, '');
                         return;

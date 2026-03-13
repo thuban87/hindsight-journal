@@ -3425,4 +3425,55 @@ Interface Updates:
   - 6 `!important` uses in CSS (base.css, charts.css, threads.css)
   - Stale uPlot CSS rules in base.css
 
+---
 
+## 2026-03-13 - BRAT Review Fixes
+
+**Focus:** Fix 3 deferred items from the BRAT readiness review before creating the GitHub release.
+
+### Completed:
+
+#### Fix `any` Types in Chart.js Event Handlers
+- ✅ `TagFrequencyChart.tsx` — Replaced `_event: any` with `ChartEvent`, `elements: any[]` with `ActiveElement[]` (onClick + onHover)
+- ✅ `MetricChart.tsx` — Same replacements for onClick + onHover handlers
+- ✅ Removed 4 associated `eslint-disable-next-line @typescript-eslint/no-explicit-any` comments
+- ✅ Added `ChartEvent` and `ActiveElement` to chart.js type imports in both files
+
+#### Remove `!important` from CSS
+- ✅ `base.css` — 3 `!important` removed from `.hindsight-chart-heading` rules; replaced with compound selector `.hindsight-container .hindsight-chart-heading` for specificity
+- ✅ `charts.css` — 2 `!important` removed from `.hindsight-chart-container canvas`; replaced with `.hindsight-container .hindsight-chart-container canvas`
+- ✅ `threads.css` — 1 `!important` removed from `.hindsight-tag-frequency canvas`; replaced with `.hindsight-container .hindsight-tag-frequency canvas`
+
+#### Remove Stale uPlot CSS
+- ✅ `base.css` — Deleted `.hindsight-uplot-eval` selector from chart evaluation styles (line 26-27)
+- ✅ `base.css` — Deleted `.hindsight-uplot-eval .uplot` rule block (lines 60-67)
+- ✅ uPlot was removed in Phase 5a but CSS was left behind
+
+### Files Changed:
+
+**Modified Files (6):**
+- `src/components/threads/TagFrequencyChart.tsx` — ChartEvent/ActiveElement types
+- `src/components/charts/MetricChart.tsx` — ChartEvent/ActiveElement types
+- `src/styles/base.css` — Removed uPlot CSS, compound selectors for chart heading
+- `src/styles/charts.css` — Compound selector for chart canvas
+- `src/styles/threads.css` — Compound selector for tag frequency canvas
+- `styles.css` — Compiled output
+
+### Testing Notes:
+- ✅ `npm run lint` passes
+- ✅ `npm run build` passes (lint + CSS + TypeScript + esbuild)
+- ✅ `npm run deploy:test` successful
+- ✅ `Select-String -Pattern "!important" src/styles/*.css` — zero results
+- ✅ `Select-String -Pattern "uplot" src/styles/*.css` — zero results
+- ✅ All 541 tests still passing
+
+### Blockers/Issues:
+- None — all BRAT review items resolved
+
+### Next Session Observations (noted by Brad, not blocking release):
+- Date range buttons on charts behave inconsistently
+- Chart trend/rolling average lines need distinct colors
+- Chart tooltip should include year in date
+- Long date ranges (365+ days) need data thinning or aggregation
+- Gallery needs sorting/grouping options
+- React minified errors on sidebar first load

@@ -12,7 +12,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Chart } from '../../utils/chartSetup';
-import type { ChartConfiguration as ChartConfig } from 'chart.js';
+import type { ChartConfiguration as ChartConfig, ChartEvent, ActiveElement } from 'chart.js';
 import { useAppStore } from '../../store/appStore';
 import { useChartData } from '../../hooks/useMetrics';
 import { useChartUiStore } from '../../store/chartUiStore';
@@ -299,16 +299,14 @@ export function MetricChart({
                     },
                 },
                 scales,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                onClick: (_event: any, elements: any[]) => {
+                onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
                     if (elements.length > 0) {
                         const idx = elements[0].index as number;
                         const label = labels[idx];
                         handleDataPointClick(label);
                     }
                 },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                onHover: (event: any, elements: any[]) => {
+                onHover: (event: ChartEvent, elements: ActiveElement[]) => {
                     if (elements.length === 0) {
                         setTooltip(prev => ({ ...prev, visible: false }));
                         return;
