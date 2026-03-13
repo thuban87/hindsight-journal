@@ -1,6 +1,6 @@
 {
     "name": "hindsight-journal",
-    "version": "0.1.0",
+    "version": "0.9.0",
     "description": "Visualize and reflect on your journal entries.",
     "main": "main.js",
     "scripts": {

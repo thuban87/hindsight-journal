@@ -3363,6 +3363,66 @@ Interface Updates:
 - Add activateMainView and activateSidebarView to HindsightPluginInterface
 - Add command-menu.css import to styles index
 
-541 tests passing, 0 lint warnings
 ```
+
+---
+
+## 2026-03-13 - BRAT Readiness Prep
+
+**Focus:** Prepare the plugin for BRAT distribution. Version bump, license, React production mode fix, documentation, and gitignore cleanup.
+
+### Completed:
+
+#### Version Bump
+- ✅ Bumped version to `0.9.0` in `manifest.json`, `package.json`, `versions.json`
+
+#### License
+- ✅ Created `LICENSE` (MIT, 2026 Brad Wales)
+
+#### React Production Mode
+- ✅ Added `define: { 'process.env.NODE_ENV': ... }` to `esbuild.config.mjs`
+- ✅ Verified: 0 React dev strings and 0 `__DEV__` references in production bundle
+
+#### Documentation
+- ✅ Created `README.md` with feature highlights, dark-mode screenshots, BRAT install instructions, privacy disclosure, and license section
+- ✅ Created `docs/Journal.md` (Calendar, Timeline, Index deep-dive)
+- ✅ Created `docs/Insights.md` (Charts, Pulse, Digest deep-dive)
+- ✅ Created `docs/Explore.md` (Lens, Threads, Gallery deep-dive)
+- ✅ Created `docs/Sidebar.md` (Today, Echoes deep-dive)
+- ✅ Created `docs/Commands.md` (Section Reader, Guided Entry, Weekly Review, Command Menu)
+
+#### Gitignore
+- ✅ Added `.agent/`, `.agents/`, `.claude/`, `CLAUDE.md`, `docs/development/` to `.gitignore`
+
+### Files Changed:
+
+**New Files (8):**
+- `LICENSE`
+- `README.md`
+- `assets/images/` (20 screenshots, 10 subjects in light/dark mode)
+- `docs/Journal.md`
+- `docs/Insights.md`
+- `docs/Explore.md`
+- `docs/Sidebar.md`
+- `docs/Commands.md`
+
+**Modified Files (5):**
+- `manifest.json` — Version 0.1.0 -> 0.9.0
+- `package.json` — Version 0.1.0 -> 0.9.0
+- `versions.json` — Added 0.9.0 -> 1.6.5 mapping
+- `esbuild.config.mjs` — Added process.env.NODE_ENV define for React production mode
+- `.gitignore` — Added agent dirs, CLAUDE.md, docs/development
+
+### Testing Notes:
+- ✅ `npm run lint` passes
+- ✅ `npm run build` passes
+- ✅ `npm run deploy:test` successful
+- ✅ All 541 tests still passing
+
+### Blockers/Issues:
+- **Deferred to next session (not BRAT blockers):**
+  - 4 `any` types in Chart.js event handlers (MetricChart.tsx, TagFrequencyChart.tsx)
+  - 6 `!important` uses in CSS (base.css, charts.css, threads.css)
+  - Stale uPlot CSS rules in base.css
+
 
